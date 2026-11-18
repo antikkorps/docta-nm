@@ -26,9 +26,9 @@ To be sure the core reads instead of remembering, it is trained and tested on **
 
 ### Where it stands
 
-- **Done**: the full measurement chain (world generator, sources in Postgres, the reasoning loop, scores on both the answers and the reasoning traces), with simple baseline models to beat.
-- **In progress**: the first tiny core, trained from scratch on one step of the method: judging whether what it has read is enough.
-- **Next**: digging (a second search driven by what the first one revealed), then challenging (sources that disagree).
+- **Done**: the full measurement chain (world generator, sources in Postgres, the reasoning loop, scores on both the answers and the reasoning traces), with simple baseline models to beat; digging, with the `dig` baseline; and sources that disagree, scored by the trap table, with the `majority` and `challenge` baselines for the challenge step.
+- **In progress**: the first tiny core, trained from scratch on one step of the method: judging whether what it has read is enough. The training chain is in place (see [Training the Evaluate core](#training-the-evaluate-core)); a trained Confront for the challenge step is still to come.
+- **Next**: beat the baselines with the trained core, on `ood` as well as on test.
 
 ```
 fictional worlds (Rust) → JSONL → Postgres → reasoning loop + models → evaluation → scores
@@ -91,6 +91,21 @@ keyword            0.855     0.285     1.000     0.941     0.201     0.000     1
 **Generalisation.** The `ood` split is written with sentence and question phrasings, and chain combinations, that train, val and test never contain. On it, `keyword` drops from 0.52 to 0.18 accuracy: it recognised templates rather than reading. The trained core has to hold up on `ood` too, or it has learned the templates, not the method.
 
 `just up && just test` runs every check (Rust and Python, database included); run it before pushing.
+
+### Training the Evaluate core
+
+The `train/` package (PyTorch, CPU) trains the Evaluate core and runs it. After `just up`, `just gen` and `just load`:
+
+```bash
+just evaluate-data     # data/{train,val,test,ood}.jsonl → data/evaluate: question + excerpts read → enough or not
+just fit               # train the core on data/evaluate → models/core_evaluate (model.pt, log.jsonl)
+just core              # run the trained core on test and score it next to the baselines
+just core ood          # the same on ood
+```
+
+- `just evaluate-data` builds each example from the question and the excerpts the real `search()` returns; the label is "enough" only when the question has an answer and every source it needs was read.
+- `just fit` passes its arguments to `docta_train.fit`: `--epochs`, `--batch`, `--lr`, `--seed`, `--max-train`, `--max-val`, `--max-minutes`, `--max-gb` and `--threads` (for example `just fit --epochs 5`). The memory and thread caps keep a training run from freezing the machine it shares; the address-space cap is applied on Linux only.
+- `just core` writes `core_evaluate` predictions next to the baselines in `predictions/<split>` and adds it to the same score tables.
 
 ## How it works
 
