@@ -1,5 +1,7 @@
 # Docta-nm — Brief phase 0 pour Claude Code
 
+> **Note (18/11/2026)** : brief d'origine, conservé tel quel. Là où il diffère, le `CLAUDE.md` à la racine fait foi : code et données en anglais, `just` au lieu de `make`, GitHub au lieu de Forgejo, et quatre splits (`train`, `val`, `test`, `ood`) au lieu de trois.
+
 ## Contexte
 
 Docta-nm est un projet de recherche : construire **de zéro** une IA frugale (peu de RAM, peu de disque) dont le noyau ne contient **aucun fait**. Le noyau porte une méthode : il sait qu'il ne sait pas, cherche dans des sources, confronte, pèse, et conclut en citant ses sources. Les faits vivent dans les sources, jamais dans les poids.

@@ -30,9 +30,9 @@ fake models.
 - Living spec (vision, loop, decisions): https://claude.ai/artifact/M8Aj7PFp75ooF3dhXfaR4R
 - The brief is written in French; the code base is **English only** (see rules).
 
-Stack: Rust 1.95 (edition 2024, pinned in `rust-toolchain.toml`) for `worldgen/`; Python 3.12 managed by a uv
-workspace for `orchestrator/` and `eval/`; Postgres `pgvector/pgvector:pg17` in
-Docker; psycopg 3; ruff; pytest; GitHub Actions (public GitHub repo).
+Stack: Rust 1.95 (edition 2024, `rust-toolchain.toml`) for `worldgen/`; Python 3.12
+uv workspace for `orchestrator/` and `eval/`; Postgres `pgvector/pgvector:pg17`
+in Docker; psycopg 3; ruff; pytest; GitHub Actions (public GitHub repo).
 
 ## Commands
 
@@ -41,14 +41,11 @@ just up          # start Postgres (docker compose, waits for healthcheck)
 just down        # stop it
 just check-db    # smoke check: vector extension + 5 tables exist
 just reset-db    # drop the volume, re-apply db/schema.sql (needed after any schema change)
-just gen         # cargo run worldgen → data/{train,val,test}.jsonl
+just gen         # cargo run worldgen → data/{train,val,test,ood}.jsonl
 just load        # load data/*.jsonl into Postgres, mirroring it (--prune)
-just baseline    # run the 3 fake models + eval, print score table
-just test        # every check below, database tests included
-
-cargo fmt --check && cargo clippy -- -D warnings && cargo test   # Rust
-uv sync                                                          # Python deps
-uv run ruff check && uv run ruff format --check && uv run pytest # Python
+just baseline    # run the 3 fake models + eval on test (`just baseline ood` for ood)
+just test        # cargo fmt/clippy/test, ruff, pytest (database included)
+uv sync          # Python deps
 ```
 
 ## Before pushing
@@ -57,8 +54,7 @@ uv run ruff check && uv run ruff format --check && uv run pytest # Python
 just up && just test
 ```
 
-`just test` runs cargo fmt/clippy/test, ruff check/format and pytest with `.env`
-loaded. A bare `uv run pytest` skips the database tests (no `DATABASE_URL`).
+A bare `uv run pytest` skips the database tests (no `DATABASE_URL`).
 
 ## Workflow
 
@@ -77,11 +73,8 @@ loaded. A bare `uv run pytest` skips the database tests (no `DATABASE_URL`).
   CLAUDE.md; do not push if it fails; never use `--no-verify`; paste the test
   output in the summary.
 
-Plus, for this repo:
-
-- Small commits, one topic per commit.
-- Follow the work order in the brief (infra → worldgen → loader → eval →
-  orchestrator → baseline/CI/README).
+Plus, for this repo: small commits, one topic per commit; work follows the
+roadmap in the living spec (phase 0 is done).
 
 ## Code structure
 
@@ -122,8 +115,12 @@ docs/                # brief and design notes
 - Determinism: same seed + same options ⇒ byte-identical output. Per-world seeds
   derive from the global seed; use `ChaCha8Rng` (rand `chacha` feature; OS RNG features are off), never thread/OS RNG; iterate
   ordered collections (no `HashMap` iteration in output paths).
-- Train/val/test split is by world, never by question. It derives from the
+- Train/val/test/ood split is by world, never by question. It derives from the
   world seed, so adding worlds never moves existing ones.
+- `ood` is sealed: its sentence, question and comparison phrasings
+  (`templates.rs` `held_out`) and its chain combinations (`HELD_OUT_CHAINS`)
+  never appear in train/val/test. `worldgen/tests/ood.rs` guards it; report
+  scores on `ood` next to `test`, since only `ood` shows generalisation.
 - No shortcut to abstention: every entity has exactly one fact no source
   states (so being under-documented never singles out a subject), and
   unanswerable questions take every shape (retrieve, chain, compare) in the
