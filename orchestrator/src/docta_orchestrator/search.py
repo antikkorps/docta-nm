@@ -38,5 +38,8 @@ def search(conn: psycopg.Connection, world_id: str, query: str, k: int = 5) -> l
         # source_id breaks rank ties, so results are deterministic.
         " ORDER BY ts_rank(tsv, q) DESC, source_id LIMIT %s",
         [tsquery, world_id, k],
+        # Never prepared: a generic plan ignores world_id and scans the whole
+        # full-text index, 20x slower than the per-world plan on 20k worlds.
+        prepare=False,
     ).fetchall()
     return [Hit(*row) for row in rows]

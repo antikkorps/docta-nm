@@ -57,3 +57,12 @@ def test_odd_queries_reach_the_database_safely(conn):
     assert ids(search(conn, "w_test01", "Varnelle's founding")) == ["s1", "s2"]
     assert ids(search(conn, "w_test01", "1432")) == ["s1"]
     assert search(conn, "w_test01", "x" * 3000) == []  # too long to index: no match, no error
+
+
+def test_search_is_never_prepared(conn):
+    # A prepared statement gets a generic plan that ignores world_id and scans
+    # the whole full-text index: 20x slower once there are thousands of worlds.
+    loaded(conn)
+    for _ in range(10):
+        search(conn, "w_test01", "Varnelle")
+    assert conn.execute("SELECT count(*) FROM pg_prepared_statements").fetchone()[0] == 0
