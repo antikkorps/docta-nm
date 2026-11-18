@@ -2,17 +2,33 @@
 
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-fvienot-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/fvienot)
 
-Not super intelligence: **super reflection**. Docta-nm is a frugal AI, built from scratch, whose strength is structuring its reasoning to reach a goal, not knowing things.
-Its core holds **no facts**, only a method: it frames the question, plans what to look for, searches sources, knows when it has enough, and answers citing them, or abstains and says why. It is meant as a thinking partner rather than a fast answerer: it raises what a request leaves unsaid, you can step into its reflection while it runs, and it refines its reasoning from the exchange, as one would think with another person.
-Facts live in the sources, never in the weights, so the core stays small in RAM and on disk.
+**An AI that answers because it checked, not because it knows.**
 
-This repository is at **phase 0**: no model is trained yet. Phase 0 builds what the first trained core will be measured with:
+Most AI assistants answer from what they memorised during training, and sound just as sure when they are wrong. Docta-nm takes the opposite path: its core memorises **no facts**. It carries a method instead, the one a careful researcher follows:
+
+1. **Collect**: search the sources for what the question needs.
+2. **Sort**: keep what is relevant, and know when there is enough.
+3. **Challenge**: weigh sources against each other and spot contradictions.
+4. **Dig**: follow up on what was just learned, until nothing is missing.
+5. **Answer**: conclude citing the sources, or say plainly "I could not find it" and why.
+
+Every answer can be traced back to the sources that establish it. Since knowledge lives in the sources and not in the model, the core stays small enough to run on a modest machine.
+
+It is meant as a thinking partner rather than a fast answerer: it raises what a request leaves unsaid, and you can step into its reasoning while it runs.
+
+### How it is tested
+
+To be sure the core reads instead of remembering, it is trained and tested on **invented worlds**: fictional cities, people and guilds with made-up names and facts, described by generated sources. Nothing can be known in advance; the only way to answer is to search and read. A separate test set uses phrasings never seen in training, to check the core learned the method and not the wording.
+
+### Where it stands
+
+- **Done**: the full measurement chain (world generator, sources in Postgres, the reasoning loop, scores on both the answers and the reasoning traces), with simple baseline models to beat.
+- **In progress**: the first tiny core, trained from scratch on one step of the method: judging whether what it has read is enough.
+- **Next**: digging (a second search driven by what the first one revealed), then challenging (sources that disagree).
 
 ```
-fictional worlds (Rust) → JSONL → Postgres → orchestrator + fake models → evaluation → scores
+fictional worlds (Rust) → JSONL → Postgres → reasoning loop + models → evaluation → scores
 ```
-
-The first milestone is a tiny core, trained from scratch, that **abstains correctly** on questions the sources cannot answer and beats the fake models below.
 
 ## Quick start
 
