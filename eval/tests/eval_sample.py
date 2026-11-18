@@ -1,13 +1,13 @@
 """Five gold questions covering every primitive, and hand-written predictions."""
 
 
-def question(qid, primitive, hops, answer, required):
+def question(qid, primitive, hops, answer, required, text=None):
     return {
         "schema": "v0",
         "type": "question",
         "world_id": "w1",
         "question_id": qid,
-        "text": f"question {qid}?",
+        "text": text or f"question {qid}?",
         "primitive": primitive,
         "hops": hops,
         "answerable": answer is not None,
@@ -22,9 +22,11 @@ GOLD = [
     question("q1", "retrieve", 1, "1432", ["s1"]),
     question("q2", "chain", 2, "Varnelle", ["s2", "s1"]),
     question("q3", "compare", 1, "Brask", ["s3", "s4"]),
-    question("q4", "spot_missing", 1, None, []),
-    question("q5", "spot_missing", 2, None, []),
+    question("q4", "spot_missing", 1, None, [], "In what year was Brask founded?"),
+    question("q5", "spot_missing", 2, None, [], "How tall is Orlan Teste, in centimetres?"),
 ]
+# Entity names of world w1, as its world record would list them.
+NAMES = {"Varnelle", "Brask", "Orlan Teste"}
 
 
 def pred(qid, answer=None, cited=(), abstained=False):

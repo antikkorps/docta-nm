@@ -54,3 +54,49 @@ def test_an_unwritable_json_path_fails_cleanly(tmp_path, capsys):
     mixed = write(tmp_path / "mixed.jsonl", MIXED)
     assert main([str(gold), str(mixed), "--json", str(tmp_path / "no" / "s.json")]) == 1
     assert "error:" in capsys.readouterr().err
+
+
+def test_traces_add_a_reflection_table(tmp_path, capsys):
+    from eval_sample import NAMES
+    from eval_traces import TRACES
+
+    world = {
+        "schema": "v0", "type": "world", "world_id": "w1", "seed": 1, "split": "test",
+        "entities": [{"id": f"e{i}", "kind": "city", "name": n} for i, n in enumerate(NAMES)],
+        "facts": [],
+    }  # fmt: skip
+    gold = write(tmp_path / "test.jsonl", [world, *GOLD])
+    # Predictions matching the traces: q4 and q5 abstain, the others answer.
+    agreeing = []
+    for t in TRACES:
+        abstained = t["decision"]["abstained"]
+        agreeing.append(pred(t["question_id"], None if abstained else "x", abstained=abstained))
+    mixed = write(tmp_path / "mixed.jsonl", agreeing)
+    (tmp_path / "traces").mkdir()
+    write(tmp_path / "traces" / "mixed.jsonl", TRACES)
+    out = tmp_path / "scores.json"
+    args = [str(gold), str(mixed), "--traces", str(tmp_path / "traces"), "--json", str(out)]
+    assert main(args) == 0
+    assert "grounded" in capsys.readouterr().out
+    process = json.loads(out.read_text())["models"]["mixed"]["process"]
+    assert process["grounded_abstention_rate"] == 0.5
+
+
+def test_a_missing_trace_file_is_an_error(tmp_path, capsys):
+    gold = write(tmp_path / "test.jsonl", GOLD)
+    mixed = write(tmp_path / "mixed.jsonl", MIXED)
+    (tmp_path / "traces").mkdir()
+    assert main([str(gold), str(mixed), "--traces", str(tmp_path / "traces")]) == 1
+    assert "mixed.jsonl" in capsys.readouterr().err
+
+
+def test_traces_must_agree_with_predictions(tmp_path, capsys):
+    from eval_traces import TRACES
+
+    gold = write(tmp_path / "test.jsonl", GOLD)
+    flipped = [{**p, "abstained": not p["abstained"], "answer": None} for p in MIXED]
+    mixed = write(tmp_path / "mixed.jsonl", flipped)
+    (tmp_path / "traces").mkdir()
+    write(tmp_path / "traces" / "mixed.jsonl", TRACES)
+    assert main([str(gold), str(mixed), "--traces", str(tmp_path / "traces")]) == 1
+    assert "disagrees with its prediction" in capsys.readouterr().err

@@ -37,6 +37,24 @@ keyword            0.547     0.478     0.537     0.431     0.082     0.137     0
 
 `keyword` answers easy questions but almost never abstains; `always_abstain` does the opposite. The trained core has to beat **0.50 abstention F1** while still answering.
 
+Answers are not enough: the same run scores the **reflection** from the traces.
+
+```
+reflection        read R    read P    rounds     concl     early      late  searched  grounded  missing
+-------------------------------------------------------------------------------------------------------
+random             0.654     0.237     1.500     0.480     0.493     0.078     0.911     0.441        0
+always_abstain     0.000         —     0.000     0.000         —         —     0.000     0.000        0
+keyword            0.864     0.291     1.000     0.946     0.193     0.000     1.000     0.078        0
+```
+
+- `read R` / `read P`: share of the needed sources it read / of what it read that was needed (answerable questions).
+- `rounds`: search rounds per question (a plan with no query does not count). `concl`: share of answerable questions it concluded.
+- `early` / `late`: among those conclusions, concluded before reading what it needed / kept searching after having it.
+- `searched`: share of all its abstentions that came after at least one search.
+- `grounded`: share of unanswerable questions it abstained on **after reading an excerpt about the entity asked about**. A search that never touches the subject does not count.
+
+`always_abstain` reaches 0.50 abstention F1 with a grounded rate of 0: right outcome, no reflection.
+
 `just up && just test` runs every check (Rust and Python, database included); run it before pushing.
 
 ## How it works

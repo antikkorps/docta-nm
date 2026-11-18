@@ -75,3 +75,54 @@ def test_rejects_an_answerable_gold_question_without_answer(tmp_path):
 def test_rejects_a_gold_question_listed_twice(tmp_path):
     with pytest.raises(ValueError, match=r"test\.jsonl:2: .*w1/q1 twice"):
         read_gold(write(tmp_path / "test.jsonl", [GOLD[0], GOLD[0]]))
+
+
+def test_reads_traces_and_rejects_bad_ones(tmp_path):
+    from docta_eval.io import read_traces
+    from eval_traces import TRACES
+
+    assert len(read_traces(write(tmp_path / "m.jsonl", TRACES), KEYS)) == 5
+    no_states = {k: v for k, v in TRACES[0].items() if k != "states"}
+    with pytest.raises(ValueError, match=r"m\.jsonl:1: .*states"):
+        read_traces(write(tmp_path / "m.jsonl", [no_states]), KEYS)
+    stranger = {**TRACES[0], "question_id": "q9"}
+    with pytest.raises(ValueError, match=r"m\.jsonl:1: w1/q9 is not a gold question"):
+        read_traces(write(tmp_path / "m.jsonl", [stranger]), KEYS)
+
+
+def frame():
+    return {"state": "frame", "question": "q", "unknowns": [], "exit": None}
+
+
+def concluded(states):
+    from eval_traces import TRACES
+
+    return {**TRACES[0], "states": states}
+
+
+@pytest.mark.parametrize(
+    ("states", "error"),
+    [
+        ([], "must start with a frame"),
+        ([{"state": "plan", "round": 1, "queries": []}], "must start with a frame"),
+        ([frame(), {"foo": 1}], "event 2 has no known state"),
+        ([frame(), {"state": "dream"}], "event 2 has no known state"),
+        ([frame(), {"state": "consult", "queries": [], "excerpts": []}], "consult before any plan"),
+        (
+            [frame(), {"state": "plan", "queries": ["x"]}, {"state": "consult", "excerpts": [{}]}],
+            "excerpt without source_id",
+        ),
+        ([frame(), {"state": "evaluate", "enough": False, "exit": "not_found"}], "disagrees"),
+    ],
+)
+def test_rejects_malformed_traces(tmp_path, states, error):
+    from docta_eval.io import read_traces
+
+    with pytest.raises(ValueError, match=rf"m\.jsonl:1: .*{error}"):
+        read_traces(write(tmp_path / "m.jsonl", [concluded(states)]), KEYS)
+
+
+def test_gold_questions_know_the_entities_they_name(tmp_path):
+    world = {**WORLD, "entities": [{"id": "e1", "kind": "city", "name": "Brask"}]}
+    golds = read_gold(write(tmp_path / "test.jsonl", [world, *GOLD]))
+    assert golds[3].subjects == {"Brask"}

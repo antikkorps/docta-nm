@@ -5,7 +5,7 @@ should abstain", i.e. the question has no answer in the sources.
 """
 
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 Key = tuple[str, str]  # (world_id, question_id)
@@ -19,9 +19,11 @@ class Gold:
     hops: int
     answer: str | None
     required_sources: frozenset[str]
+    # World entities the question names: what a search must be about to count.
+    subjects: frozenset[str] = frozenset()
 
     @classmethod
-    def from_record(cls, q: dict) -> "Gold":
+    def from_record(cls, q: dict, names: Iterable[str] = ()) -> "Gold":
         return cls(
             q["world_id"],
             q["question_id"],
@@ -29,7 +31,13 @@ class Gold:
             q["hops"],
             q["answer"] if q["answerable"] else None,
             frozenset(q["required_sources"]),
+            frozenset(n for n in names if mentions(q["text"], n)),
         )
+
+
+def mentions(text: str, name: str) -> bool:
+    """Whether `text` names `name` as whole words ("Brask", not "Braskel")."""
+    return re.search(rf"\b{re.escape(name)}\b", text) is not None
 
 
 @dataclass(frozen=True)
