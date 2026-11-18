@@ -94,6 +94,12 @@ keyword            0.855     0.285     1.000     0.941     0.201     0.000     1
 
 Design notes and the phase 0 brief: [`docs/`](docs/).
 
+## Contributing
+
+There is a lot to build, and help is welcome: see [CONTRIBUTING.md](CONTRIBUTING.md)
+for the setup, the branch flow and the project rules, and [CHANGELOG.md](CHANGELOG.md)
+for what changed in each version.
+
 ## License
 
 [Apache-2.0](LICENSE)

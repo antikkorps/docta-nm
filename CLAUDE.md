@@ -15,16 +15,16 @@ exchange. Favour
 designs, metrics and training signals that measure the reasoning process (via
 the traces), not only the final answer.
 
-Current phase: **phase 0**, no training. Build the measurement chain around the
-future model:
+Phase 0, the measurement chain, is done:
 
 ```
-worldgen (Rust) → JSONL → Postgres → orchestrator (fake models) → eval → score table
+worldgen (Rust) → JSONL → Postgres → orchestrator (baseline models) → eval → score table
 ```
 
-Done when, on a clean machine with Docker, Rust, uv and just:
-`just up && just gen && just load && just baseline` prints scores for the three
-fake models.
+On a clean machine with Docker, Rust, uv and just,
+`just up && just gen && just load && just baseline` prints the scores. Work now
+follows the roadmap: the method's steps (collect, sort, challenge, dig, answer)
+one at a time, and small cores trained from scratch on CPU (`train/`).
 
 - Phase 0 brief (scope, schema, JSONL v0, required tests): @docs/BRIEF-phase0.md
 - Living spec (vision, loop, decisions): https://claude.ai/artifact/M8Aj7PFp75ooF3dhXfaR4R
@@ -76,6 +76,15 @@ A bare `uv run pytest` skips the database tests (no `DATABASE_URL`).
 Plus, for this repo: small commits, one topic per commit; work follows the
 roadmap in the living spec (phase 0 is done).
 
+**Branches and releases** (details in CONTRIBUTING.md)
+- Never commit to `main` or `dev` (both protected). Each topic gets a branch
+  from `dev` and a PR into `dev`; `dev` goes into `main` when stable.
+- A PR that a user or contributor would notice adds its line under
+  `Unreleased` in CHANGELOG.md.
+- One version for the whole repo (`0.0.x` for now): `tests/test_versions.py`
+  checks the four manifests match the latest released CHANGELOG section.
+  Releases are tagged on `main` with a GitHub Release carrying the scores.
+
 ## Code structure
 
 ```
@@ -85,13 +94,14 @@ db/schema.sql        # mounted in docker-entrypoint-initdb.d; schema from the br
 worldgen/            # Rust crate docta-worldgen (clap, serde, rand with the chacha feature, pinned)
 orchestrator/        # Python pkg docta_orchestrator: loader, state machine, search, fake models
 eval/                # Python pkg docta_eval: metrics, console table, JSON export
+train/               # Python pkg docta_train: Evaluate core (PyTorch, CPU-only), memory guard
+tests/               # repo-wide checks (one version everywhere)
+models/              # trained checkpoints — gitignored
 data/                # generated JSONL and traces/ — gitignored, never edit by hand
 predictions/         # one JSONL per model + scores.json from `just baseline` — gitignored
 docs/                # brief and design notes
 .github/workflows/   # CI: same checks as "Before pushing"
 ```
-
-`train/` (PyTorch) comes in a later phase; do not create it now.
 
 ## Project-specific rules
 
@@ -104,8 +114,9 @@ docs/                # brief and design notes
 - The loop lives in the orchestrator (explicit state machine); a model only
   fills each state. Anything computable (arithmetic, comparison) goes through
   deterministic code, not the model.
-- Out of scope in phase 0: training, GPU, vector search (pgvector installed but
-  unused), noisy or contradictory sources.
+- Out of scope for now: GPU, vector search (pgvector installed but unused).
+  Training stays small and CPU-only. Noisy or contradictory sources arrive with
+  the challenge step, as a new JSONL schema version.
 
 **Data**
 - JSONL is canonical; Postgres is a projection reloaded from it. Loading is
