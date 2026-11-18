@@ -2,9 +2,10 @@
 
 import json
 
+import pytest
 from docta_orchestrator.search import Hit
 from docta_train.evaluate_data import Example
-from docta_train.fit import fit
+from docta_train.fit import encoded, fit
 from docta_train.model import Config
 from docta_train.predictor import Predictor
 
@@ -98,3 +99,11 @@ def test_cli_caps_the_validation_set(tmp_path, monkeypatch):
     monkeypatch.setattr(fit_module, "fit", lambda train, val, *a: seen.update(val=len(val)) or {})
     fit_module.main(["--data", str(tmp_path), "--max-val", "3"])
     assert seen["val"] == 3
+
+
+def test_encoded_refuses_to_truncate():
+    long_hit = Hit("s3", "T", "x" * 200, 0.9)
+    long_example = Example("w", "q9", "train", "When?", (long_hit,), True)
+    assert len(encoded(examples("train", 2), TINY)) == 2
+    with pytest.raises(ValueError, match=r"1 of 3 examples exceed max_len=96"):
+        encoded([*examples("train", 2), long_example], TINY)

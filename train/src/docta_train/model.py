@@ -22,16 +22,21 @@ class Config:
     layers: int = 4
     heads: int = 4
     ff: int = 256
-    max_len: int = 1024  # longest example is ~970 bytes: nothing truncated
+    max_len: int = 1024  # longest example is ~970 bytes; `fit` refuses to truncate any
     # Any dropout disables PyTorch's memory-efficient CPU attention, which then
     # keeps each length x length matrix for backward (~16 GB at batch 64).
     dropout: float = 0.0
 
 
-def encode(question: str, excerpts: Iterable[Hit], max_len: int) -> list[int]:
-    """CLS, then the question and each excerpt as UTF-8 bytes, cut to max_len."""
+def encode_full(question: str, excerpts: Iterable[Hit]) -> list[int]:
+    """CLS, then the question and each excerpt as UTF-8 bytes, never cut."""
     text = f"Q: {question}\n" + "".join(f"[{h.title}] {h.body}\n" for h in excerpts)
-    return [CLS, *(b + OFFSET for b in text.encode("utf-8"))][:max_len]
+    return [CLS, *(b + OFFSET for b in text.encode("utf-8"))]
+
+
+def encode(question: str, excerpts: Iterable[Hit], max_len: int) -> list[int]:
+    """`encode_full`, cut to max_len."""
+    return encode_full(question, excerpts)[:max_len]
 
 
 def pad_batch(sequences: Sequence[list[int]]) -> tuple[torch.Tensor, torch.Tensor]:

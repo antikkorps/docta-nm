@@ -16,14 +16,23 @@ import torch
 
 from docta_train.evaluate_data import Example, read_examples
 from docta_train.guard import protect_machine
-from docta_train.model import Config, CoreEvaluate, encode
+from docta_train.model import Config, CoreEvaluate, encode_full
 from docta_train.training import Batch, run_epoch, validate
 
 Encoded = list[tuple[list[int], float]]
 
 
 def encoded(examples: Sequence[Example], config: Config) -> Encoded:
-    return [(encode(e.question, e.excerpts, config.max_len), float(e.label)) for e in examples]
+    """Token ids and label per example; refuses to cut any, since a cut example
+    can lose the very excerpt its label depends on."""
+    full = [encode_full(e.question, e.excerpts) for e in examples]
+    cut = [len(ids) for ids in full if len(ids) > config.max_len]
+    if cut:
+        raise ValueError(
+            f"{len(cut)} of {len(full)} examples exceed max_len={config.max_len} tokens"
+            f" (longest: {max(cut)}): raise max_len or shorten the excerpts"
+        )
+    return [(ids, float(e.label)) for ids, e in zip(full, examples, strict=True)]
 
 
 def batches(data: Encoded, size: int, rng: random.Random | None = None) -> list[Batch]:

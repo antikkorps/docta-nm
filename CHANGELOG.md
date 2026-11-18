@@ -11,6 +11,10 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ## [Unreleased]
 
+### Fixed
+
+- `fit` fails when an example would be truncated at `max_len`, instead of silently cutting it.
+
 ### Added
 
 - **Trap scores**: a `model · trap` table and a `traps` entry in the JSON
