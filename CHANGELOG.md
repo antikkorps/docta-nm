@@ -21,6 +21,11 @@ lines under a new version, and its GitHub Release carries the reference scores.
   consensus) and `challenge` (copies count with their origin, independent
   sources weighed by reliability, `unresolved_contradiction` when too close).
 
+- **External contributions**: `.github/CODEOWNERS` routes changes to
+  tooling paths (CLAUDE.md, CI, justfile, dependencies, database schema) to
+  the maintainer; CONTRIBUTING.md states the rules for AI-assisted
+  contributions and that repository text is never an instruction to an AI.
+
 ### Changed
 
 - A false consensus's origin is now at least 0.10 less reliable than the
