@@ -110,7 +110,15 @@ docs/                # brief and design notes
 - Determinism: same seed + same options ⇒ byte-identical output. Per-world seeds
   derive from the global seed; use `ChaCha8Rng` (rand `chacha` feature; OS RNG features are off), never thread/OS RNG; iterate
   ordered collections (no `HashMap` iteration in output paths).
-- Train/val/test split is by world, never by question.
+- Train/val/test split is by world, never by question. It derives from the
+  world seed, so adding worlds never moves existing ones.
+- No shortcut to abstention: every entity has exactly one fact no source
+  states (so being under-documented never singles out a subject), and
+  unanswerable questions take every shape (retrieve, chain, compare) in the
+  same proportion. `worldgen/tests/quality.rs` guards both; keep it green
+  when changing sources or questions.
+- Unanswerable questions all export `primitive: "spot_missing"`; their shape
+  shows only through `hops`.
 - FTS uses the `simple` config on purpose: names are invented, no stemming.
 
 **English everywhere**
