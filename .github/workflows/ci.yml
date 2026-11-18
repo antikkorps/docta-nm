@@ -43,3 +43,10 @@ jobs:
         run: just test
       - name: Phase 0 chain end to end (small dataset)
         run: just gen 42 50 && just load && just baseline
+      - name: Training chain end to end (small dataset)
+        # Needs the data, the database and the predictions of the baseline step
+        # above (`just core` scores next to them). One epoch on the tiny
+        # dataset: it checks that the chain runs, not that the core is good.
+        # Caps sized for the runner (about 16 GB, 4 cores); the time budget
+        # keeps a hang from eating the job.
+        run: just evaluate-data && just fit --epochs 1 --max-gb 12 --threads 4 --max-minutes 10 && just core

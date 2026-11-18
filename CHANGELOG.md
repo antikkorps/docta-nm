@@ -30,6 +30,8 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 - A false consensus's origin is now at least 0.10 less reliable than the
   true source (was 0.05), so no decidable trap can look undecidable.
+- CI also runs the training chain end to end on the small dataset
+  (`just evaluate-data`, a one-epoch `just fit`, `just core`) (#14).
 
 ### Fixed
 
