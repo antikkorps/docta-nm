@@ -20,9 +20,9 @@ impl Kind {
     /// Shared by the generator's tests and the question layer.
     pub fn preds(self) -> &'static [Pred] {
         match self {
-            Kind::City => &[Pred::FoundedIn, Pred::Population],
-            Kind::Guild => &[Pred::FoundedIn, Pred::BasedIn],
-            Kind::Person => &[Pred::BornIn, Pred::LivesIn, Pred::MemberOf],
+            Kind::City => &[Pred::FoundedIn, Pred::Population, Pred::Elevation],
+            Kind::Guild => &[Pred::FoundedIn, Pred::BasedIn, Pred::Members],
+            Kind::Person => &[Pred::BornIn, Pred::LivesIn, Pred::MemberOf, Pred::Height],
         }
     }
 }
@@ -35,6 +35,9 @@ pub enum Pred {
     BornIn,
     LivesIn,
     MemberOf,
+    Elevation,
+    Members,
+    Height,
 }
 
 impl Pred {
@@ -46,6 +49,9 @@ impl Pred {
             Pred::BornIn => "born_in",
             Pred::LivesIn => "lives_in",
             Pred::MemberOf => "member_of",
+            Pred::Elevation => "elevation",
+            Pred::Members => "members",
+            Pred::Height => "height",
         }
     }
 
@@ -54,8 +60,14 @@ impl Pred {
         match self {
             Pred::BasedIn | Pred::LivesIn => Some(Kind::City),
             Pred::MemberOf => Some(Kind::Guild),
-            Pred::FoundedIn | Pred::Population | Pred::BornIn => None,
+            _ => None,
         }
+    }
+
+    /// In a comparison, whether the larger value answers it: years ask for the
+    /// earlier one, every other quantity for the larger.
+    pub fn larger_wins(self) -> bool {
+        !matches!(self, Pred::FoundedIn | Pred::BornIn)
     }
 }
 

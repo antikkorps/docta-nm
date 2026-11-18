@@ -42,14 +42,21 @@ fn output_is_pinned() {
     // Fails when sampling changes (rand upgrade, reordered draws): regenerate the
     // datasets on purpose, then update this value.
     let dump: String = (0..20).map(|i| format!("{:?}", generate("w", i))).collect();
-    assert_eq!(fnv1a(&dump), 9646573538948596643);
+    assert_eq!(fnv1a(&dump), 5569520377679587497);
 }
 
 #[test]
 fn numeric_values_never_tie_within_a_kind() {
     // A tie would make a `compare` question unanswerable.
     for w in worlds() {
-        for pred in [Pred::FoundedIn, Pred::Population, Pred::BornIn] {
+        for pred in [
+            Pred::FoundedIn,
+            Pred::Population,
+            Pred::BornIn,
+            Pred::Elevation,
+            Pred::Members,
+            Pred::Height,
+        ] {
             for kind in [Kind::City, Kind::Guild, Kind::Person] {
                 let values: Vec<i64> = w
                     .entities
@@ -114,12 +121,17 @@ fn objects_match_the_predicate_target() {
 
 #[test]
 fn predicate_tables_are_the_agreed_ones() {
-    assert_eq!(Kind::City.preds(), [Pred::FoundedIn, Pred::Population]);
-    assert_eq!(Kind::Guild.preds(), [Pred::FoundedIn, Pred::BasedIn]);
-    assert_eq!(
-        Kind::Person.preds(),
-        [Pred::BornIn, Pred::LivesIn, Pred::MemberOf]
+    use Pred::*;
+    assert_eq!(Kind::City.preds(), [FoundedIn, Population, Elevation]);
+    assert_eq!(Kind::Guild.preds(), [FoundedIn, BasedIn, Members]);
+    assert_eq!(Kind::Person.preds(), [BornIn, LivesIn, MemberOf, Height]);
+    // Comparison direction: the answer is the larger value, except for years.
+    assert!(
+        [Population, Elevation, Members, Height]
+            .iter()
+            .all(|p| p.larger_wins())
     );
+    assert!(![FoundedIn, BornIn].iter().any(|p| p.larger_wins()));
     assert_eq!(Pred::LivesIn.target(), Some(Kind::City));
     assert_eq!(Pred::MemberOf.target(), Some(Kind::Guild));
     assert_eq!(Pred::Population.target(), None);

@@ -14,6 +14,9 @@ const CITY_YEARS: RangeInclusive<i64> = 800..=1499;
 const GUILD_YEARS: RangeInclusive<i64> = 1500..=1799;
 const BIRTH_YEARS: RangeInclusive<i64> = 1820..=1999;
 const POPULATION: RangeInclusive<i64> = 500..=500_000;
+const ELEVATION: RangeInclusive<i64> = 0..=3000;
+const MEMBERS: RangeInclusive<i64> = 20..=5000;
+const HEIGHT: RangeInclusive<i64> = 150..=205;
 
 /// Builds the world `world_id` from `seed`; same inputs, same world.
 pub fn generate(world_id: &str, seed: u64) -> World {
@@ -56,6 +59,7 @@ impl Builder {
                 let id = self.entity(Kind::City, name);
                 self.int_fact(&id, Pred::FoundedIn, CITY_YEARS);
                 self.int_fact(&id, Pred::Population, POPULATION);
+                self.int_fact(&id, Pred::Elevation, ELEVATION);
                 id
             })
             .collect()
@@ -69,6 +73,7 @@ impl Builder {
                 let id = self.entity(Kind::Guild, name);
                 self.int_fact(&id, Pred::FoundedIn, GUILD_YEARS);
                 self.link_fact(&id, Pred::BasedIn, cities);
+                self.int_fact(&id, Pred::Members, MEMBERS);
                 id
             })
             .collect()
@@ -82,6 +87,7 @@ impl Builder {
             self.int_fact(&id, Pred::BornIn, BIRTH_YEARS);
             self.link_fact(&id, Pred::LivesIn, cities);
             self.link_fact(&id, Pred::MemberOf, guilds);
+            self.int_fact(&id, Pred::Height, HEIGHT);
         }
     }
 
