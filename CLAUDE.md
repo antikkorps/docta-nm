@@ -24,7 +24,7 @@ fake models.
 
 Stack: Rust 1.95 (edition 2024) for `worldgen/`; Python 3.12 managed by a uv
 workspace for `orchestrator/` and `eval/`; Postgres `pgvector/pgvector:pg17` in
-Docker; psycopg 3; ruff; pytest; Forgejo Actions.
+Docker; psycopg 3; ruff; pytest; GitHub Actions (public GitHub repo).
 
 ## Commands
 
@@ -83,7 +83,7 @@ orchestrator/        # Python pkg docta_orchestrator: loader, state machine, sea
 eval/                # Python pkg docta_eval: metrics, console table, JSON export
 data/                # generated JSONL, traces/, predictions — gitignored, never edit by hand
 docs/                # brief and design notes
-.forgejo/workflows/  # CI: same checks as "Before pushing"
+.github/workflows/   # CI: same checks as "Before pushing"
 ```
 
 `train/` (PyTorch) comes in a later phase; do not create it now.
