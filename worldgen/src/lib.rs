@@ -4,6 +4,7 @@
 pub mod corpus;
 pub mod dataset;
 pub mod jsonl;
+pub mod liars;
 pub mod model;
 pub mod names;
 pub mod questions;
@@ -11,4 +12,5 @@ pub mod seed;
 pub mod sources;
 pub mod split;
 pub mod templates;
+pub mod traps;
 pub mod world;

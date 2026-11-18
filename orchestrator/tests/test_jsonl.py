@@ -18,8 +18,8 @@ def test_reads_every_record_in_order_with_its_location(tmp_path):
 
 
 def test_rejects_another_schema_version_with_its_line(tmp_path):
-    path = write_lines(tmp_path / "a.jsonl", [WORLD, {**SOURCES[0], "schema": "v1"}])
-    with pytest.raises(ValueError, match=r"a\.jsonl:2.*v1"):
+    path = write_lines(tmp_path / "a.jsonl", [WORLD, {**SOURCES[0], "schema": "v0"}])
+    with pytest.raises(ValueError, match=r"a\.jsonl:2.*v0"):
         list(read_records(path))
 
 
@@ -35,6 +35,13 @@ def test_rejects_a_missing_field_by_name(tmp_path):
     question = {k: v for k, v in QUESTIONS[0].items() if k != "required_sources"}
     path = write_lines(tmp_path / "a.jsonl", [WORLD, question])
     with pytest.raises(ValueError, match=r"a\.jsonl:2.*required_sources"):
+        list(read_records(path))
+
+
+def test_rejects_a_source_without_its_trap_ground_truth(tmp_path):
+    source = {k: v for k, v in SOURCES[0].items() if k != "copy_of"}
+    path = write_lines(tmp_path / "a.jsonl", [WORLD, source])
+    with pytest.raises(ValueError, match=r"a\.jsonl:2.*copy_of"):
         list(read_records(path))
 
 
@@ -68,3 +75,10 @@ def test_groups_sources_and_questions_under_their_world():
 def test_rejects_a_record_outside_its_world(records, where):
     with pytest.raises(ValueError, match=f"{where}: .*before its world"):
         list(group_worlds(located(records)))
+
+
+@pytest.mark.parametrize(("field", "value"), [("trap", "rumour"), ("expected_exit", "shrug")])
+def test_rejects_an_unknown_trap_or_exit(tmp_path, field, value):
+    path = write_lines(tmp_path / "a.jsonl", [WORLD, {**QUESTIONS[0], field: value}])
+    with pytest.raises(ValueError, match=rf"a\.jsonl:2.*{value}"):
+        list(read_records(path))

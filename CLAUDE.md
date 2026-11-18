@@ -110,8 +110,11 @@ docs/                # brief and design notes
 **Data**
 - JSONL is canonical; Postgres is a projection reloaded from it. Loading is
   idempotent: reloading a world replaces it.
-- Every JSONL line carries `"schema":"v0"`. Changing the format means a new
-  schema version, not a silent edit.
+- Every JSONL line carries `"schema":"v1"` (v0 plus traps: see
+  docs/design-challenge.md). Changing the format means a new schema version,
+  not a silent edit; the reader accepts the current version only.
+- Trap ground truth (`false_claims`, `copy_of`, `trap`, `expected_exit`) is
+  never exposed to a model, like `facts`.
 - Determinism: same seed + same options ⇒ byte-identical output. Per-world seeds
   derive from the global seed; use `ChaCha8Rng` (rand `chacha` feature; OS RNG features are off), never thread/OS RNG; iterate
   ordered collections (no `HashMap` iteration in output paths).

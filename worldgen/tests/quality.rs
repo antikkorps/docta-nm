@@ -30,13 +30,10 @@ fn no_two_questions_ask_the_same_thing() {
     }
 }
 
-/// The fact a single-subject question is about: the one it reads, or the one
-/// no source states.
+/// The fact a single-subject question is about: the one it reads, the one no
+/// source states, or the one its sources disagree on.
 fn subject_of<'a>(c: &'a Corpus, q: &Question) -> &'a str {
-    let id = q
-        .absent_fact
-        .as_ref()
-        .unwrap_or_else(|| &q.required_facts[0]);
+    let id = q.absent_fact.as_ref().unwrap_or(&q.support[0]);
     let f = c
         .world
         .facts
@@ -48,13 +45,15 @@ fn subject_of<'a>(c: &'a Corpus, q: &Question) -> &'a str {
 
 /// Mean number of sources naming the subject of single-subject (`retrieve`
 /// shaped) questions, answerable or not.
-fn mean_mentions(corpora: &[Corpus], answerable: bool) -> f64 {
+/// Mean number of sources naming the subject of the retrieve-shaped questions
+/// that `keep` selects.
+fn mean_mentions(corpora: &[Corpus], keep: impl Fn(&Question) -> bool) -> f64 {
     let counts: Vec<usize> = corpora
         .iter()
         .flat_map(|c| {
             c.questions
                 .iter()
-                .filter(|q| q.shape == Primitive::Retrieve && q.answerable() == answerable)
+                .filter(|q| q.shape == Primitive::Retrieve && keep(q))
                 .map(|q| {
                     let subject = subject_of(c, q);
                     c.sources
@@ -72,12 +71,29 @@ fn unanswerable_subjects_are_as_documented_as_answerable_ones() {
     // A model sees one question with its sources. If the subject of an
     // unanswerable question were cited less, "few mentions => abstain" would
     // score without checking the predicate.
+    // Questions without a trap: trapped subjects gain sources by design, a
+    // known gap measured by the next test.
     let all = corpora_n(1000, &DEFAULT);
-    let missing = mean_mentions(&all, false);
-    let answerable = mean_mentions(&all, true);
+    let missing = mean_mentions(&all, |q| q.trap.is_none() && !q.answerable());
+    let answerable = mean_mentions(&all, |q| q.trap.is_none() && q.answerable());
     assert!(
         (missing - answerable).abs() < 0.1,
         "unanswerable {missing:.3} vs answerable {answerable:.3}"
+    );
+}
+
+#[test]
+fn trapped_subjects_are_not_cited_more_than_today() {
+    // Known shortcut (docs/design-challenge.md): a trap adds sources about its
+    // subject, so "many mentions => trap" scores a little. Closing it needs
+    // filler sources (v1.1); until then this fails if the gap grows. Measured
+    // at 1.59 when v1 shipped (false consensus 7.1 sources against 3.3).
+    let all = corpora_n(1000, &DEFAULT);
+    let trapped = mean_mentions(&all, |q| q.trap.is_some());
+    let plain = mean_mentions(&all, |q| q.trap.is_none());
+    assert!(
+        trapped / plain < 1.7,
+        "trapped {trapped:.2} vs plain {plain:.2}"
     );
 }
 

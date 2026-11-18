@@ -1,7 +1,7 @@
-"""A tiny v0 world, shaped like the brief's example, shared by the tests."""
+"""A tiny v1 world, shaped like the brief's example, shared by the tests."""
 
 WORLD = {
-    "schema": "v0",
+    "schema": "v1",
     "type": "world",
     "world_id": "w_test01",
     "seed": 123,
@@ -17,7 +17,7 @@ WORLD = {
 }
 SOURCES = [
     {
-        "schema": "v0",
+        "schema": "v1",
         "type": "source",
         "world_id": "w_test01",
         "source_id": "s1",
@@ -25,9 +25,11 @@ SOURCES = [
         "reliability": 0.9,
         "text": "Varnelle was founded in 1432.",
         "facts": ["f1"],
+        "false_claims": [],
+        "copy_of": None,
     },
     {
-        "schema": "v0",
+        "schema": "v1",
         "type": "source",
         "world_id": "w_test01",
         "source_id": "s2",
@@ -35,11 +37,13 @@ SOURCES = [
         "reliability": 0.7,
         "text": "Orlan Teste lives in Varnelle.",
         "facts": ["f2"],
+        "false_claims": [],
+        "copy_of": None,
     },
 ]
 QUESTIONS = [
     {
-        "schema": "v0",
+        "schema": "v1",
         "type": "question",
         "world_id": "w_test01",
         "question_id": "q1",
@@ -50,9 +54,11 @@ QUESTIONS = [
         "answer": "1432",
         "required_facts": ["f2", "f1"],
         "required_sources": ["s2", "s1"],
+        "trap": None,
+        "expected_exit": None,
     },
     {
-        "schema": "v0",
+        "schema": "v1",
         "type": "question",
         "world_id": "w_test01",
         "question_id": "q2",
@@ -64,6 +70,8 @@ QUESTIONS = [
         "missing": "no source mentions the birth year of Orlan Teste",
         "required_facts": [],
         "required_sources": [],
+        "trap": None,
+        "expected_exit": None,
     },
 ]
 RECORDS = [WORLD, *SOURCES, *QUESTIONS]

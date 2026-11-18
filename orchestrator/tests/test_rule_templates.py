@@ -22,7 +22,9 @@ def corpus(tmp_path_factory) -> dict[str, list[dict]]:
     out = tmp_path_factory.mktemp("corpus")
     subprocess.run(
         ["cargo", "run", "-q", "-p", "docta-worldgen", "--", "--seed", "7", "--worlds", "60"]
-        + ["--out", str(out), "--split-ratio", "0.4,0.1,0.1,0.4"],
+        + ["--out", str(out), "--split-ratio", "0.4,0.1,0.1,0.4"]
+        # Templates only: trap sources state false values and attribute them.
+        + ["--trap-ratio", "0"],
         cwd=ROOT,
         check=True,
     )

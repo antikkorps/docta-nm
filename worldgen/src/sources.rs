@@ -67,6 +67,8 @@ fn source<R: Rng>(world: &World, n: usize, facts: &[&Fact], held_out: bool, rng:
         reliability: f64::from(rng.random_range(60..=100_u8)) / 100.0,
         text: text.join(" "),
         facts: facts.iter().map(|f| f.id.clone()).collect(),
+        false_claims: Vec::new(),
+        copy_of: None,
     }
 }
 

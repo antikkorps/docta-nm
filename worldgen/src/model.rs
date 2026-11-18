@@ -106,6 +106,10 @@ impl World {
         self.entities.iter().find(|e| e.id == id)
     }
 
+    pub fn fact(&self, id: &str) -> Option<&Fact> {
+        self.facts.iter().find(|f| f.id == id)
+    }
+
     /// The object of `subj`'s fact with predicate `pred`, if any.
     pub fn object(&self, subj: &str, pred: Pred) -> Option<&Obj> {
         self.facts

@@ -60,6 +60,26 @@ pub fn generate<R: Rng>(
     out
 }
 
+/// A fresh answerable retrieve question resting on no fact any question of
+/// `asked` uses nor on any fact of `avoid`: what an undecidable trap gives
+/// back for the unanswerable slot it takes.
+pub fn fresh_retrieve<R: Rng>(
+    world: &World,
+    sources: &[Source],
+    hidden: &BTreeSet<String>,
+    held_out: bool,
+    (asked, avoid): (&[Question], &BTreeSet<String>),
+    rng: &mut R,
+) -> Option<Question> {
+    let ctx = Ctx::new(world, sources, hidden, held_out);
+    (0..MAX_ATTEMPTS).find_map(|_| {
+        let d = ctx.retrieve(true, rng)?;
+        let fact = &d.facts[0].id;
+        let unused = !avoid.contains(fact) && asked.iter().all(|q| !q.support.contains(fact));
+        unused.then(|| ctx.finish(d, true))
+    })
+}
+
 /// Two drafts with one key ask the same thing, whatever their wording.
 fn key(d: &Draft) -> (&'static str, Vec<String>) {
     let mut ids: Vec<String> = d.facts.iter().map(|f| f.id.clone()).collect();
