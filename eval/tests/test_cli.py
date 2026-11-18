@@ -100,3 +100,17 @@ def test_traces_must_agree_with_predictions(tmp_path, capsys):
     write(tmp_path / "traces" / "mixed.jsonl", TRACES)
     assert main([str(gold), str(mixed), "--traces", str(tmp_path / "traces")]) == 1
     assert "disagrees with its prediction" in capsys.readouterr().err
+
+
+def test_trap_questions_get_their_own_table(tmp_path, capsys):
+    trapped = [{**GOLD[0], "trap": "contradiction"}, *GOLD[1:]]
+    gold = write(tmp_path / "test.jsonl", trapped)
+    mixed = write(tmp_path / "mixed.jsonl", MIXED)
+    out = tmp_path / "scores.json"
+    assert main([str(gold), str(mixed), "--json", str(out)]) == 0
+    assert "mixed · contradiction" in capsys.readouterr().out
+    traps = json.loads(out.read_text())["models"]["mixed"]["traps"]
+    assert traps["contradiction"]["accuracy"] == 1.0  # q1 right
+    plain = write(tmp_path / "plain.jsonl", GOLD)
+    assert main([str(plain), str(mixed)]) == 0
+    assert "trap" not in capsys.readouterr().out  # no trap, no table

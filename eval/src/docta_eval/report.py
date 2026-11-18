@@ -12,6 +12,14 @@ COLUMNS = [
 ]
 WIDTH = 8
 
+TRAPS = [
+    ("accuracy", "acc"),
+    ("justified_accuracy", "just acc"),
+    ("fooled_rate", "fooled"),
+    ("exit_precision", "exit P"),
+    ("exit_recall", "exit R"),
+]
+
 REFLECTION = [
     ("reading_recall", "read R"),
     ("reading_precision", "read P"),
@@ -51,6 +59,13 @@ def render(results: dict[str, dict]) -> str:
             for group, s in scores[key].items()
         ]
         parts.append(table(f"model · {label}", rows))
+    traps = [
+        (f"{m} · {trap}", s)
+        for m, scores in results.items()
+        for trap, s in scores.get("traps", {}).items()
+    ]
+    if traps:
+        parts.append(table("model · trap", traps, TRAPS))
     reflection = [(m, s["process"]) for m, s in results.items() if "process" in s]
     if reflection:
         parts.append(table("reflection", reflection, REFLECTION))
