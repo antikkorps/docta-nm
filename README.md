@@ -16,6 +16,10 @@ Every answer can be traced back to the sources that establish it. Since knowledg
 
 It is meant as a thinking partner rather than a fast answerer: it raises what a request leaves unsaid, and you can step into its reasoning while it runs.
 
+### The name
+
+**Docta** comes from *docta ignorantia*, the "learned ignorance" of Nicholas of Cusa (1440): true wisdom begins with knowing what one does not know. That is the core's starting point: it knows it does not know, so it searches, weighs, and concludes only from what it found. **nm** stands for *neural model*.
+
 ### How it is tested
 
 To be sure the core reads instead of remembering, it is trained and tested on **invented worlds**: fictional cities, people and guilds with made-up names and facts, described by generated sources. Nothing can be known in advance; the only way to answer is to search and read. A separate test set uses phrasings never seen in training, to check the core learned the method and not the wording.
