@@ -17,6 +17,14 @@ lines under a new version, and its GitHub Release carries the reference scores.
   scores: accuracy and justified accuracy on decidable traps, how often a
   model was fooled, and the precision and recall of the
   `unresolved_contradiction` exit.
+- **Confront baselines**: `majority` (one vote per source, fooled by false
+  consensus) and `challenge` (copies count with their origin, independent
+  sources weighed by reliability, `unresolved_contradiction` when too close).
+
+### Changed
+
+- A false consensus's origin is now at least 0.10 less reliable than the
+  true source (was 0.05), so no decidable trap can look undecidable.
 
 ## [0.0.1] - 2026-11-18
 

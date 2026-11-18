@@ -17,8 +17,10 @@ from docta_orchestrator.jsonl import read_records
 from docta_orchestrator.loop import Search, run
 from docta_orchestrator.models import (
     AlwaysAbstainModel,
+    ChallengeModel,
     DigModel,
     KeywordModel,
+    MajorityModel,
     RandomModel,
     RuleEvaluateModel,
 )
@@ -71,14 +73,17 @@ def run_models(
 
 
 def baseline_models(seed: int) -> list[Model]:
-    """The floors: three fake models, the hand-written Evaluate rule, and the
-    first model that digs (searches again from what it read)."""
+    """The floors: three fake models, the hand-written Evaluate rule, the first
+    model that digs, and two hand-written Confronts (the naive vote, and the
+    one that counts copies once)."""
     return [
         RandomModel(seed),
         AlwaysAbstainModel(),
         KeywordModel(),
         RuleEvaluateModel(),
         DigModel(),
+        MajorityModel(),
+        ChallengeModel(),
     ]
 
 
