@@ -21,6 +21,7 @@ REFLECTION = [
     ("late_conclusion_rate", "late"),
     ("searched_before_abstaining", "searched"),
     ("grounded_abstention_rate", "grounded"),
+    ("dig_recovery_rate", "dug"),
 ]
 
 

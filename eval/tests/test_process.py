@@ -24,6 +24,7 @@ def test_scores_the_reflection_not_the_answer():
             "late_conclusion_rate": 1 / 3,  # q3
             "searched_before_abstaining": 1 / 2,  # q4 yes, q5 no
             "grounded_abstention_rate": 1 / 2,  # q4 read about Brask; q5 read nothing
+            "dig_recovery_rate": 0.0,  # q2 missed s1 in round 1 and never found it
         }
     )
 
@@ -59,3 +60,12 @@ def test_a_missing_trace_leaves_the_grounded_denominator_alone():
 def test_subjects_are_the_world_entities_the_question_names():
     assert GOLDS[3].subjects == {"Brask"}
     assert GOLDS[4].subjects == {"Orlan Teste"}
+
+
+def test_digging_counts_what_later_rounds_recover():
+    # q2 needs s2 and s1: round 1 found s2, round 2 dug up s1.
+    dug = process_scores(GOLDS, by_key([trace("q2", rounds(["s2"], ["s1"]), False)]))
+    assert dug["dig_recovery_rate"] == 1.0
+    # q1 had everything after round 1: nothing to dig, so the rate is undefined.
+    none_needed = process_scores(GOLDS, by_key(TRACES[:1]))
+    assert none_needed["dig_recovery_rate"] is None

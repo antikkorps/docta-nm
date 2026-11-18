@@ -60,6 +60,7 @@ keyword            0.855     0.285     1.000     0.941     0.201     0.000     1
 - `early` / `late`: among those conclusions, concluded before reading what it needed / kept searching after having it.
 - `searched`: share of all its abstentions that came after at least one search.
 - `grounded`: share of unanswerable questions it abstained on **after reading an excerpt about the entity asked about**. A search that never touches the subject does not count.
+- `dug`: among answerable questions whose first search missed a needed source, share where later searches found it: **digging** from what was read.
 
 `always_abstain` reaches 0.50 abstention F1 with a grounded rate of 0: right outcome, no reflection.
 
