@@ -125,7 +125,7 @@ def main(argv: list[str]) -> int:
     try:
         with psycopg.connect(url, autocommit=True) as conn:
             loaded = load_files(conn, args.files, prune=args.prune)
-    except (OSError, ValueError) as e:
+    except (OSError, ValueError, psycopg.Error) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
     print(f"loaded {loaded} worlds", file=sys.stderr)

@@ -1,26 +1,13 @@
 """Loading into Postgres. Each test rolls back, so the dev database is untouched."""
 
 import json
-import os
 
-import psycopg
 import pytest
 from docta_orchestrator.jsonl import WorldBatch
 from docta_orchestrator.load import load_files, load_world
 from orch_sample import QUESTIONS, SOURCES, WORLD
 
 TABLES = ["worlds", "entities", "facts", "sources", "questions"]
-
-
-@pytest.fixture
-def conn():
-    url = os.environ.get("DATABASE_URL")
-    if not url:
-        pytest.skip("DATABASE_URL not set: run `just up`, then the tests through `just test`")
-    # force_rollback: any transaction the code under test opens becomes a
-    # savepoint inside this one, so nothing ever reaches the dev database.
-    with psycopg.connect(url) as connection, connection.transaction(force_rollback=True):
-        yield connection
 
 
 def counts(conn, world_id):
