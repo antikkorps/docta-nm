@@ -60,6 +60,8 @@ class Counts:
     searched_abstentions: int = 0
     unanswerable: int = 0
     grounded: int = 0
+    needed_dig: int = 0
+    dug: int = 0
 
     def add(self, gold: Gold, trace: dict | None) -> None:
         if trace is None:
@@ -78,13 +80,23 @@ class Counts:
             on_subject = read_about(trace["states"], gold.subjects)
             self.grounded += trace["decision"]["abstained"] and on_subject
             return
+        self.add_answerable(gold.required_sources, trace["states"], rounds)
+
+    def add_answerable(
+        self, required: frozenset[str], states: list[dict], rounds: list[set[str]]
+    ) -> None:
+        read = set().union(*rounds)
         self.answerable += 1
-        self.required += len(gold.required_sources)
+        self.required += len(required)
         self.read += len(read)
-        self.read_useful += len(read & gold.required_sources)
-        if any(e["state"] == "conclude" for e in trace["states"]):
+        self.read_useful += len(read & required)
+        # Digging: the first round missed something needed; did later ones find it?
+        if not required <= (rounds[0] if rounds else set()):
+            self.needed_dig += 1
+            self.dug += required <= read
+        if any(e["state"] == "conclude" for e in states):
             self.concluded += 1
-            when = timing(rounds, gold.required_sources)
+            when = timing(rounds, required)
             self.early += when == "early"
             self.late += when == "late"
 
@@ -104,4 +116,5 @@ def process_scores(golds: list[Gold], traces: dict[Key, dict]) -> dict:
         "late_conclusion_rate": ratio(c.late, c.concluded),
         "searched_before_abstaining": ratio(c.searched_abstentions, c.abstentions),
         "grounded_abstention_rate": ratio(c.grounded, c.unanswerable),
+        "dig_recovery_rate": ratio(c.dug, c.needed_dig),
     }

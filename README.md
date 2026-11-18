@@ -61,6 +61,8 @@ rule_evaluate      0.536     0.499     0.774     0.487     0.676     1.000     0
 
 `rule_evaluate` is keyword with a hand-written Evaluate that knows the seen templates: it says "enough" only when every needed fact was read. On test it is close to an oracle; on `ood` it understands no phrasing and falls back to keyword, so `ood` is where a trained core has to beat it.
 
+`dig` is keyword plus a second search: when a question refers to something indirectly ("the city where X lives"), it follows the name the first reading revealed ("X lives in Varnelle") and reads the answer there, citing both sources. It answers 56% of 2-hop questions on test, where keyword answers none.
+
 Answers are not enough: the same run scores the **reflection** from the traces.
 
 ```
@@ -76,6 +78,7 @@ keyword            0.855     0.285     1.000     0.941     0.201     0.000     1
 - `early` / `late`: among those conclusions, concluded before reading what it needed / kept searching after having it.
 - `searched`: share of all its abstentions that came after at least one search.
 - `grounded`: share of unanswerable questions it abstained on **after reading an excerpt about the entity asked about**. A search that never touches the subject does not count.
+- `dug`: among answerable questions whose first search missed a needed source, share where later searches found it: **digging** from what was read.
 
 `always_abstain` reaches 0.50 abstention F1 with a grounded rate of 0: right outcome, no reflection.
 
