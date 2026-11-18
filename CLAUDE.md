@@ -84,7 +84,8 @@ db/schema.sql        # mounted in docker-entrypoint-initdb.d; schema from the br
 worldgen/            # Rust crate docta-worldgen (clap, serde, rand with the chacha feature, pinned)
 orchestrator/        # Python pkg docta_orchestrator: loader, state machine, search, fake models
 eval/                # Python pkg docta_eval: metrics, console table, JSON export
-data/                # generated JSONL, traces/, predictions — gitignored, never edit by hand
+data/                # generated JSONL and traces/ — gitignored, never edit by hand
+predictions/         # one JSONL per model + scores.json from `just baseline` — gitignored
 docs/                # brief and design notes
 .github/workflows/   # CI: same checks as "Before pushing"
 ```

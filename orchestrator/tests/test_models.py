@@ -1,0 +1,57 @@
+"""The three phase-0 fake models, run through the real loop."""
+
+import re
+
+from docta_orchestrator.loop import run
+from docta_orchestrator.models import AlwaysAbstainModel, KeywordModel, RandomModel
+from docta_orchestrator.search import Hit
+from docta_orchestrator.states import Exit
+
+HITS = [
+    Hit("s1", "Chronicle of Varnelle", "Varnelle was founded in 1432. Brask has 300 members.", 0.9),
+    Hit("s2", "Notes on Orlan Teste", "Orlan Teste lives in Varnelle.", 0.7),
+    Hit("s3", "Annals of Brask", "Brask was founded in 1610.", 0.8),
+]
+
+
+def fake_search(query):
+    """OR over words, ranked by how many words match, like the real tool."""
+    words = set(re.findall(r"\w+", query.lower()))
+    scored = [(len(words & set(re.findall(r"\w+", h.body.lower()))), h) for h in HITS]
+    return [h for n, h in sorted(scored, key=lambda x: -x[0]) if n]
+
+
+def ask(model, question):
+    return run(question, model, fake_search)[0]
+
+
+def test_always_abstain_never_searches():
+    outcome, trace = run("In what year was Varnelle founded?", AlwaysAbstainModel(), fake_search)
+    assert outcome.exit == Exit.NOT_FOUND
+    assert "consult" not in [e["state"] for e in trace]
+
+
+def test_random_model_is_reproducible_per_question():
+    questions = [f"In what year was Varnelle founded, take {i}?" for i in range(20)]
+    first = [ask(RandomModel(seed=1), q) for q in questions]
+    assert first == [ask(RandomModel(seed=1), q) for q in reversed(questions)][::-1]
+    assert first != [ask(RandomModel(seed=2), q) for q in questions]
+    assert any(o.exit for o in first) and any(o.answer for o in first)
+
+
+def test_keyword_model_reads_a_number_or_a_name_next_to_the_subject():
+    year = ask(KeywordModel(), "In what year was Varnelle founded?")
+    assert (year.answer, year.cited) == ("1432", ("s1",))
+    city = ask(KeywordModel(), "In which city does Orlan Teste live?")
+    assert (city.answer, city.cited) == ("Varnelle", ("s2",))
+
+
+def test_keyword_model_compares_two_numbers():
+    older = ask(KeywordModel(), "Which was founded earlier, Brask or Varnelle?")
+    assert older.answer == "Varnelle"
+    assert set(older.cited) == {"s1", "s3"}  # Varnelle in s1, Brask in s3
+
+
+def test_keyword_model_abstains_when_nothing_relevant_comes_back():
+    assert ask(KeywordModel(), "In what year was Orlan Teste born?").exit == Exit.NOT_FOUND
+    assert ask(KeywordModel(), "How tall is Zorvath, in centimetres?").exit == Exit.NOT_FOUND

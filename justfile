@@ -39,3 +39,8 @@ test:
     uv run ruff check
     uv run ruff format --check
     uv run pytest -q
+
+# Run the three fake models on the test split, then print their scores
+baseline:
+    uv run python -m docta_orchestrator.baseline data/test.jsonl --out predictions --traces data/traces
+    uv run python -m docta_eval data/test.jsonl predictions/random.jsonl predictions/always_abstain.jsonl predictions/keyword.jsonl --json predictions/scores.json
