@@ -1,7 +1,10 @@
 name: CI
 
 on:
+  # Branch pushes alone would run the workflow twice per pull request (push
+  # and pull_request): push only on the protected branches.
   push:
+    branches: [main, dev]
   pull_request:
 
 # The job only reads the code: the token gets no write access.
@@ -32,12 +35,20 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       # setup-uv publishes no major tag (v10): pin the full version.
       - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          # Caches the uv download cache, keyed on uv.lock: the PyTorch CPU
+          # wheels are heavy.
+          enable-cache: true
       - uses: taiki-e/install-action@v2
         with:
           tool: just
       - name: Apply the database schema
         # Service containers cannot mount db/schema.sql into initdb.d.
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/schema.sql
+      - name: Schema smoke check (db/check.sql)
+        # `just check-db` goes through docker compose; here the database is a
+        # service container, so run the same file with psql.
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/check.sql
       - run: uv sync --locked
       - name: Every pre-push check
         run: just test

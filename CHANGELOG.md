@@ -30,6 +30,8 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 - A false consensus's origin is now at least 0.10 less reliable than the
   true source (was 0.05), so no decidable trap can look undecidable.
+- CI no longer runs twice per pull request, runs `db/check.sql` against its
+  database, and caches the uv downloads (#21).
 
 ### Fixed
 
