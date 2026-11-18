@@ -98,3 +98,40 @@ def test_cli_caps_the_validation_set(tmp_path, monkeypatch):
     monkeypatch.setattr(fit_module, "fit", lambda train, val, *a: seen.update(val=len(val)) or {})
     fit_module.main(["--data", str(tmp_path), "--max-val", "3"])
     assert seen["val"] == 3
+
+
+def test_cli_reports_a_missing_data_directory_instead_of_a_traceback(tmp_path, monkeypatch, capsys):
+    from docta_train import fit as fit_module
+
+    monkeypatch.setattr(fit_module, "protect_machine", lambda **kw: None)
+    assert fit_module.main(["--data", str(tmp_path / "nope")]) == 1
+    assert capsys.readouterr().err.startswith("error: ")
+
+
+def test_cli_reports_a_malformed_example_file(tmp_path, monkeypatch, capsys):
+    from docta_train import fit as fit_module
+
+    (tmp_path / "train.jsonl").write_text("not json\n", encoding="utf-8")
+    (tmp_path / "val.jsonl").write_text("", encoding="utf-8")
+    monkeypatch.setattr(fit_module, "protect_machine", lambda **kw: None)
+    assert fit_module.main(["--data", str(tmp_path)]) == 1
+    assert capsys.readouterr().err.startswith("error: ")
+
+
+def test_a_passed_deadline_stops_the_epoch_after_one_batch(tmp_path):
+    import torch
+    from docta_train.fit import batches, encoded
+    from docta_train.model import CoreEvaluate
+    from docta_train.training import run_epoch
+
+    model = CoreEvaluate(TINY)
+    steps = []
+
+    class Counting(torch.optim.AdamW):
+        def step(self, *a, **kw):
+            steps.append(1)
+            return super().step(*a, **kw)
+
+    data = batches(encoded(examples("train", 32), TINY), 8)
+    run_epoch(model, Counting(model.parameters(), lr=1e-3), data, deadline=0.0)
+    assert len(steps) == 1  # 4 batches were available

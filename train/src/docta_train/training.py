@@ -1,5 +1,6 @@
 """Training steps and validation for the Evaluate core: deterministic, CPU-only."""
 
+import time
 from collections.abc import Iterable, Sequence
 
 import torch
@@ -12,10 +13,15 @@ LOSS = nn.BCEWithLogitsLoss()
 
 
 def run_epoch(
-    model: nn.Module, optimiser: torch.optim.Optimizer, batches: Iterable[Batch]
+    model: nn.Module,
+    optimiser: torch.optim.Optimizer,
+    batches: Iterable[Batch],
+    deadline: float | None = None,
 ) -> float:
     """One optimiser step per batch; returns the mean loss. The optimiser is
-    passed in so AdamW's moments carry over from one epoch to the next."""
+    passed in so AdamW's moments carry over from one epoch to the next.
+    Past `deadline` (a `time.monotonic()` value) the epoch stops after the
+    current batch, so one long epoch cannot overrun a time budget."""
     model.train()
     losses = []
     for sequences, labels in batches:
@@ -25,6 +31,8 @@ def run_epoch(
         loss.backward()
         optimiser.step()
         losses.append(loss.item())
+        if deadline is not None and time.monotonic() > deadline:
+            break
     return sum(losses) / len(losses)
 
 

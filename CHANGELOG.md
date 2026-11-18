@@ -37,6 +37,9 @@ lines under a new version, and its GitHub Release carries the reference scores.
   of emptying the whole database (#10).
 - Evaluation with traces requires traces and predictions to cover the same
   questions and agree on the whole decision, not only on abstaining (#11).
+- `docta_train.fit` prints a clean error and exits 1 on a missing or malformed
+  data file, like the other CLIs; `--max-minutes` now also stops an epoch in
+  progress, after the batch that passes the budget (#19).
 
 ## [0.0.1] - 2026-11-18
 

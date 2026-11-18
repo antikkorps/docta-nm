@@ -55,11 +55,14 @@ def fit(
     train_data, val_data = encoded(train, config), encoded(val, config)
     best: dict | None = None
     start = time.monotonic()
+    deadline = None if max_minutes is None else start + max_minutes * 60
     with (out / "log.jsonl").open("w", encoding="utf-8") as log:
         for epoch in range(1, epochs + 1):
             metrics = {
                 "epoch": epoch,
-                "train_loss": run_epoch(model, optimiser, batches(train_data, batch, rng)),
+                "train_loss": run_epoch(
+                    model, optimiser, batches(train_data, batch, rng), deadline
+                ),
             }
             metrics |= validate(model, batches(val_data, batch))
             log.write(json.dumps({**metrics, "minutes": (time.monotonic() - start) / 60}) + "\n")
@@ -67,7 +70,7 @@ def fit(
             if best is None or metrics["val_loss"] < best["val_loss"]:
                 best = metrics
                 save(model, best, out / "model.pt")
-            if max_minutes is not None and time.monotonic() - start > max_minutes * 60:
+            if deadline is not None and time.monotonic() > deadline:
                 break
     return {"best": best, "parameters": sum(p.numel() for p in model.parameters())}
 
@@ -88,7 +91,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--max-train", type=int, help="cap the number of training examples")
     p.add_argument("--max-val", type=int, help="cap validation examples: shorter epochs")
-    p.add_argument("--max-minutes", type=float, help="stop after the epoch that passes this budget")
+    p.add_argument("--max-minutes", type=float, help="stop after the batch that passes this budget")
     p.add_argument("--max-gb", type=float, default=6.0, help="address-space cap (Linux only)")
     p.add_argument("--threads", type=int, default=2, help="CPU threads left to training")
     return p
@@ -97,19 +100,24 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str]) -> int:
     args = build_parser().parse_args(argv)
     protect_machine(max_gb=args.max_gb, threads=args.threads)
-    train = list(read_examples(args.data / "train.jsonl"))[: args.max_train]
-    val = list(read_examples(args.data / "val.jsonl"))[: args.max_val]
-    report = fit(
-        train,
-        val,
-        args.out,
-        Config(),
-        args.epochs,
-        args.batch,
-        args.lr,
-        args.seed,
-        args.max_minutes,
-    )
+    try:
+        train = list(read_examples(args.data / "train.jsonl"))[: args.max_train]
+        val = list(read_examples(args.data / "val.jsonl"))[: args.max_val]
+        report = fit(
+            train,
+            val,
+            args.out,
+            Config(),
+            args.epochs,
+            args.batch,
+            args.lr,
+            args.seed,
+            args.max_minutes,
+        )
+    except (OSError, ValueError) as e:
+        # Like the other CLIs: a missing or malformed file is a message, not a traceback.
+        print(f"error: {e}", file=sys.stderr)
+        return 1
     print(json.dumps(report, indent=2), file=sys.stderr)
     return 0
 
