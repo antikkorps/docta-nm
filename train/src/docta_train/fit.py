@@ -87,6 +87,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--lr", type=float, default=3e-4)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--max-train", type=int, help="cap the number of training examples")
+    p.add_argument("--max-val", type=int, help="cap validation examples: shorter epochs")
     p.add_argument("--max-minutes", type=float, help="stop after the epoch that passes this budget")
     p.add_argument("--max-gb", type=float, default=6.0, help="address-space cap (Linux only)")
     p.add_argument("--threads", type=int, default=2, help="CPU threads left to training")
@@ -97,7 +98,7 @@ def main(argv: list[str]) -> int:
     args = build_parser().parse_args(argv)
     protect_machine(max_gb=args.max_gb, threads=args.threads)
     train = list(read_examples(args.data / "train.jsonl"))[: args.max_train]
-    val = list(read_examples(args.data / "val.jsonl"))
+    val = list(read_examples(args.data / "val.jsonl"))[: args.max_val]
     report = fit(
         train,
         val,
