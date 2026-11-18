@@ -44,3 +44,16 @@ test:
 baseline split="test":
     uv run python -m docta_orchestrator.baseline data/{{split}}.jsonl --out predictions/{{split}} --traces data/traces/{{split}}
     uv run python -m docta_eval data/{{split}}.jsonl predictions/{{split}}/random.jsonl predictions/{{split}}/always_abstain.jsonl predictions/{{split}}/keyword.jsonl --traces data/traces/{{split}} --json predictions/{{split}}/scores.json
+
+# Build the Evaluate dataset (question + excerpts → enough?) from the loaded worlds
+evaluate-data:
+    uv run python -m docta_train.evaluate_data data/train.jsonl data/val.jsonl data/test.jsonl data/ood.jsonl --out data/evaluate
+
+# Train the Evaluate core on data/evaluate (needs `just evaluate-data`)
+fit *args:
+    uv run python -m docta_train.fit {{args}}
+
+# Run the trained core on a split, then score it next to the fake models
+core split="test":
+    uv run python -m docta_train.run_core data/{{split}}.jsonl --out predictions/{{split}} --traces data/traces/{{split}}
+    uv run python -m docta_eval data/{{split}}.jsonl predictions/{{split}}/random.jsonl predictions/{{split}}/always_abstain.jsonl predictions/{{split}}/keyword.jsonl predictions/{{split}}/core_evaluate.jsonl --traces data/traces/{{split}} --json predictions/{{split}}/scores.json

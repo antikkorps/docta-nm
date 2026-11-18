@@ -1,6 +1,6 @@
 # Virtual uv workspace: no package here, only the members and shared dev tools.
 [tool.uv.workspace]
-members = ["orchestrator", "eval"]
+members = ["orchestrator", "eval", "train"]
 
 [dependency-groups]
 dev = [
@@ -16,7 +16,7 @@ target-version = "py312"
 select = ["E", "F", "I", "B", "UP", "SIM"]
 
 [tool.pytest.ini_options]
-testpaths = ["orchestrator/tests", "eval/tests"]
+testpaths = ["orchestrator/tests", "eval/tests", "train/tests"]
 # Lets tests import their shared sample module by name.
-pythonpath = ["orchestrator/tests", "eval/tests"]
+pythonpath = ["orchestrator/tests", "eval/tests", "train/tests"]
 addopts = "--import-mode=importlib"
