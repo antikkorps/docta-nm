@@ -1,4 +1,4 @@
-//! Generates a whole dataset into `train.jsonl`, `val.jsonl` and `test.jsonl`.
+//! Generates a whole dataset into `train.jsonl`, `val.jsonl`, `test.jsonl` and `ood.jsonl`.
 
 use crate::corpus::{Options, build};
 use crate::jsonl::lines;

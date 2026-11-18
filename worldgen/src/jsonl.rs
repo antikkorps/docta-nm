@@ -1,4 +1,4 @@
-//! JSONL v0 serialisation: one line per world, source and question.
+//! JSONL v1 serialisation: one line per world, source and question.
 //! Field order is fixed by the record structs, so output is byte-stable.
 
 use crate::corpus::{Corpus, Question, Source};
