@@ -1,7 +1,7 @@
 # Docta-nm
 
-A frugal AI built from scratch whose core holds **no facts**, only a method.
-It knows that it does not know: it searches sources, weighs them, and answers citing them, or abstains.
+Not super intelligence: **super reflection**. Docta-nm is a frugal AI, built from scratch, whose strength is structuring its reasoning to reach a goal, not knowing things.
+Its core holds **no facts**, only a method: it frames the question, plans what to look for, searches sources, knows when it has enough, and answers citing them, or abstains and says why. It is meant as a thinking partner rather than a fast answerer: it raises what a request leaves unsaid, you can step into its reflection while it runs, and it refines its reasoning from the exchange, as one would think with another person.
 Facts live in the sources, never in the weights, so the core stays small in RAM and on disk.
 
 This repository is at **phase 0**: no model is trained yet. Phase 0 builds what the first trained core will be measured with:

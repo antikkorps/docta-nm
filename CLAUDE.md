@@ -7,6 +7,14 @@ holds **no facts**. The core carries a method: it knows it doesn't know, searche
 sources, weighs them, and concludes citing them. Facts live in sources, never in
 weights.
 
+The differentiator is **super reflection, not super intelligence**: the quality
+of how the core structures its reasoning toward a goal, as a true human–machine
+pair rather than a fast answerer: it surfaces what a request leaves implicit,
+and a human can step into its reflection mid-way and it refines from the
+exchange. Favour
+designs, metrics and training signals that measure the reasoning process (via
+the traces), not only the final answer.
+
 Current phase: **phase 0**, no training. Build the measurement chain around the
 future model:
 
