@@ -22,7 +22,7 @@ fake models.
 - Living spec (vision, loop, decisions): https://claude.ai/artifact/M8Aj7PFp75ooF3dhXfaR4R
 - The brief is written in French; the code base is **English only** (see rules).
 
-Stack: Rust 1.95 (edition 2024) for `worldgen/`; Python 3.12 managed by a uv
+Stack: Rust 1.95 (edition 2024, pinned in `rust-toolchain.toml`) for `worldgen/`; Python 3.12 managed by a uv
 workspace for `orchestrator/` and `eval/`; Postgres `pgvector/pgvector:pg17` in
 Docker; psycopg 3; ruff; pytest; GitHub Actions (public GitHub repo).
 

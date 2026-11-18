@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: docta
+          POSTGRES_PASSWORD: ci-only
+          POSTGRES_DB: docta
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U docta -d docta"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      # Throwaway credentials of the CI service above; no .env exists in CI.
+      DATABASE_URL: postgresql://docta:ci-only@127.0.0.1:5432/docta
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install the pinned Rust toolchain (rust-toolchain.toml)
+        run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - uses: astral-sh/setup-uv@v10
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+      - name: Apply the database schema
+        # Service containers cannot mount db/schema.sql into initdb.d.
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/schema.sql
+      - run: uv sync --locked
+      - name: Every pre-push check
+        run: just test
+      - name: Phase 0 chain end to end (small dataset)
+        run: just gen 42 50 && just load && just baseline
