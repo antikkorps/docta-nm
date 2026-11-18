@@ -1,0 +1,15 @@
+[project]
+name = "docta-eval"
+version = "0.1.0"
+description = "Scores Docta-nm predictions: accuracy, citations, abstention"
+license = "Apache-2.0"
+requires-python = ">=3.12"
+dependencies = ["docta-orchestrator"]
+
+[tool.uv.sources]
+# Reuses the validated JSONL reader instead of duplicating it.
+docta-orchestrator = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.9,<0.10"]
+build-backend = "uv_build"
