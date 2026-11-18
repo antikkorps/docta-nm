@@ -6,7 +6,7 @@ use crate::model::{Entity, Fact, Obj};
 use crate::split::Split;
 use serde::Serialize;
 
-pub const SCHEMA: &str = "v0";
+pub const SCHEMA: &str = "v1";
 
 #[derive(Serialize)]
 struct WorldRecord<'a> {
@@ -52,6 +52,15 @@ struct SourceRecord<'a> {
     reliability: f64,
     text: &'a str,
     facts: &'a [String],
+    false_claims: Vec<ClaimRecord<'a>>,
+    copy_of: Option<&'a str>,
+}
+
+/// A fact a source states with a wrong object: ground truth, never exposed.
+#[derive(Serialize)]
+struct ClaimRecord<'a> {
+    fact: &'a str,
+    obj: ObjValue<'a>,
 }
 
 #[derive(Serialize)]
@@ -69,6 +78,8 @@ struct QuestionRecord<'a> {
     missing: Option<&'a str>,
     required_facts: &'a [String],
     required_sources: &'a [String],
+    trap: Option<&'static str>,
+    expected_exit: Option<&'static str>,
 }
 
 /// All lines of one world: the world, then its sources, then its questions.
@@ -105,15 +116,18 @@ fn entity(e: &Entity) -> EntityRecord<'_> {
 }
 
 fn fact(f: &Fact) -> FactRecord<'_> {
-    let obj = match &f.obj {
-        Obj::Int(n) => ObjValue::Int(*n),
-        Obj::Entity(id) => ObjValue::Entity(id),
-    };
     FactRecord {
         id: &f.id,
         subj: &f.subj,
         pred: f.pred.as_str(),
-        obj,
+        obj: value(&f.obj),
+    }
+}
+
+fn value(obj: &Obj) -> ObjValue<'_> {
+    match obj {
+        Obj::Int(n) => ObjValue::Int(*n),
+        Obj::Entity(id) => ObjValue::Entity(id),
     }
 }
 
@@ -127,6 +141,15 @@ fn source<'a>(world_id: &'a str, s: &'a Source) -> SourceRecord<'a> {
         reliability: s.reliability,
         text: &s.text,
         facts: &s.facts,
+        false_claims: s
+            .false_claims
+            .iter()
+            .map(|(fact, obj)| ClaimRecord {
+                fact,
+                obj: value(obj),
+            })
+            .collect(),
+        copy_of: s.copy_of.as_deref(),
     }
 }
 
@@ -144,5 +167,7 @@ fn question<'a>(world_id: &'a str, q: &'a Question) -> QuestionRecord<'a> {
         missing: q.missing.as_deref(),
         required_facts: &q.required_facts,
         required_sources: &q.required_sources,
+        trap: q.trap.map(|t| t.as_str()),
+        expected_exit: q.expected_exit,
     }
 }

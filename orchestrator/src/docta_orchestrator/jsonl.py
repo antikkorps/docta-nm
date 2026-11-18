@@ -1,4 +1,4 @@
-"""Reading the generator's JSONL v0 output, the canonical dataset format.
+"""Reading the generator's JSONL v1 output, the canonical dataset format.
 
 Every record is checked as it is read, so any later failure is impossible or
 names the file and line to fix.
@@ -9,18 +9,26 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
-SCHEMA = "v0"
+SCHEMA = "v1"
 
 # Fields each record type must carry; `missing` is optional on questions.
 REQUIRED = {
     "world": ["world_id", "seed", "split", "entities", "facts"],
-    "source": ["world_id", "source_id", "title", "reliability", "text", "facts"],
+    "source": [
+        "world_id", "source_id", "title", "reliability", "text", "facts",
+        "false_claims", "copy_of",
+    ],
     "question": [
         "world_id", "question_id", "text", "primitive", "hops", "answerable",
-        "answer", "required_facts", "required_sources",
+        "answer", "required_facts", "required_sources", "trap", "expected_exit",
     ],
 }  # fmt: skip
 NESTED = {"entities": ["id", "kind", "name"], "facts": ["id", "subj", "pred", "obj"]}
+# Closed vocabularies of question fields (None = no trap, no exit expected).
+ALLOWED = {
+    "trap": {None, "contradiction", "false_consensus", "undecidable"},
+    "expected_exit": {None, "unresolved_contradiction"},
+}
 
 Located = tuple[str, dict]
 
@@ -50,7 +58,7 @@ def read_records(path: Path) -> Iterator[Located]:
 
 
 def _problem(record: object) -> str | None:
-    """What is wrong with a parsed line, or None if it is a valid v0 record."""
+    """What is wrong with a parsed line, or None if it is a valid v1 record."""
     if not isinstance(record, dict):
         return f"expected a JSON object, got {type(record).__name__}"
     if record.get("schema") != SCHEMA:
@@ -59,6 +67,10 @@ def _problem(record: object) -> str | None:
     if kind not in REQUIRED:
         return f"unknown record type {kind!r}"
     missing = [k for k in REQUIRED[kind] if k not in record]
+    if kind == "question" and not missing:
+        wrong = [f"{k} {record[k]!r}" for k, ok in ALLOWED.items() if record[k] not in ok]
+        if wrong:
+            return f"question has an unknown {', '.join(wrong)}"
     if kind == "world" and not missing:
         missing = [
             f"{name}[{i}].{k}"

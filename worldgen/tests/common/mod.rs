@@ -7,9 +7,17 @@ use docta_worldgen::model::{Fact, Obj};
 use docta_worldgen::split::Split;
 use docta_worldgen::world::generate;
 
+/// The CLI defaults, traps included: the guards check what `just gen` writes.
 pub const DEFAULT: Options = Options {
     unanswerable_ratio: 0.33,
     max_hops: 2,
+    trap_ratio: 0.3,
+};
+
+/// Worlds without traps.
+pub const PLAIN: Options = Options {
+    trap_ratio: 0.0,
+    ..DEFAULT
 };
 
 /// The 200 worlds most tests run on.

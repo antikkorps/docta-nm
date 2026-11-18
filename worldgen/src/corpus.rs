@@ -1,8 +1,9 @@
 //! What a model gets to read (sources) and is asked (questions) about a world.
 
+use crate::model::Obj;
 use crate::model::World;
 use crate::split::Split;
-use crate::{questions, sources};
+use crate::{questions, sources, traps};
 use rand::SeedableRng;
 use rand::rngs::ChaCha8Rng;
 
@@ -15,6 +16,29 @@ pub const QUESTIONS_PER_WORLD: usize = 9;
 pub struct Options {
     pub unanswerable_ratio: f64,
     pub max_hops: u8,
+    /// Share of answerable retrieve questions whose fact gets a trap.
+    pub trap_ratio: f64,
+}
+
+/// Disagreeing sources around the fact a question asks about (JSONL v1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Trap {
+    /// One independent false source, clearly less reliable than the true one.
+    Contradiction,
+    /// One false origin repeated by attributed copies, against a reliable primary.
+    FalseConsensus,
+    /// Two independent, equally reliable sources state opposite values.
+    Undecidable,
+}
+
+impl Trap {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Trap::Contradiction => "contradiction",
+            Trap::FalseConsensus => "false_consensus",
+            Trap::Undecidable => "undecidable",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -44,6 +68,10 @@ pub struct Source {
     pub text: String,
     /// Ground truth, never exposed to a model.
     pub facts: Vec<String>,
+    /// Ground truth: facts this source states with a wrong object.
+    pub false_claims: Vec<(String, Obj)>,
+    /// Ground truth: the source whose claim this one repeats, if a copy.
+    pub copy_of: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -66,6 +94,9 @@ pub struct Question {
     /// Every world fact the question rests on, stated or not. Internal, used to
     /// test the ood seal on unanswerable questions too; not serialised.
     pub support: Vec<String>,
+    pub trap: Option<Trap>,
+    /// The emergency exit the method should take, if any.
+    pub expected_exit: Option<&'static str>,
 }
 
 impl Question {
@@ -93,6 +124,8 @@ impl Question {
             required_facts,
             required_sources,
             absent_fact: None,
+            trap: None,
+            expected_exit: None,
         }
     }
 
@@ -116,6 +149,8 @@ impl Question {
             required_facts: Vec::new(),
             required_sources: Vec::new(),
             absent_fact: Some(absent_fact),
+            trap: None,
+            expected_exit: None,
         }
     }
 }
@@ -135,9 +170,22 @@ pub fn build(world: World, split: Split, opts: &Options) -> Corpus {
     let n_missing = unanswerable_count(opts.unanswerable_ratio);
     let withheld = sources::withhold(&world, &mut rng);
     let held_out = split.held_out();
-    let srcs = sources::write(&world, &withheld, held_out, &mut rng);
-    let questions = questions::generate(
+    let mut srcs = sources::write(&world, &withheld, held_out, &mut rng);
+    let mut questions = questions::generate(
         &world, &srcs, &withheld, n_missing, opts, held_out, &mut rng,
+    );
+    // Drawn last: without traps, every earlier draw and byte stays as it was.
+    let ground = traps::Ground {
+        world: &world,
+        withheld: &withheld,
+        held_out,
+    };
+    traps::apply(
+        &ground,
+        &mut srcs,
+        &mut questions,
+        opts.trap_ratio,
+        &mut rng,
     );
     Corpus {
         world,

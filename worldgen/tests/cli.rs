@@ -37,7 +37,7 @@ fn same_seed_gives_byte_identical_files() {
 }
 
 #[test]
-fn every_line_is_v0_json_and_worlds_never_cross_splits() {
+fn every_line_is_v1_json_and_worlds_never_cross_splits() {
     let dir = temp_dir("lines");
     assert!(run(&dir, &[]));
     let mut owner: BTreeMap<String, &str> = BTreeMap::new();
@@ -45,7 +45,7 @@ fn every_line_is_v0_json_and_worlds_never_cross_splits() {
         let mut declared = BTreeSet::new();
         for line in read(&dir, split).lines() {
             let v: Value = serde_json::from_str(line).expect("valid JSON");
-            assert_eq!(v["schema"], "v0");
+            assert_eq!(v["schema"], "v1");
             let id = v["world_id"].as_str().expect("world_id").to_string();
             match v["type"].as_str() {
                 Some("world") => {

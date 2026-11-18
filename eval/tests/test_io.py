@@ -5,7 +5,7 @@ from docta_eval.io import read_gold, read_predictions
 from eval_sample import GOLD, MIXED, pred
 
 WORLD = {
-    "schema": "v0", "type": "world", "world_id": "w1", "seed": 1, "split": "test",
+    "schema": "v1", "type": "world", "world_id": "w1", "seed": 1, "split": "test",
     "entities": [], "facts": [],
 }  # fmt: skip
 KEYS = {("w1", q["question_id"]) for q in GOLD}

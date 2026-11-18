@@ -5,7 +5,7 @@ use docta_worldgen::split::Ratios;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-/// Generates fictional worlds, their sources and questions as JSONL v0.
+/// Generates fictional worlds, their sources and questions as JSONL v1.
 #[derive(Parser)]
 #[command(version)]
 struct Args {
@@ -27,6 +27,10 @@ struct Args {
     /// Maximum reasoning hops per question.
     #[arg(long, default_value_t = 2, value_parser = clap::value_parser!(u8).range(1..=2))]
     max_hops: u8,
+    /// Share of answerable retrieve questions whose fact gets a trap
+    /// (contradiction, false consensus or undecidable).
+    #[arg(long, default_value_t = 0.3, value_parser = parse_ratio)]
+    trap_ratio: f64,
 }
 
 fn parse_ratio(text: &str) -> Result<f64, String> {
@@ -47,6 +51,7 @@ fn main() -> ExitCode {
         options: Options {
             unanswerable_ratio: args.unanswerable_ratio,
             max_hops: args.max_hops,
+            trap_ratio: args.trap_ratio,
         },
     };
     match write(&cfg, &args.out) {

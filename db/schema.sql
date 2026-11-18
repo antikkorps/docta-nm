@@ -34,6 +34,8 @@ CREATE TABLE sources (
   reliability real NOT NULL,
   body        text NOT NULL,
   fact_ids    text[] NOT NULL,        -- ground truth, never exposed to a model
+  false_claims jsonb NOT NULL,        -- ground truth: [{"fact", "obj"}] stated wrongly
+  copy_of     text,                   -- ground truth: the source this one repeats
   -- 'simple' config: names are invented, no language dictionary must alter them.
   tsv         tsvector GENERATED ALWAYS AS
                 (to_tsvector('simple', title || ' ' || body)) STORED,
@@ -52,5 +54,7 @@ CREATE TABLE questions (
   missing           text,
   required_facts    text[] NOT NULL,
   required_sources  text[] NOT NULL,
+  trap              text CHECK (trap IN ('contradiction','false_consensus','undecidable')),
+  expected_exit     text CHECK (expected_exit IN ('unresolved_contradiction')),
   PRIMARY KEY (world_id, question_id)
 );
