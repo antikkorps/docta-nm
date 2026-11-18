@@ -1,5 +1,7 @@
 # Docta-nm
 
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-fvienot-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/fvienot)
+
 Not super intelligence: **super reflection**. Docta-nm is a frugal AI, built from scratch, whose strength is structuring its reasoning to reach a goal, not knowing things.
 Its core holds **no facts**, only a method: it frames the question, plans what to look for, searches sources, knows when it has enough, and answers citing them, or abstains and says why. It is meant as a thinking partner rather than a fast answerer: it raises what a request leaves unsaid, you can step into its reflection while it runs, and it refines its reasoning from the exchange, as one would think with another person.
 Facts live in the sources, never in the weights, so the core stays small in RAM and on disk.
