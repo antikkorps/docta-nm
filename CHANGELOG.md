@@ -13,8 +13,9 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ## [0.0.1] - 2026-11-18
 
-First tagged release: the measurement chain, the first trained core, and the
-first steps of the method (sort and dig) with their floors.
+First tagged release: the measurement chain, the first trained core, the
+first steps of the method (sort and dig) with their floors, and worlds whose
+sources disagree, ready for the challenge step.
 
 ### Added
 
@@ -36,7 +37,12 @@ first steps of the method (sort and dig) with their floors.
 - **Evaluate core** (PyTorch, CPU): a tiny byte-level transformer trained from
   scratch to judge whether what was read is enough, with a memory guard that
   keeps training from freezing the host machine.
-- CI on GitHub Actions running every pre-push check and the chain end to end.
+- **Sources that disagree** (JSONL v1, first part of the challenge step):
+  traps around the fact a question asks about (contradiction, false consensus
+  with attributed copies, undecidable), with their ground truth in the data and
+  the database. See `docs/design-challenge.md`.
+- CI on GitHub Actions running every pre-push check and the chain end to end,
+  with a read-only token.
 - Contributor docs: CONTRIBUTING.md, code of conduct (Contributor Covenant
   2.1), security policy, issue and pull request templates, and a test that
   keeps every package on the released version.
