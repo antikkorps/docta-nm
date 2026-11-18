@@ -126,3 +126,48 @@ def test_gold_questions_know_the_entities_they_name(tmp_path):
     world = {**WORLD, "entities": [{"id": "e1", "kind": "city", "name": "Brask"}]}
     golds = read_gold(write(tmp_path / "test.jsonl", [world, *GOLD]))
     assert golds[3].subjects == {"Brask"}
+
+
+def test_gold_knows_what_the_false_sources_claim(tmp_path):
+    world = {**WORLD, "entities": [{"id": "e1", "kind": "city", "name": "Varnelle"},
+                                   {"id": "e2", "kind": "city", "name": "Brask"}]}  # fmt: skip
+    liar = {
+        "schema": "v1", "type": "source", "world_id": "w1", "source_id": "s9", "title": "T",
+        "reliability": 0.7, "text": "…", "facts": [], "copy_of": None,
+        "false_claims": [{"fact": "f1", "obj": 1450}, {"fact": "f2", "obj": "e2"}],
+    }  # fmt: skip
+    year = {**GOLD[0], "trap": "contradiction", "required_facts": ["f1"]}
+    city = {**GOLD[1], "trap": "false_consensus", "required_facts": ["f2", "f9"]}
+    golds = read_gold(write(tmp_path / "test.jsonl", [world, liar, year, city]))
+    assert [g.false_answers for g in golds] == [frozenset({"1450"}), frozenset({"Brask"})]
+    assert golds[0].trap == "contradiction"
+
+
+def test_false_answers_do_not_depend_on_line_order(tmp_path):
+    world = {**WORLD, "entities": [{"id": "e2", "kind": "city", "name": "Brask"}]}
+    liar = {
+        "schema": "v1", "type": "source", "world_id": "w1", "source_id": "s9", "title": "T",
+        "reliability": 0.7, "text": "…", "facts": [], "copy_of": None,
+        "false_claims": [{"fact": "f2", "obj": "e2"}],
+    }  # fmt: skip
+    city = {**GOLD[0], "trap": "contradiction", "required_facts": ["f2"]}
+    golds = read_gold(write(tmp_path / "test.jsonl", [world, city, liar]))
+    assert golds[0].false_answers == frozenset({"Brask"})
+
+
+def test_a_false_claim_naming_an_unknown_entity_is_an_error(tmp_path):
+    liar = {
+        "schema": "v1", "type": "source", "world_id": "w1", "source_id": "s9", "title": "T",
+        "reliability": 0.7, "text": "…", "facts": [], "copy_of": None,
+        "false_claims": [{"fact": "f2", "obj": "e7"}],
+    }  # fmt: skip
+    with pytest.raises(ValueError, match=r"test\.jsonl:2.*e7"):
+        read_gold(write(tmp_path / "test.jsonl", [WORLD, liar, GOLD[0]]))
+
+
+def test_an_undecidable_question_keeps_its_trap_and_exit(tmp_path):
+    undecidable = {**GOLD[3], "trap": "undecidable", "expected_exit": "unresolved_contradiction"}
+    gold = read_gold(write(tmp_path / "test.jsonl", [WORLD, undecidable]))[0]
+    assert (gold.trap, gold.expected_exit, gold.answer) == (
+        "undecidable", "unresolved_contradiction", None,
+    )  # fmt: skip

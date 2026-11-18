@@ -82,6 +82,8 @@ keyword            0.855     0.285     1.000     0.941     0.201     0.000     1
 
 `always_abstain` reaches 0.50 abstention F1 with a grounded rate of 0: right outcome, no reflection.
 
+**Traps.** Some questions surround their fact with sources that disagree: a less reliable source stating a false value (`contradiction`), copies repeating one false origin (`false_consensus`), or two equally reliable sources that cannot be settled (`undecidable`, where the right move is the exit `unresolved_contradiction`). A `model · trap` table scores them: `acc` and `just acc` on the decidable ones, `fooled` (answered the false value, or settled an undecidable one), and the precision and recall of the `unresolved_contradiction` exit. Today `keyword`, `rule_evaluate` and `dig` settle every undecidable question on test, and no baseline takes the `unresolved_contradiction` exit: none can yet say "the sources disagree".
+
 **Generalisation.** The `ood` split is written with sentence and question phrasings, and chain combinations, that train, val and test never contain. On it, `keyword` drops from 0.52 to 0.18 accuracy: it recognised templates rather than reading. The trained core has to hold up on `ood` too, or it has learned the templates, not the method.
 
 `just up && just test` runs every check (Rust and Python, database included); run it before pushing.

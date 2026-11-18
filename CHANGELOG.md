@@ -11,6 +11,13 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ## [Unreleased]
 
+### Added
+
+- **Trap scores**: a `model · trap` table and a `traps` entry in the JSON
+  scores: accuracy and justified accuracy on decidable traps, how often a
+  model was fooled, and the precision and recall of the
+  `unresolved_contradiction` exit.
+
 ## [0.0.1] - 2026-11-18
 
 First tagged release: the measurement chain, the first trained core, the

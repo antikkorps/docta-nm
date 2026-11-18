@@ -12,6 +12,7 @@ from docta_eval.io import read_gold, read_predictions, read_traces
 from docta_eval.metrics import score
 from docta_eval.process import process_scores
 from docta_eval.report import render
+from docta_eval.traps import trap_scores
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -34,6 +35,9 @@ def evaluate(gold: Path, predictions: list[Path], traces: Path | None = None) ->
             raise ValueError(f"model {path.stem!r} appears twice: rename one of its files")
         preds = read_predictions(path, keys)
         results[path.stem] = score(golds, preds)
+        traps = trap_scores(golds, preds)
+        if traps:
+            results[path.stem]["traps"] = traps
         if traces is not None:
             model_traces = read_traces(traces / f"{path.stem}.jsonl", keys)
             _check_agreement(preds, model_traces, path.stem)

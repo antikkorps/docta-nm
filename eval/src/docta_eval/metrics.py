@@ -21,9 +21,15 @@ class Gold:
     required_sources: frozenset[str]
     # World entities the question names: what a search must be about to count.
     subjects: frozenset[str] = frozenset()
+    trap: str | None = None
+    expected_exit: str | None = None
+    # What the false sources about the question's fact claim, as answers read.
+    false_answers: frozenset[str] = frozenset()
 
     @classmethod
-    def from_record(cls, q: dict, names: Iterable[str] = ()) -> "Gold":
+    def from_record(
+        cls, q: dict, names: Iterable[str] = (), false_answers: Iterable[str] = ()
+    ) -> "Gold":
         return cls(
             q["world_id"],
             q["question_id"],
@@ -32,6 +38,9 @@ class Gold:
             q["answer"] if q["answerable"] else None,
             frozenset(q["required_sources"]),
             frozenset(n for n in names if mentions(q["text"], n)),
+            q.get("trap"),
+            q.get("expected_exit"),
+            frozenset(false_answers),
         )
 
 
@@ -45,10 +54,11 @@ class Pred:
     abstained: bool
     answer: str | None
     cited_sources: frozenset[str]
+    exit: str | None = None
 
     @classmethod
     def from_record(cls, p: dict) -> "Pred":
-        return cls(p["abstained"], p["answer"], frozenset(p["cited_sources"]))
+        return cls(p["abstained"], p["answer"], frozenset(p["cited_sources"]), p.get("exit"))
 
 
 # A missing prediction is a wrong answer, never an abstention: otherwise a
