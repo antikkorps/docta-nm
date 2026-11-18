@@ -16,7 +16,7 @@ target-version = "py312"
 select = ["E", "F", "I", "B", "UP", "SIM"]
 
 [tool.pytest.ini_options]
-testpaths = ["orchestrator/tests", "eval/tests", "train/tests"]
+testpaths = ["orchestrator/tests", "eval/tests", "train/tests", "tests"]
 # Lets tests import their shared sample module by name.
 pythonpath = ["orchestrator/tests", "eval/tests", "train/tests"]
 addopts = "--import-mode=importlib"

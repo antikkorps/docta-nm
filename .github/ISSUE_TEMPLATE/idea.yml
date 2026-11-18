@@ -1,0 +1,23 @@
+name: Idea
+description: Propose a feature, an experiment or a change to the method
+labels: [idea]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What would change, and which step of the method it serves (collect, sort, challenge, dig, answer).
+    validations:
+      required: true
+  - type: textarea
+    id: measure
+    attributes:
+      label: How we would measure it
+      description: Which score or trace metric should move, on test and on ood.
+  - type: checkboxes
+    id: rules
+    attributes:
+      label: Project rules
+      options:
+        - label: It needs no LLM, external API or pretrained model, and never shows ground truth to a model.
+          required: true
