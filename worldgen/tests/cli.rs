@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const SPLITS: [&str; 3] = ["train", "val", "test"];
+const SPLITS: [&str; 4] = ["train", "val", "test", "ood"];
 
 fn run(dir: &Path, extra: &[&str]) -> bool {
     Command::new(env!("CARGO_BIN_EXE_docta-worldgen"))

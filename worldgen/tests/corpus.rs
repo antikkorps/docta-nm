@@ -5,6 +5,7 @@ mod common;
 use common::{DEFAULT, corpora, fact, name, render, sources_with};
 use docta_worldgen::corpus::{Corpus, Options, Primitive, Question, build};
 use docta_worldgen::model::{Fact, Obj, Pred};
+use docta_worldgen::split::Split;
 use docta_worldgen::world::generate;
 use std::collections::BTreeSet;
 
@@ -170,5 +171,8 @@ fn every_primitive_occurs_and_max_hops_is_respected() {
 #[test]
 fn build_is_deterministic() {
     let w = || generate("w", 3);
-    assert_eq!(build(w(), &DEFAULT), build(w(), &DEFAULT));
+    assert_eq!(
+        build(w(), Split::Train, &DEFAULT),
+        build(w(), Split::Train, &DEFAULT)
+    );
 }

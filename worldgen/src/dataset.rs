@@ -30,7 +30,7 @@ pub fn write(cfg: &Config, out: &Path) -> io::Result<BTreeMap<Split, u64>> {
     for i in 0..cfg.worlds {
         let seed = world_seed(cfg.seed, i);
         let split = assign(seed, &cfg.ratios);
-        let corpus = build(generate(&format!("w_{i:06}"), seed), &cfg.options);
+        let corpus = build(generate(&format!("w_{i:06}"), seed), split, &cfg.options);
         let file = files.get_mut(&split).expect("one file per split");
         for line in lines(&corpus, split) {
             writeln!(file, "{line}")?;

@@ -1,6 +1,7 @@
 //! What a model gets to read (sources) and is asked (questions) about a world.
 
 use crate::model::World;
+use crate::split::Split;
 use crate::{questions, sources};
 use rand::SeedableRng;
 use rand::rngs::ChaCha8Rng;
@@ -62,6 +63,9 @@ pub struct Question {
     /// For an unanswerable question: the world fact it asks about, which no
     /// source mentions. Internal, used to test the guarantee; not serialised.
     pub absent_fact: Option<String>,
+    /// Every world fact the question rests on, stated or not. Internal, used to
+    /// test the ood seal on unanswerable questions too; not serialised.
+    pub support: Vec<String>,
 }
 
 impl Question {
@@ -78,6 +82,7 @@ impl Question {
         required_sources: Vec<String>,
     ) -> Self {
         Self {
+            support: required_facts.clone(),
             id: String::new(),
             text,
             primitive: shape,
@@ -97,8 +102,10 @@ impl Question {
         hops: u8,
         missing: String,
         absent_fact: String,
+        support: Vec<String>,
     ) -> Self {
         Self {
+            support,
             id: String::new(),
             text,
             primitive: Primitive::SpotMissing,
@@ -122,13 +129,16 @@ pub struct Corpus {
 
 /// Writes the sources and questions of `world`. Uses its own RNG stream, so
 /// changing a template never changes the worlds themselves.
-pub fn build(world: World, opts: &Options) -> Corpus {
+pub fn build(world: World, split: Split, opts: &Options) -> Corpus {
     let mut rng = ChaCha8Rng::seed_from_u64(world.seed);
     rng.set_stream(1);
     let n_missing = unanswerable_count(opts.unanswerable_ratio);
     let withheld = sources::withhold(&world, &mut rng);
-    let srcs = sources::write(&world, &withheld, &mut rng);
-    let questions = questions::generate(&world, &srcs, &withheld, n_missing, opts, &mut rng);
+    let held_out = split.held_out();
+    let srcs = sources::write(&world, &withheld, held_out, &mut rng);
+    let questions = questions::generate(
+        &world, &srcs, &withheld, n_missing, opts, held_out, &mut rng,
+    );
     Corpus {
         world,
         sources: srcs,

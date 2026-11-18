@@ -32,6 +32,7 @@ fn tiny() -> Corpus {
         required_facts: answer.map(|_| vec!["f1".into()]).unwrap_or_default(),
         required_sources: answer.map(|_| vec!["s1".into()]).unwrap_or_default(),
         absent_fact: None,
+        support: Vec::new(),
     };
     Corpus {
         world: World {

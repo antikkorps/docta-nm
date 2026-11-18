@@ -4,6 +4,7 @@
 
 use docta_worldgen::corpus::{Corpus, Options, Source, build};
 use docta_worldgen::model::{Fact, Obj};
+use docta_worldgen::split::Split;
 use docta_worldgen::world::generate;
 
 pub const DEFAULT: Options = Options {
@@ -42,9 +43,14 @@ pub fn sources_with<'a>(c: &'a Corpus, fact_id: &str) -> Vec<&'a Source> {
         .collect()
 }
 
-/// Worlds 0..n built with `opts`.
+/// Worlds 0..n built with `opts`, as the train split writes them.
 pub fn corpora_n(n: u64, opts: &Options) -> Vec<Corpus> {
+    corpora_in(Split::Train, n, opts)
+}
+
+/// Worlds 0..n built with `opts` as `split` writes them.
+pub fn corpora_in(split: Split, n: u64, opts: &Options) -> Vec<Corpus> {
     (0..n)
-        .map(|i| build(generate(&format!("w_{i:06}"), i), opts))
+        .map(|i| build(generate(&format!("w_{i:06}"), i), split, opts))
         .collect()
 }

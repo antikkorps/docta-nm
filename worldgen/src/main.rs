@@ -15,11 +15,11 @@ struct Args {
     /// Number of worlds to generate.
     #[arg(long, default_value_t = 1000)]
     worlds: u64,
-    /// Output directory for train.jsonl, val.jsonl and test.jsonl.
+    /// Output directory for train.jsonl, val.jsonl, test.jsonl and ood.jsonl.
     #[arg(long, default_value = "data")]
     out: PathBuf,
-    /// Share of worlds per split, as train,val,test.
-    #[arg(long, default_value = "0.8,0.1,0.1", value_parser = Ratios::parse)]
+    /// Share of worlds per split, as train,val,test,ood.
+    #[arg(long, default_value = "0.7,0.1,0.1,0.1", value_parser = Ratios::parse)]
     split_ratio: Ratios,
     /// Share of questions per world that no source can answer.
     #[arg(long, default_value_t = 0.33, value_parser = parse_ratio)]

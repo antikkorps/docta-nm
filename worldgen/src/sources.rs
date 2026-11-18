@@ -24,7 +24,12 @@ pub fn withhold<R: Rng>(world: &World, rng: &mut R) -> BTreeSet<String> {
 
 /// Spreads every non-withheld fact over sources of 1 to 3 facts each. Shuffling
 /// first means a 2-hop question often needs two different sources.
-pub fn write<R: Rng>(world: &World, withheld: &BTreeSet<String>, rng: &mut R) -> Vec<Source> {
+pub fn write<R: Rng>(
+    world: &World,
+    withheld: &BTreeSet<String>,
+    held_out: bool,
+    rng: &mut R,
+) -> Vec<Source> {
     let mut visible: Vec<&Fact> = world
         .facts
         .iter()
@@ -36,16 +41,24 @@ pub fn write<R: Rng>(world: &World, withheld: &BTreeSet<String>, rng: &mut R) ->
     while !rest.is_empty() {
         let size = rng.random_range(1..=3).min(rest.len());
         let (group, tail) = rest.split_at(size);
-        sources.push(source(world, sources.len() + 1, group, rng));
+        sources.push(source(world, sources.len() + 1, group, held_out, rng));
         rest = tail;
     }
     sources
 }
 
-fn source<R: Rng>(world: &World, n: usize, facts: &[&Fact], rng: &mut R) -> Source {
+fn source<R: Rng>(world: &World, n: usize, facts: &[&Fact], held_out: bool, rng: &mut R) -> Source {
     let text: Vec<String> = facts
         .iter()
-        .map(|f| templates::sentence(f.pred, name(world, &f.subj), &render(world, &f.obj), rng))
+        .map(|f| {
+            templates::sentence(
+                f.pred,
+                name(world, &f.subj),
+                &render(world, &f.obj),
+                held_out,
+                rng,
+            )
+        })
         .collect();
     Source {
         id: format!("s{n}"),

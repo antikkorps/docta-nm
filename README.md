@@ -20,9 +20,10 @@ Requirements: [Docker](https://docs.docker.com/get-docker/), [Rust](https://rust
 cp .env.example .env   # then set a password (openssl rand -hex 32) in both places
 uv sync
 just up                # Postgres with pgvector, on 127.0.0.1:5442
-just gen               # 1000 fictional worlds → data/{train,val,test}.jsonl
+just gen               # 1000 fictional worlds → data/{train,val,test,ood}.jsonl
 just load              # data/*.jsonl → Postgres
 just baseline          # run the three fake models on the test split, print their scores
+just baseline ood      # the same on ood: phrasings and chains never seen in training
 ```
 
 `just baseline` prints, among other tables:
@@ -30,9 +31,9 @@ just baseline          # run the three fake models on the test split, print thei
 ```
 model                acc    cite P    cite R    abst P    abst R   abst F1  bad abst  missing
 ---------------------------------------------------------------------------------------------
-random             0.005     0.194     0.119     0.344     0.546     0.422     0.520        0
+random             0.008     0.203     0.133     0.320     0.487     0.387     0.516        0
 always_abstain     0.000         —     0.000     0.333     1.000     0.500     1.000        0
-keyword            0.547     0.478     0.537     0.431     0.082     0.137     0.054        0
+keyword            0.523     0.436     0.488     0.390     0.075     0.126     0.059        0
 ```
 
 `keyword` answers easy questions but almost never abstains; `always_abstain` does the opposite. The trained core has to beat **0.50 abstention F1** while still answering.
@@ -42,9 +43,9 @@ Answers are not enough: the same run scores the **reflection** from the traces.
 ```
 reflection        read R    read P    rounds     concl     early      late  searched  grounded  missing
 -------------------------------------------------------------------------------------------------------
-random             0.654     0.237     1.500     0.480     0.493     0.078     0.911     0.441        0
+random             0.653     0.235     1.557     0.484     0.486     0.068     0.903     0.376        0
 always_abstain     0.000         —     0.000     0.000         —         —     0.000     0.000        0
-keyword            0.864     0.291     1.000     0.946     0.193     0.000     1.000     0.078        0
+keyword            0.855     0.285     1.000     0.941     0.201     0.000     1.000     0.075        0
 ```
 
 - `read R` / `read P`: share of the needed sources it read / of what it read that was needed (answerable questions).
@@ -54,6 +55,8 @@ keyword            0.864     0.291     1.000     0.946     0.193     0.000     1
 - `grounded`: share of unanswerable questions it abstained on **after reading an excerpt about the entity asked about**. A search that never touches the subject does not count.
 
 `always_abstain` reaches 0.50 abstention F1 with a grounded rate of 0: right outcome, no reflection.
+
+**Generalisation.** The `ood` split is written with sentence and question phrasings, and chain combinations, that train, val and test never contain. On it, `keyword` drops from 0.52 to 0.18 accuracy: it recognised templates rather than reading. The trained core has to hold up on `ood` too, or it has learned the templates, not the method.
 
 `just up && just test` runs every check (Rust and Python, database included); run it before pushing.
 

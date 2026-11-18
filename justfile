@@ -24,7 +24,7 @@ reset-db:
 # Generate the fictional-world dataset into data/ (same options = same bytes)
 gen seed="42" worlds="1000":
     cargo run --release -q -p docta-worldgen -- --seed {{seed}} --worlds {{worlds}} --out data \
-        --split-ratio 0.8,0.1,0.1 --unanswerable-ratio 0.33 --max-hops 2
+        --split-ratio 0.7,0.1,0.1,0.1 --unanswerable-ratio 0.33 --max-hops 2
 
 # Load data/*.jsonl into Postgres, mirroring it: worlds no longer in data/ are removed
 load:
@@ -40,7 +40,7 @@ test:
     uv run ruff format --check
     uv run pytest -q
 
-# Run the three fake models on the test split, then print their scores
-baseline:
-    uv run python -m docta_orchestrator.baseline data/test.jsonl --out predictions --traces data/traces
-    uv run python -m docta_eval data/test.jsonl predictions/random.jsonl predictions/always_abstain.jsonl predictions/keyword.jsonl --traces data/traces --json predictions/scores.json
+# Run the three fake models on a split (test, or ood for generalisation), then score them
+baseline split="test":
+    uv run python -m docta_orchestrator.baseline data/{{split}}.jsonl --out predictions/{{split}} --traces data/traces/{{split}}
+    uv run python -m docta_eval data/{{split}}.jsonl predictions/{{split}}/random.jsonl predictions/{{split}}/always_abstain.jsonl predictions/{{split}}/keyword.jsonl --traces data/traces/{{split}} --json predictions/{{split}}/scores.json

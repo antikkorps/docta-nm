@@ -7,7 +7,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE TABLE worlds (
   world_id   text PRIMARY KEY,
   seed       bigint NOT NULL,
-  split      text NOT NULL CHECK (split IN ('train','val','test'))
+  split      text NOT NULL CHECK (split IN ('train','val','test','ood'))
 );
 
 CREATE TABLE entities (

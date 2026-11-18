@@ -3,8 +3,9 @@
 
 mod common;
 
-use common::{DEFAULT, corpora, corpora_n};
+use common::{DEFAULT, corpora, corpora_in, corpora_n};
 use docta_worldgen::corpus::{Corpus, Primitive, Question};
+use docta_worldgen::split::Split;
 use std::collections::BTreeSet;
 
 #[test]
@@ -83,18 +84,21 @@ fn unanswerable_subjects_are_as_documented_as_answerable_ones() {
 #[test]
 fn every_question_shape_is_unanswerable_equally_often() {
     // If only some shapes could lack an answer, the question text alone would
-    // predict abstention.
-    let all = corpora_n(1000, &DEFAULT);
-    let questions: Vec<&Question> = all.iter().flat_map(|c| &c.questions).collect();
-    let share =
-        |qs: &[&&Question]| qs.iter().filter(|q| !q.answerable()).count() as f64 / qs.len() as f64;
-    let overall = share(&questions.iter().collect::<Vec<_>>());
-    for shape in [Primitive::Retrieve, Primitive::Chain, Primitive::Compare] {
-        let of_shape: Vec<_> = questions.iter().filter(|q| q.shape == shape).collect();
-        let s = share(&of_shape);
-        assert!(
-            (s - overall).abs() < 0.05,
-            "{shape:?}: {s:.3} unanswerable vs {overall:.3}"
-        );
+    // predict abstention. Checked on ood too: its chain pool differs.
+    for split in [Split::Train, Split::Ood] {
+        let all = corpora_in(split, 1000, &DEFAULT);
+        let questions: Vec<&Question> = all.iter().flat_map(|c| &c.questions).collect();
+        let share = |qs: &[&&Question]| {
+            qs.iter().filter(|q| !q.answerable()).count() as f64 / qs.len() as f64
+        };
+        let overall = share(&questions.iter().collect::<Vec<_>>());
+        for shape in [Primitive::Retrieve, Primitive::Chain, Primitive::Compare] {
+            let of_shape: Vec<_> = questions.iter().filter(|q| q.shape == shape).collect();
+            let s = share(&of_shape);
+            assert!(
+                (s - overall).abs() < 0.03,
+                "{split:?} {shape:?}: {s:.3} unanswerable vs {overall:.3}"
+            );
+        }
     }
 }
