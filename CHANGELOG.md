@@ -11,6 +11,10 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ## [Unreleased]
 
+### Fixed
+
+- `fit` fails early with a clear message when the training or validation split has no example, instead of a `ZeroDivisionError`.
+
 ### Added
 
 - **Trap scores**: a `model · trap` table and a `traps` entry in the JSON

@@ -47,6 +47,10 @@ def fit(
     max_minutes: float | None = None,
 ) -> dict:
     """Trains from scratch; keeps the epoch with the lowest validation loss."""
+    # An empty split would only fail later, as a ZeroDivisionError in the mean loss.
+    for name, split in (("training", train), ("validation", val)):
+        if not split:
+            raise ValueError(f"the {name} split has no example: generate more data")
     torch.manual_seed(seed)
     rng = random.Random(seed)
     out.mkdir(parents=True, exist_ok=True)
@@ -99,17 +103,21 @@ def main(argv: list[str]) -> int:
     protect_machine(max_gb=args.max_gb, threads=args.threads)
     train = list(read_examples(args.data / "train.jsonl"))[: args.max_train]
     val = list(read_examples(args.data / "val.jsonl"))[: args.max_val]
-    report = fit(
-        train,
-        val,
-        args.out,
-        Config(),
-        args.epochs,
-        args.batch,
-        args.lr,
-        args.seed,
-        args.max_minutes,
-    )
+    try:
+        report = fit(
+            train,
+            val,
+            args.out,
+            Config(),
+            args.epochs,
+            args.batch,
+            args.lr,
+            args.seed,
+            args.max_minutes,
+        )
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
     print(json.dumps(report, indent=2), file=sys.stderr)
     return 0
 

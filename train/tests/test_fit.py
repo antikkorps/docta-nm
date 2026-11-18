@@ -2,6 +2,7 @@
 
 import json
 
+import pytest
 from docta_orchestrator.search import Hit
 from docta_train.evaluate_data import Example
 from docta_train.fit import fit
@@ -98,3 +99,18 @@ def test_cli_caps_the_validation_set(tmp_path, monkeypatch):
     monkeypatch.setattr(fit_module, "fit", lambda train, val, *a: seen.update(val=len(val)) or {})
     fit_module.main(["--data", str(tmp_path), "--max-val", "3"])
     assert seen["val"] == 3
+
+
+@pytest.mark.parametrize(("train", "val", "name"), [(0, 16, "training"), (64, 0, "validation")])
+def test_fit_refuses_an_empty_split(tmp_path, train, val, name):
+    with pytest.raises(ValueError, match=f"{name} split has no example"):
+        fit(
+            examples("train", train),
+            examples("val", val),
+            tmp_path,
+            TINY,
+            epochs=1,
+            batch=16,
+            lr=3e-3,
+            seed=0,
+        )
