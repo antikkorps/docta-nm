@@ -39,11 +39,13 @@ fields: nothing about provenance leaks outside the text.
 
 - Every source, true or false, has a reliability in 0.60–1.00: a value
   outside the truthful range would give a liar away without reading.
-- False origins are drawn lower on average (0.60–0.80), so reliability helps
+- False origins are drawn lower on average (0.60–0.75), so reliability helps
   but overlaps with true sources; sorting by reliability alone is not enough.
 - Within a trap the rule must stay decidable: in `contradiction` the true
-  source (0.80–1.00) is at least 0.20 more reliable; in `undecidable` both are
-  within 0.05. In a simple contradiction reliability does decide: that is the
+  source (0.80–1.00) is at least 0.20 more reliable; in `false_consensus` the
+  primary source (0.85–1.00) is at least 0.10 above the false origin; in
+  `undecidable` both are within 0.05 (inclusive), so no other trap can look
+  undecidable. In a simple contradiction reliability does decide: that is the
   easy case the other two traps go beyond.
 - Copies take a mid reliability (0.60–0.85): repeating a claim must not make
   it look better sourced than it is.
@@ -116,8 +118,12 @@ Next to the existing scores, by trap:
   frequent — the naive vote that false consensus should fool.
 - `challenge`: a hand-written Confront that groups copies with their origin,
   weighs independent sources by reliability, and exits
-  `unresolved_contradiction` when the best two are too close. The floor a
-  trained Confront must beat, especially on `ood` (unseen attributions).
+  `unresolved_contradiction` when the best two are within 0.05. It cites each
+  winning group's origin (or best copy, if the origin was not read), and does
+  not conclude on copies alone. Both rules read sentences with the seen
+  templates: on `ood`, whose sentences are held out too, they fall back to
+  keyword, like `rule_evaluate`. They are floors on seen phrasings; a trained
+  Confront has to beat them on `ood`.
 
 ## Delivery, one pull request each
 

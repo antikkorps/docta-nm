@@ -91,7 +91,8 @@ fn a_false_consensus_is_one_origin_and_its_attributed_copies() {
                 assert_eq!(copy.copy_of.as_deref(), Some(origin.id.as_str()));
                 assert!(copy.text.contains(&origin.title), "a copy names its origin");
             }
-            assert!(truth(&c, q).reliability > origin.reliability);
+            // Strictly beyond the 0.05 that makes a pair undecidable.
+            assert!(truth(&c, q).reliability - origin.reliability >= 0.1 - 1e-9);
             assert!(q.answerable());
         }
     }

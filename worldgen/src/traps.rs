@@ -158,7 +158,8 @@ fn contradiction<R: Rng>(claim: &mut Claim, truth: &mut Source, rng: &mut R) -> 
 /// A weak false origin and its copies outnumber one reliable primary source.
 fn false_consensus<R: Rng>(claim: &mut Claim, truth: &mut Source, rng: &mut R) -> Vec<Source> {
     truth.reliability = cents(rng, 85, 100);
-    let origin = claim.origin(cents(rng, 60, 80), rng);
+    // At least 0.10 below the truth (0.85+): beyond the 0.05 of an undecidable pair.
+    let origin = claim.origin(cents(rng, 60, 75), rng);
     let copies: Vec<Source> = (0..rng.random_range(2..=4))
         .map(|k| claim.copy(&origin, k, rng))
         .collect();
