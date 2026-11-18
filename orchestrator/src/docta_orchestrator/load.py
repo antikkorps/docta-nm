@@ -113,6 +113,10 @@ def load_files(conn: psycopg.Connection, paths: list[Path], prune: bool = False)
                 seen.add(world_id)
                 load_world(conn, batch)
         if prune:
+            # Pruning against nothing would empty the whole database: an empty
+            # or truncated input file is far likelier than a wish to wipe it.
+            if not seen:
+                raise ValueError("no world read: refusing to prune the database against nothing")
             conn.execute("DELETE FROM worlds WHERE NOT (world_id = ANY(%s))", [list(seen)])
     return len(seen)
 

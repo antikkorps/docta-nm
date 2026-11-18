@@ -26,6 +26,13 @@ lines under a new version, and its GitHub Release carries the reference scores.
 - A false consensus's origin is now at least 0.10 less reliable than the
   true source (was 0.05), so no decidable trap can look undecidable.
 
+### Fixed
+
+- `just load` with `--prune` refuses to run when no world was read, instead
+  of emptying the whole database (#10).
+- Evaluation with traces requires traces and predictions to cover the same
+  questions and agree on the whole decision, not only on abstaining (#11).
+
 ## [0.0.1] - 2026-11-18
 
 First tagged release: the measurement chain, the first trained core, the
