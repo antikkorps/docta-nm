@@ -22,21 +22,26 @@ uv sync
 just up                # Postgres with pgvector, on 127.0.0.1:5442
 just gen               # 1000 fictional worlds → data/{train,val,test,ood}.jsonl
 just load              # data/*.jsonl → Postgres
-just baseline          # run the three fake models on the test split, print their scores
+just baseline          # run the fake models and the Evaluate rule on test, print their scores
 just baseline ood      # the same on ood: phrasings and chains never seen in training
 ```
 
 `just baseline` prints, among other tables:
 
 ```
-model                acc    cite P    cite R    abst P    abst R   abst F1  bad abst  missing
----------------------------------------------------------------------------------------------
-random             0.008     0.203     0.133     0.320     0.487     0.387     0.516        0
-always_abstain     0.000         —     0.000     0.333     1.000     0.500     1.000        0
-keyword            0.523     0.436     0.488     0.390     0.075     0.126     0.059        0
+model                acc  just acc    cite P    cite R    abst P    abst R   abst F1  bad abst  missing
+-------------------------------------------------------------------------------------------------------
+random             0.007     0.002     0.181     0.116     0.333     0.530     0.409     0.532        0
+always_abstain     0.000     0.000         —     0.000     0.333     1.000     0.500     1.000        0
+keyword            0.553     0.499     0.451     0.506     0.443     0.086     0.144     0.054        0
+rule_evaluate      0.536     0.499     0.774     0.487     0.676     1.000     0.806     0.240        0
 ```
 
 `keyword` answers easy questions but almost never abstains; `always_abstain` does the opposite. The trained core has to beat **0.50 abstention F1** while still answering.
+
+`just acc` counts a right answer only when it cites every source the question needs: the answer must come from evidence that establishes it, not from knowing it. The gap to `acc` is lucky guesses.
+
+`rule_evaluate` is keyword with a hand-written Evaluate that knows the seen templates: it says "enough" only when every needed fact was read. On test it is close to an oracle; on `ood` it understands no phrasing and falls back to keyword, so `ood` is where a trained core has to beat it.
 
 Answers are not enough: the same run scores the **reflection** from the traces.
 
@@ -64,7 +69,7 @@ keyword            0.855     0.285     1.000     0.941     0.201     0.000     1
 
 - **`worldgen/`** (Rust) generates fictional worlds: invented names, entities and facts, sources written from English templates, and questions (`retrieve`, `chain`, `compare`, plus unanswerable `spot_missing`). Every entity has one fact no source states, and unanswerable questions take every shape, so neither mention counts nor wording give abstention away. Output is byte-identical for the same seed. No LLM is used anywhere.
 - **`orchestrator/`** (Python) loads the JSONL into Postgres, exposes `search(world_id, query, k)` (full-text search that never returns ground truth), and runs each question through an explicit state machine: Frame → Plan → Consult → Evaluate (back to Plan if needed) → Confront → Conclude, with exits `ill_posed_question`, `not_found` and `unresolved_contradiction`. Models only fill states; every run writes a trace to `data/traces/`.
-- **`eval/`** (Python) scores predictions: answer accuracy, citation precision and recall, and abstention precision, recall and F1, overall and by primitive and hops.
+- **`eval/`** (Python) scores predictions: answer accuracy (raw and justified by its citations), citation precision and recall, and abstention precision, recall and F1, overall and by primitive and hops.
 
 Design notes and the phase 0 brief: [`docs/`](docs/).
 

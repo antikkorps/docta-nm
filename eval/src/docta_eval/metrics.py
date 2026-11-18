@@ -67,6 +67,7 @@ class Counts:
     missing: int = 0
     answerable: int = 0
     correct: int = 0
+    justified: int = 0
     cited: int = 0
     cited_right: int = 0
     required: int = 0
@@ -87,8 +88,12 @@ class Counts:
             return
         self.answerable += 1
         self.abstain_fp += p.abstained
-        right = not p.abstained and p.answer is not None
-        self.correct += right and normalize(p.answer) == normalize(gold.answer)
+        answered = not p.abstained and p.answer is not None
+        right = answered and normalize(p.answer) == normalize(gold.answer)
+        self.correct += right
+        # Justified: the answer comes from evidence that establishes it, not
+        # from knowing it. Extra citations are scored by citation precision.
+        self.justified += right and gold.required_sources <= p.cited_sources
 
 
 def ratio(num: int, den: int) -> float | None:
@@ -106,6 +111,7 @@ def summary(c: Counts) -> dict:
         "questions": c.questions,
         "missing": c.missing,
         "accuracy": ratio(c.correct, c.answerable),
+        "justified_accuracy": ratio(c.justified, c.answerable),
         "citation_precision": ratio(c.cited_right, c.cited),
         "citation_recall": ratio(c.cited_right, c.required),
         "abstention_precision": ratio(tp, tp + fp) if has_positives else None,

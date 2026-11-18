@@ -2,6 +2,7 @@
 
 COLUMNS = [
     ("accuracy", "acc"),
+    ("justified_accuracy", "just acc"),
     ("citation_precision", "cite P"),
     ("citation_recall", "cite R"),
     ("abstention_precision", "abst P"),
