@@ -56,9 +56,12 @@ fn templates(of: impl Fn(Pred) -> Option<Phrasings>, held_out: bool) -> Vec<&'st
         .collect()
 }
 
+/// Every sentence a source writes itself. A copy repeats its origin's
+/// sentence behind an attribution; tests/traps.rs seals the attributions.
 fn sentences(c: &Corpus) -> Vec<String> {
     c.sources
         .iter()
+        .filter(|s| s.copy_of.is_none())
         .flat_map(|s| {
             s.text
                 .split(". ")

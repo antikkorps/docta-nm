@@ -1,4 +1,4 @@
-"""Loads JSONL v0 files into Postgres: `python -m docta_orchestrator.load data/*.jsonl`.
+"""Loads JSONL v1 files into Postgres: `python -m docta_orchestrator.load data/*.jsonl`.
 
 Postgres is a projection of the canonical JSONL: loading a world replaces it, so
 reloading after `just gen` is always safe.
@@ -46,19 +46,29 @@ def _rows(wid: str, batch: WorldBatch) -> list[tuple[str, str, list[tuple]]]:
         ),
         (
             "sources",
-            "world_id, source_id, title, reliability, body, fact_ids",
-            [
-                (wid, s["source_id"], s["title"], s["reliability"], s["text"], s["facts"])
-                for s in batch.sources
-            ],
+            "world_id, source_id, title, reliability, body, fact_ids, false_claims, copy_of",
+            [_source_row(wid, s) for s in batch.sources],
         ),
         (
             "questions",
             "world_id, question_id, body, primitive, hops, answerable, answer, missing,"
-            " required_facts, required_sources",
+            " required_facts, required_sources, trap, expected_exit",
             [_question_row(wid, q) for q in batch.questions],
         ),
     ]
+
+
+def _source_row(wid: str, s: dict) -> tuple:
+    return (
+        wid,
+        s["source_id"],
+        s["title"],
+        s["reliability"],
+        s["text"],
+        s["facts"],
+        Jsonb(s["false_claims"]),
+        s["copy_of"],
+    )
 
 
 def _question_row(wid: str, q: dict) -> tuple:
@@ -73,6 +83,8 @@ def _question_row(wid: str, q: dict) -> tuple:
         q.get("missing"),
         q["required_facts"],
         q["required_sources"],
+        q["trap"],
+        q["expected_exit"],
     )
 
 
@@ -107,7 +119,7 @@ def load_files(conn: psycopg.Connection, paths: list[Path], prune: bool = False)
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        prog="python -m docta_orchestrator.load", description="Load JSONL v0 files into Postgres."
+        prog="python -m docta_orchestrator.load", description="Load JSONL v1 files into Postgres."
     )
     parser.add_argument("files", nargs="+", type=Path, help="JSONL files from docta-worldgen")
     parser.add_argument(

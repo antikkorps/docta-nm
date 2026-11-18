@@ -64,7 +64,8 @@ fn each_entity_has_exactly_one_unstated_fact_and_the_rest_once() {
 #[test]
 fn sources_hold_one_to_three_facts_and_state_them() {
     for c in corpora(&DEFAULT) {
-        for s in &c.sources {
+        // Trap sources state no true fact; tests/traps.rs covers them.
+        for s in c.sources.iter().filter(|s| s.false_claims.is_empty()) {
             assert!((1..=3).contains(&s.facts.len()), "{}", s.id);
             assert!((0.6..=1.0).contains(&s.reliability));
             for f in &s.facts {
@@ -114,7 +115,13 @@ fn unanswerable_questions_have_no_support_in_any_source() {
             assert!(
                 q.missing.is_some() && q.required_facts.is_empty() && q.required_sources.is_empty()
             );
-            let target = fact(&c, q.absent_fact.as_ref().expect("absent fact"));
+            // An undecidable question's fact is stated, twice and differently:
+            // tests/traps.rs covers it.
+            let Some(absent) = &q.absent_fact else {
+                assert!(q.trap.is_some(), "{}", q.text);
+                continue;
+            };
+            let target = fact(&c, absent);
             let supported = c.sources.iter().flat_map(|s| &s.facts).any(|id| {
                 let f = fact(&c, id);
                 f.subj == target.subj && f.pred == target.pred

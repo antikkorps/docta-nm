@@ -2,17 +2,33 @@
 
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-fvienot-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/fvienot)
 
-Not super intelligence: **super reflection**. Docta-nm is a frugal AI, built from scratch, whose strength is structuring its reasoning to reach a goal, not knowing things.
-Its core holds **no facts**, only a method: it frames the question, plans what to look for, searches sources, knows when it has enough, and answers citing them, or abstains and says why. It is meant as a thinking partner rather than a fast answerer: it raises what a request leaves unsaid, you can step into its reflection while it runs, and it refines its reasoning from the exchange, as one would think with another person.
-Facts live in the sources, never in the weights, so the core stays small in RAM and on disk.
+**An AI that answers because it checked, not because it knows.**
 
-This repository is at **phase 0**: no model is trained yet. Phase 0 builds what the first trained core will be measured with:
+Most AI assistants answer from what they memorised during training, and sound just as sure when they are wrong. Docta-nm takes the opposite path: its core memorises **no facts**. It carries a method instead, the one a careful researcher follows:
+
+1. **Collect**: search the sources for what the question needs.
+2. **Sort**: keep what is relevant, and know when there is enough.
+3. **Challenge**: weigh sources against each other and spot contradictions.
+4. **Dig**: follow up on what was just learned, until nothing is missing.
+5. **Answer**: conclude citing the sources, or say plainly "I could not find it" and why.
+
+Every answer can be traced back to the sources that establish it. Since knowledge lives in the sources and not in the model, the core stays small enough to run on a modest machine.
+
+It is meant as a thinking partner rather than a fast answerer: it raises what a request leaves unsaid, and you can step into its reasoning while it runs.
+
+### How it is tested
+
+To be sure the core reads instead of remembering, it is trained and tested on **invented worlds**: fictional cities, people and guilds with made-up names and facts, described by generated sources. Nothing can be known in advance; the only way to answer is to search and read. A separate test set uses phrasings never seen in training, to check the core learned the method and not the wording.
+
+### Where it stands
+
+- **Done**: the full measurement chain (world generator, sources in Postgres, the reasoning loop, scores on both the answers and the reasoning traces), with simple baseline models to beat.
+- **In progress**: the first tiny core, trained from scratch on one step of the method: judging whether what it has read is enough.
+- **Next**: digging (a second search driven by what the first one revealed), then challenging (sources that disagree).
 
 ```
-fictional worlds (Rust) → JSONL → Postgres → orchestrator + fake models → evaluation → scores
+fictional worlds (Rust) → JSONL → Postgres → reasoning loop + models → evaluation → scores
 ```
-
-The first milestone is a tiny core, trained from scratch, that **abstains correctly** on questions the sources cannot answer and beats the fake models below.
 
 ## Quick start
 
@@ -45,6 +61,8 @@ rule_evaluate      0.536     0.499     0.774     0.487     0.676     1.000     0
 
 `rule_evaluate` is keyword with a hand-written Evaluate that knows the seen templates: it says "enough" only when every needed fact was read. On test it is close to an oracle; on `ood` it understands no phrasing and falls back to keyword, so `ood` is where a trained core has to beat it.
 
+`dig` is keyword plus a second search: when a question refers to something indirectly ("the city where X lives"), it follows the name the first reading revealed ("X lives in Varnelle") and reads the answer there, citing both sources. It answers 56% of 2-hop questions on test, where keyword answers none.
+
 Answers are not enough: the same run scores the **reflection** from the traces.
 
 ```
@@ -60,6 +78,7 @@ keyword            0.855     0.285     1.000     0.941     0.201     0.000     1
 - `early` / `late`: among those conclusions, concluded before reading what it needed / kept searching after having it.
 - `searched`: share of all its abstentions that came after at least one search.
 - `grounded`: share of unanswerable questions it abstained on **after reading an excerpt about the entity asked about**. A search that never touches the subject does not count.
+- `dug`: among answerable questions whose first search missed a needed source, share where later searches found it: **digging** from what was read.
 
 `always_abstain` reaches 0.50 abstention F1 with a grounded rate of 0: right outcome, no reflection.
 
@@ -74,6 +93,12 @@ keyword            0.855     0.285     1.000     0.941     0.201     0.000     1
 - **`eval/`** (Python) scores predictions: answer accuracy (raw and justified by its citations), citation precision and recall, and abstention precision, recall and F1, overall and by primitive and hops.
 
 Design notes and the phase 0 brief: [`docs/`](docs/).
+
+## Contributing
+
+There is a lot to build, and help is welcome: see [CONTRIBUTING.md](CONTRIBUTING.md)
+for the setup, the branch flow and the project rules, and [CHANGELOG.md](CHANGELOG.md)
+for what changed in each version.
 
 ## License
 

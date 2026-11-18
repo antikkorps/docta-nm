@@ -88,3 +88,21 @@ def test_a_world_in_two_files_is_an_error(conn, tmp_path):
     b = jsonl(tmp_path / "b.jsonl", WORLD)
     with pytest.raises(ValueError, match=r"b\.jsonl:1: w_test01 already loaded"):
         load_files(conn, [a, b])
+
+
+def test_keeps_the_ground_truth_of_traps(conn):
+    # A copy stating a false founding year, and the question it targets.
+    liar = {**SOURCES[0], "source_id": "s3", "facts": []}
+    liar |= {"false_claims": [{"fact": "f1", "obj": 1450}], "copy_of": "s1"}
+    trapped = {**QUESTIONS[0], "trap": "undecidable"}
+    trapped |= {"expected_exit": "unresolved_contradiction"}
+    load_world(conn, WorldBatch(WORLD, [*SOURCES, liar], [trapped, QUESTIONS[1]]))
+    source = conn.execute(
+        "SELECT false_claims, copy_of FROM sources WHERE world_id = 'w_test01' AND source_id = 's3'"
+    ).fetchone()
+    assert source == ([{"fact": "f1", "obj": 1450}], "s1")
+    question = conn.execute(
+        "SELECT trap, expected_exit FROM questions"
+        " WHERE world_id = 'w_test01' AND question_id = 'q1'"
+    ).fetchone()
+    assert question == ("undecidable", "unresolved_contradiction")

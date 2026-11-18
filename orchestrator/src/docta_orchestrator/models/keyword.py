@@ -25,7 +25,7 @@ def _words(text: str) -> set[str]:
     return set(re.findall(r"\w+", text.lower()))
 
 
-def _names(text: str) -> list[str]:
+def capitalised_words(text: str) -> list[str]:
     return [w for w in re.findall(r"\b[A-Z][a-z]+\b", text) if w not in QUESTION_WORDS]
 
 
@@ -34,13 +34,16 @@ def _pick(sentence: str, kind: str, known: set[str]) -> str | None:
     if kind == "number":
         found = re.search(r"\b\d+\b", sentence)
         return found.group() if found else None
-    fresh = [n for n in _names(sentence) if n not in known]
+    fresh = [n for n in capitalised_words(sentence) if n not in known]
     return fresh[0] if fresh else None
 
 
-def _best(question: str, evidence: Evidence, subject: list[str], kind: str) -> Found | None:
-    """Answer from the sentence naming the subject that best overlaps the question."""
-    asked, known = _words(question), set(_names(question))
+def scored_answer(
+    question: str, evidence: Evidence, subject: list[str], kind: str
+) -> tuple[int, str, str] | None:
+    """(overlap, answer, source id) from the sentence naming the subject that
+    best overlaps the question: the overlap says how well the answer fits."""
+    asked, known = _words(question), set(capitalised_words(question))
     best: tuple[int, str, str] | None = None
     for hit in evidence:
         for sentence in re.split(r"(?<=\.)\s+", hit.body):
@@ -50,11 +53,16 @@ def _best(question: str, evidence: Evidence, subject: list[str], kind: str) -> F
             overlap = len(asked & _words(sentence))
             if best is None or overlap > best[0]:
                 best = (overlap, answer, hit.source_id)
+    return best
+
+
+def best_sentence(question: str, evidence: Evidence, subject: list[str], kind: str) -> Found | None:
+    best = scored_answer(question, evidence, subject, kind)
     return (best[1], (best[2],)) if best else None
 
 
 def _choice(question: str, evidence: Evidence, a: str, b: str) -> Found | None:
-    found = [_best(question, evidence, _names(x), "number") for x in (a, b)]
+    found = [best_sentence(question, evidence, capitalised_words(x), "number") for x in (a, b)]
     if None in found:
         return None
     (va, sa), (vb, sb) = found
@@ -72,7 +80,7 @@ class KeywordModel:
         if options:
             return _choice(q, evidence, options[1], options[2])
         kind = "number" if q.lower().startswith(NUMBER_STARTS) else "name"
-        return _best(q, evidence, _names(q), kind)
+        return best_sentence(q, evidence, capitalised_words(q), kind)
 
     def frame(self, question: str) -> Framing:
         return Framing(question)

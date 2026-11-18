@@ -3,7 +3,7 @@
 
 def question(qid, primitive, hops, answer, required, text=None):
     return {
-        "schema": "v0",
+        "schema": "v1",
         "type": "question",
         "world_id": "w1",
         "question_id": qid,
@@ -14,6 +14,8 @@ def question(qid, primitive, hops, answer, required, text=None):
         "answer": answer,
         "required_facts": [f"f_{s}" for s in required],
         "required_sources": required,
+        "trap": None,
+        "expected_exit": None,
         **({} if answer is not None else {"missing": "no source mentions it"}),
     }
 

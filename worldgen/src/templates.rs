@@ -163,15 +163,27 @@ pub fn comparison(pred: Pred, a: &str, b: &str, held_out: bool) -> String {
     fill(one(phrasings, held_out), a, b)
 }
 
-/// Title of a source, named after the subject of its first fact.
-pub fn title<R: Rng>(subj: &str, rng: &mut R) -> String {
-    let variants = [
+/// Every title a source about `subj` can take. Eight forms, so a source a
+/// copy cites can always get a title no other source of its world uses.
+pub fn titles(subj: &str) -> Vec<String> {
+    [
         "Chronicle of {s}",
         "Notes on {s}",
         "Register of {s}",
         "Annals of {s}",
-    ];
-    fill(variants.choose(rng).expect("non-empty"), subj, "")
+        "Records of {s}",
+        "Letters on {s}",
+        "Survey of {s}",
+        "Memoirs of {s}",
+    ]
+    .iter()
+    .map(|t| fill(t, subj, ""))
+    .collect()
+}
+
+/// Title of a source, named after the subject of its first fact.
+pub fn title<R: Rng>(subj: &str, rng: &mut R) -> String {
+    titles(subj).choose(rng).expect("non-empty").clone()
 }
 
 /// A noun phrase for the object of `pred` of `subj`: the first hop of a chain,
