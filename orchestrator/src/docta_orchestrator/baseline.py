@@ -17,6 +17,7 @@ from docta_orchestrator.jsonl import read_records
 from docta_orchestrator.loop import Search, run
 from docta_orchestrator.models import (
     AlwaysAbstainModel,
+    DigModel,
     KeywordModel,
     RandomModel,
     RuleEvaluateModel,
@@ -70,8 +71,15 @@ def run_models(
 
 
 def baseline_models(seed: int) -> list[Model]:
-    """The floors: three fake models, and the hand-written Evaluate rule."""
-    return [RandomModel(seed), AlwaysAbstainModel(), KeywordModel(), RuleEvaluateModel()]
+    """The floors: three fake models, the hand-written Evaluate rule, and the
+    first model that digs (searches again from what it read)."""
+    return [
+        RandomModel(seed),
+        AlwaysAbstainModel(),
+        KeywordModel(),
+        RuleEvaluateModel(),
+        DigModel(),
+    ]
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:

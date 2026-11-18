@@ -45,6 +45,8 @@ rule_evaluate      0.536     0.499     0.774     0.487     0.676     1.000     0
 
 `rule_evaluate` is keyword with a hand-written Evaluate that knows the seen templates: it says "enough" only when every needed fact was read. On test it is close to an oracle; on `ood` it understands no phrasing and falls back to keyword, so `ood` is where a trained core has to beat it.
 
+`dig` is keyword plus a second search: when a question refers to something indirectly ("the city where X lives"), it follows the name the first reading revealed ("X lives in Varnelle") and reads the answer there, citing both sources. It answers 56% of 2-hop questions on test, where keyword answers none.
+
 Answers are not enough: the same run scores the **reflection** from the traces.
 
 ```
