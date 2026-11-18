@@ -34,9 +34,9 @@ just down        # stop it
 just check-db    # smoke check: vector extension + 5 tables exist
 just reset-db    # drop the volume, re-apply db/schema.sql (needed after any schema change)
 just gen         # cargo run worldgen → data/{train,val,test}.jsonl
-just load        # uv run python -m docta_orchestrator.load data/*.jsonl
+just load        # load data/*.jsonl into Postgres, mirroring it (--prune)
 just baseline    # run the 3 fake models + eval, print score table
-just test        # all tests below
+just test        # every check below, database tests included
 
 cargo fmt --check && cargo clippy -- -D warnings && cargo test   # Rust
 uv sync                                                          # Python deps
@@ -46,8 +46,11 @@ uv run ruff check && uv run ruff format --check && uv run pytest # Python
 ## Before pushing
 
 ```bash
-cargo fmt --check && cargo clippy -- -D warnings && cargo test && uv run ruff check && uv run ruff format --check && uv run pytest
+just up && just test
 ```
+
+`just test` runs cargo fmt/clippy/test, ruff check/format and pytest with `.env`
+loaded. A bare `uv run pytest` skips the database tests (no `DATABASE_URL`).
 
 ## Workflow
 
