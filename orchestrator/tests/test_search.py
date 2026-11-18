@@ -2,6 +2,7 @@
 
 import dataclasses
 
+import pytest
 from docta_orchestrator.jsonl import WorldBatch
 from docta_orchestrator.load import load_world
 from docta_orchestrator.search import Hit, search, to_tsquery
@@ -66,3 +67,9 @@ def test_search_is_never_prepared(conn):
     for _ in range(10):
         search(conn, "w_test01", "Varnelle")
     assert conn.execute("SELECT count(*) FROM pg_prepared_statements").fetchone()[0] == 0
+
+
+@pytest.mark.parametrize("k", [0, -1])
+def test_k_must_be_positive(k):
+    with pytest.raises(ValueError, match="k must be positive"):
+        search(None, "w_test01", "Orlan", k=k)  # rejected before any query

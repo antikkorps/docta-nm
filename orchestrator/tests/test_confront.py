@@ -1,7 +1,7 @@
 """Hand-written Confront: the naive vote, and the one that counts copies once."""
 
 from docta_orchestrator.loop import run
-from docta_orchestrator.models.confront import ChallengeModel, MajorityModel, claims
+from docta_orchestrator.models.confront import ChallengeModel, MajorityModel, claims, origin_of
 from docta_orchestrator.search import Hit
 from docta_orchestrator.states import Exit
 
@@ -105,3 +105,13 @@ def test_two_true_sources_sharing_a_title_stay_independent():
     rival = Hit("s2", "Notes on Varnelle", "Varnelle has existed since 1450.", 0.92)
     outcome = ask(ChallengeModel(), [TRUTH, twin, rival])
     assert outcome.answer == "1432"  # 0.90 + 0.70 against 0.92
+
+
+def test_a_credit_to_a_title_shared_by_two_read_sources_names_the_last_one():
+    # Pins the last-wins title map in origin_of: origin titles are unique by
+    # construction, so this only happens if that guarantee is ever broken.
+    first = Hit("s2", "Notes on Varnelle", "Varnelle has existed since 1450.", 0.62)
+    second = Hit("s7", "Notes on Varnelle", "Varnelle has existed since 1450.", 0.61)
+    found = claims(QUESTION, (first, second, COPIES[0]))
+    copy = next(c for c in found if c.source_id == "s3")
+    assert origin_of(copy, found) == "s7"
