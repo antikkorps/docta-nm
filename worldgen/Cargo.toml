@@ -1,0 +1,8 @@
+[package]
+name = "docta-worldgen"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[dependencies]
+rand = { version = "=0.10.4", default-features = false, features = ["std", "chacha"] }

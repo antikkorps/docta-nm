@@ -78,7 +78,7 @@ Plus, for this repo:
 justfile             # task runner (replaces the brief's Makefile); just is a prerequisite
 docker-compose.yml   # db service, 127.0.0.1:5432 only, named volume, pg_isready
 db/schema.sql        # mounted in docker-entrypoint-initdb.d; schema from the brief
-worldgen/            # Rust crate docta-worldgen (clap, serde, rand + rand_chacha)
+worldgen/            # Rust crate docta-worldgen (clap, serde, rand with the chacha feature, pinned)
 orchestrator/        # Python pkg docta_orchestrator: loader, state machine, search, fake models
 eval/                # Python pkg docta_eval: metrics, console table, JSON export
 data/                # generated JSONL, traces/, predictions — gitignored, never edit by hand
@@ -108,7 +108,7 @@ docs/                # brief and design notes
 - Every JSONL line carries `"schema":"v0"`. Changing the format means a new
   schema version, not a silent edit.
 - Determinism: same seed + same options ⇒ byte-identical output. Per-world seeds
-  derive from the global seed; use `rand_chacha`, never thread/OS RNG; iterate
+  derive from the global seed; use `ChaCha8Rng` (rand `chacha` feature; OS RNG features are off), never thread/OS RNG; iterate
   ordered collections (no `HashMap` iteration in output paths).
 - Train/val/test split is by world, never by question.
 - FTS uses the `simple` config on purpose: names are invented, no stemming.
