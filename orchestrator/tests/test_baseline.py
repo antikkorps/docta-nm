@@ -65,3 +65,10 @@ def test_main_fails_cleanly_without_a_database(monkeypatch, capsys, tmp_path):
     monkeypatch.setenv("DATABASE_URL", "postgresql://nobody@127.0.0.1:1/none?connect_timeout=2")
     assert main([str(split), "--out", str(tmp_path / "p"), "--traces", str(tmp_path / "t")]) == 1
     assert "error:" in capsys.readouterr().err
+
+
+def test_baseline_runs_the_fake_models_and_the_evaluate_rule():
+    from docta_orchestrator.baseline import baseline_models
+
+    names = [m.name for m in baseline_models(seed=0)]
+    assert names == ["random", "always_abstain", "keyword", "rule_evaluate"]

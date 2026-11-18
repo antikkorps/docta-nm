@@ -1,4 +1,4 @@
-"""Runs the fake models over a split and writes their predictions and traces.
+"""Runs the baseline models over a split and writes their predictions and traces.
 
 `python -m docta_orchestrator.baseline data/test.jsonl`. A model only ever
 receives the question text and the search tool: never the gold fields.
@@ -15,7 +15,12 @@ import psycopg
 
 from docta_orchestrator.jsonl import read_records
 from docta_orchestrator.loop import Search, run
-from docta_orchestrator.models import AlwaysAbstainModel, KeywordModel, RandomModel
+from docta_orchestrator.models import (
+    AlwaysAbstainModel,
+    KeywordModel,
+    RandomModel,
+    RuleEvaluateModel,
+)
 from docta_orchestrator.search import search
 from docta_orchestrator.states import Model
 
@@ -64,6 +69,11 @@ def run_models(
                 trace_file.write(json.dumps(trace, ensure_ascii=False) + "\n")
 
 
+def baseline_models(seed: int) -> list[Model]:
+    """The floors: three fake models, and the hand-written Evaluate rule."""
+    return [RandomModel(seed), AlwaysAbstainModel(), KeywordModel(), RuleEvaluateModel()]
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="python -m docta_orchestrator.baseline")
     parser.add_argument("split", type=Path, help="generated split, e.g. data/test.jsonl")
@@ -81,7 +91,7 @@ def main(argv: list[str]) -> int:
         return 2
     try:
         questions = [r for _, r in read_records(args.split) if r["type"] == "question"]
-        models = [RandomModel(args.seed), AlwaysAbstainModel(), KeywordModel()]
+        models = baseline_models(args.seed)
         with psycopg.connect(url, autocommit=True) as conn:
             run_models(
                 questions, models, lambda wid: lambda q: search(conn, wid, q), args.out, args.traces
