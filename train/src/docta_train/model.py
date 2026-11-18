@@ -23,7 +23,9 @@ class Config:
     heads: int = 4
     ff: int = 256
     max_len: int = 1024  # longest example is ~970 bytes: nothing truncated
-    dropout: float = 0.1
+    # Any dropout disables PyTorch's memory-efficient CPU attention, which then
+    # keeps each length x length matrix for backward (~16 GB at batch 64).
+    dropout: float = 0.0
 
 
 def encode(question: str, excerpts: Iterable[Hit], max_len: int) -> list[int]:

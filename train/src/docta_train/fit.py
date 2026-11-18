@@ -15,6 +15,7 @@ from pathlib import Path
 import torch
 
 from docta_train.evaluate_data import Example, read_examples
+from docta_train.guard import protect_machine
 from docta_train.model import Config, CoreEvaluate, encode
 from docta_train.training import Batch, run_epoch, validate
 
@@ -77,7 +78,7 @@ def save(model: CoreEvaluate, metrics: dict, path: Path) -> None:
     )
 
 
-def main(argv: list[str]) -> int:
+def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="python -m docta_train.fit")
     p.add_argument("--data", type=Path, default=Path("data/evaluate"))
     p.add_argument("--out", type=Path, default=Path("models/core_evaluate"))
@@ -87,7 +88,14 @@ def main(argv: list[str]) -> int:
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--max-train", type=int, help="cap the number of training examples")
     p.add_argument("--max-minutes", type=float, help="stop after the epoch that passes this budget")
-    args = p.parse_args(argv)
+    p.add_argument("--max-gb", type=float, default=6.0, help="address-space cap (Linux only)")
+    p.add_argument("--threads", type=int, default=2, help="CPU threads left to training")
+    return p
+
+
+def main(argv: list[str]) -> int:
+    args = build_parser().parse_args(argv)
+    protect_machine(max_gb=args.max_gb, threads=args.threads)
     train = list(read_examples(args.data / "train.jsonl"))[: args.max_train]
     val = list(read_examples(args.data / "val.jsonl"))
     report = fit(

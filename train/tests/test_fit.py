@@ -73,3 +73,16 @@ def test_fit_is_reproducible(tmp_path):
     )
     assert a["best"] == b["best"]
 
+
+def test_cli_protects_the_machine_before_training(tmp_path, monkeypatch):
+    from docta_train import fit as fit_module
+    from docta_train.evaluate_data import write_examples
+
+    write_examples(examples("train", 4), tmp_path / "train.jsonl")
+    write_examples(examples("val", 2), tmp_path / "val.jsonl")
+    calls = []
+    monkeypatch.setattr(fit_module, "protect_machine", lambda **kw: calls.append(kw))
+    monkeypatch.setattr(fit_module, "fit", lambda *a, **kw: calls.append("fit") or {})
+    fit_module.main(["--data", str(tmp_path), "--max-gb", "3", "--threads", "1"])
+    assert calls == [{"max_gb": 3.0, "threads": 1}, "fit"]
+
