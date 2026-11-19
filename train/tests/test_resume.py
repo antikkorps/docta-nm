@@ -7,10 +7,10 @@ from docta_train.fit import fit
 from test_fit import TINY, examples
 
 
-def run(out, epochs, resume=False, n_train=32):
+def run(out, epochs, resume=False, n_train=32, lr=3e-3, config=TINY):
     return fit(
-        examples("train", n_train), examples("val", 8), out, TINY,
-        epochs=epochs, batch=8, lr=3e-3, seed=1, resume=resume,
+        examples("train", n_train), examples("val", 8), out, config,
+        epochs=epochs, batch=8, lr=lr, seed=1, resume=resume,
     )  # fmt: skip
 
 
@@ -26,6 +26,33 @@ def test_two_epochs_then_one_more_equals_three_at_once(tmp_path):
     assert resumed["best"] == at_once["best"]
     assert logged(tmp_path / "b") == logged(tmp_path / "a")
     assert [line["epoch"] for line in logged(tmp_path / "b")] == [1, 2, 3]
+
+
+def test_resume_keeps_the_learning_rate_unless_told_otherwise(tmp_path):
+    at_once = run(tmp_path / "a", 3)
+    run(tmp_path / "b", 2)
+    assert run(tmp_path / "b", 1, resume=True, lr=None)["best"] == at_once["best"]
+    assert run(tmp_path / "c", 2)["best"] != run(tmp_path / "c", 1, resume=True, lr=1e-5)["best"]
+
+
+def test_resume_carries_torch_randomness_on(tmp_path):
+    noisy = TINY.__class__(**{**TINY.__dict__, "dropout": 0.1})
+    at_once = run(tmp_path / "a", 3, config=noisy)
+    run(tmp_path / "b", 2, config=noisy)
+    assert run(tmp_path / "b", 1, resume=True, config=noisy)["best"] == at_once["best"]
+
+
+def test_resume_refuses_another_core(tmp_path):
+    run(tmp_path, 1)
+    wider = TINY.__class__(**{**TINY.__dict__, "ff": 32})
+    with pytest.raises(ValueError, match="without --resume"):
+        run(tmp_path, 1, resume=True, config=wider)
+
+
+def test_resume_refuses_a_broken_checkpoint_clearly(tmp_path):
+    (tmp_path / "last.pt").write_bytes(b"cut short")
+    with pytest.raises(ValueError, match="without --resume"):
+        run(tmp_path, 1, resume=True)
 
 
 def test_resume_refuses_other_data(tmp_path):
@@ -50,3 +77,15 @@ def test_cli_passes_resume_on(tmp_path, monkeypatch):
     monkeypatch.setattr(fit_module, "fit", lambda *a, **kw: seen.update(kw) or {})
     fit_module.main(["--data", str(tmp_path), "--no-balance", "--resume"])
     assert seen["resume"] is True
+
+
+def test_cli_reports_a_refused_resume(tmp_path, monkeypatch, capsys):
+    from docta_train import fit as fit_module
+    from docta_train.evaluate_data import write_examples
+
+    write_examples(examples("train", 4), tmp_path / "train.jsonl")
+    write_examples(examples("val", 2), tmp_path / "val.jsonl")
+    monkeypatch.setattr(fit_module, "protect_machine", lambda **kw: None)
+    args = ["--data", str(tmp_path), "--out", str(tmp_path / "core"), "--no-balance", "--resume"]
+    assert fit_module.main(args) == 1
+    assert "nothing to resume" in capsys.readouterr().err

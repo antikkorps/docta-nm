@@ -22,6 +22,7 @@ from docta_train.shortcut import balance, shape_accuracy
 from docta_train.training import Batch, run_epoch, validate
 
 Data = list[tuple[Encoded, float]]
+DEFAULT_LR = 3e-4
 
 
 def encoded(examples: Sequence[Example], config: Config) -> Data:
@@ -44,27 +45,31 @@ def fit(
     config: Config,
     epochs: int,
     batch: int,
-    lr: float,
+    lr: float | None,
     seed: int,
     max_minutes: float | None = None,
     resume: bool = False,
 ) -> dict:
     """Trains from scratch, or `epochs` more on OUT/last.pt with `resume`;
-    keeps the epoch with the lowest validation loss in OUT/model.pt."""
+    keeps the epoch with the lowest validation loss in OUT/model.pt. `lr`
+    None means the default when fresh, the run's own when resumed."""
     out.mkdir(parents=True, exist_ok=True)
+    # Sizes, not contents: a dataset regenerated at the same size would resume.
     data = {"seed": seed, "batch": batch, "train": len(train), "val": len(val)}
     run = checkpoint.resume(out / "last.pt", config, lr, data) if resume else None
-    run = run or checkpoint.fresh(config, lr, seed)
+    run = run or checkpoint.fresh(config, DEFAULT_LR if lr is None else lr, seed)
     train_data, val_data = encoded(train, config), encoded(val, config)
     start = time.monotonic()
     with (out / "log.jsonl").open("a" if resume else "w", encoding="utf-8") as log:
         for _ in range(epochs):
             metrics = next_epoch(run, train_data, val_data, batch)
-            log.write(json.dumps({**metrics, "minutes": (time.monotonic() - start) / 60}) + "\n")
-            log.flush()
-            checkpoint.save_last(run, out / "last.pt", data)
+            # Best, then last, then the log: a run killed in between resumes from
+            # an epoch whose best is already saved and whose line is not yet logged.
             if run.best is metrics:
                 checkpoint.save_best(run.model, metrics, out / "model.pt")
+            checkpoint.save_last(run, out / "last.pt", data)
+            log.write(json.dumps({**metrics, "minutes": (time.monotonic() - start) / 60}) + "\n")
+            log.flush()
             if max_minutes is not None and time.monotonic() - start > max_minutes * 60:
                 break
     return {"best": run.best, "parameters": sum(p.numel() for p in run.model.parameters())}
@@ -89,7 +94,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out", type=Path, default=Path("models/core_evaluate"))
     p.add_argument("--epochs", type=int, default=3)
     p.add_argument("--batch", type=int, default=64)
-    p.add_argument("--lr", type=float, default=3e-4)
+    p.add_argument("--lr", type=float, help=f"default {DEFAULT_LR}; with --resume, the run's own")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument(
         "--max-train", type=int, help="cap the training examples read (before balancing)"
@@ -150,7 +155,7 @@ def main(argv: list[str]) -> int:
             train, val, args.out, Config(), args.epochs, args.batch, args.lr, args.seed,
             args.max_minutes, resume=args.resume,
         )  # fmt: skip
-    except ValueError as e:  # a resume that cannot continue this run
+    except checkpoint.ResumeError as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
     print(json.dumps(report | {"shape_accuracy": shortcut}, indent=2), file=sys.stderr)

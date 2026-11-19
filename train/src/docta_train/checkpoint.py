@@ -5,6 +5,8 @@ with everything a resumed run needs to continue exactly as if it never
 stopped, so a promising run can get more epochs instead of starting over.
 """
 
+import os
+import pickle
 import random
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -14,6 +16,10 @@ import torch
 from docta_train.model import Config, CoreEvaluate
 
 RERUN = "rerun without --resume"
+
+
+class ResumeError(ValueError):
+    """A resume that cannot continue the saved run."""
 
 
 @dataclass
@@ -38,33 +44,44 @@ def save_best(model: CoreEvaluate, metrics: dict, path: Path) -> None:
 
 
 def save_last(run: Run, path: Path, data: dict) -> None:
-    """`data` names what was trained on, so a resume on other data is refused."""
-    torch.save(
-        {
-            "config": asdict(run.model.config),
-            "state": run.model.state_dict(),
-            "optimiser": run.optimiser.state_dict(),
-            "rng": run.rng.getstate(),
-            "epoch": run.epoch,
-            "best": run.best,
-            "data": data,
-        },
-        path,
-    )
+    """`data` names what was trained on, so a resume on other data is refused.
+    Written aside then renamed: a run killed mid-write keeps its previous last.pt."""
+    state = {
+        "config": asdict(run.model.config),
+        "state": run.model.state_dict(),
+        "optimiser": run.optimiser.state_dict(),
+        "rng": run.rng.getstate(),
+        "torch_rng": torch.get_rng_state(),  # dropout draws from it
+        "epoch": run.epoch,
+        "best": run.best,
+        "data": data,
+    }
+    partial = path.with_suffix(".partial")
+    torch.save(state, partial)
+    os.replace(partial, path)
 
 
-def resume(path: Path, config: Config, lr: float, data: dict) -> Run:
-    """The run saved at `path`, with `lr` as its new learning rate."""
+def load_last(path: Path) -> dict:
     if not path.exists():
-        raise ValueError(f"nothing to resume: no {path}")
-    saved = torch.load(path, weights_only=True)
-    if saved["config"] != asdict(config) or saved["data"] != data:
-        raise ValueError(f"{path} was trained with another core or other data: {RERUN}")
-    run = fresh(config, lr, seed=0)
-    run.model.load_state_dict(saved["state"])
-    run.optimiser.load_state_dict(saved["optimiser"])
-    for group in run.optimiser.param_groups:
-        group["lr"] = lr
-    run.rng.setstate(saved["rng"])
-    run.epoch, run.best = saved["epoch"], saved["best"]
-    return run
+        raise ResumeError(f"nothing to resume: no {path}")
+    try:
+        return torch.load(path, weights_only=True)
+    except (pickle.UnpicklingError, RuntimeError, EOFError) as e:
+        raise ResumeError(f"{path} cannot be read ({e.__class__.__name__}): {RERUN}") from e
+
+
+def resume(path: Path, config: Config, lr: float | None, data: dict) -> Run:
+    """The run saved at `path`; `lr` replaces its learning rate when given."""
+    saved = load_last(path)
+    if saved.get("config") != asdict(config) or saved.get("data") != data:
+        raise ResumeError(f"{path} was trained with another core or other data: {RERUN}")
+    model = CoreEvaluate(config)
+    model.load_state_dict(saved["state"])
+    optimiser = torch.optim.AdamW(model.parameters())
+    optimiser.load_state_dict(saved["optimiser"])
+    for group in optimiser.param_groups:
+        group["lr"] = group["lr"] if lr is None else lr
+    rng = random.Random()
+    rng.setstate(saved["rng"])
+    torch.set_rng_state(saved["torch_rng"])
+    return Run(model, optimiser, rng, saved["epoch"], saved["best"])
