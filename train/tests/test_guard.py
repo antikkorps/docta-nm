@@ -10,10 +10,10 @@ from docta_train import guard
 PROTECTED_STEP = """
 import torch
 from docta_train.guard import protect_machine
-from docta_train.model import Config, CoreEvaluate
+from docta_train.model import Config, CoreEvaluate, Encoded
 from docta_train.training import train_steps
 protect_machine(max_gb={max_gb}, threads=1)
-seqs = [[5] * 1000 for _ in range({batch})]
+seqs = [Encoded([5] * 1000, [1] * 1000) for _ in range({batch})]
 train_steps(CoreEvaluate(Config()), [(seqs, torch.zeros({batch}))], 1e-3)
 """
 

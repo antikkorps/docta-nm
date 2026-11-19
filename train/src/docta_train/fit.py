@@ -16,18 +16,18 @@ import torch
 
 from docta_train.evaluate_data import Example, read_examples
 from docta_train.guard import protect_machine
-from docta_train.model import Config, CoreEvaluate, encode
+from docta_train.model import Config, CoreEvaluate, Encoded, encode
 from docta_train.shortcut import balance, shape_accuracy
 from docta_train.training import Batch, run_epoch, validate
 
-Encoded = list[tuple[list[int], float]]
+Data = list[tuple[Encoded, float]]
 
 
-def encoded(examples: Sequence[Example], config: Config) -> Encoded:
+def encoded(examples: Sequence[Example], config: Config) -> Data:
     return [(encode(e.question, e.excerpts, config.max_len), float(e.label)) for e in examples]
 
 
-def batches(data: Encoded, size: int, rng: random.Random | None = None) -> list[Batch]:
+def batches(data: Data, size: int, rng: random.Random | None = None) -> list[Batch]:
     """Fixed-size batches, shuffled by `rng` when given (training)."""
     order = list(range(len(data)))
     if rng is not None:

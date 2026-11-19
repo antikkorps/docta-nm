@@ -163,3 +163,14 @@ def test_cli_stops_when_balancing_leaves_nothing(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(fit_module, "fit", lambda *a: pytest.fail("trained on nothing"))
     assert fit_module.main(["--data", str(tmp_path)]) == 1
     assert "no example" in capsys.readouterr().err
+
+
+def test_predictor_says_how_to_fix_a_checkpoint_from_before_name_marks(tmp_path):
+    import torch
+    from docta_train.model import CoreEvaluate
+
+    state = CoreEvaluate(TINY).state_dict()
+    del state["marks.weight"]
+    torch.save({"config": TINY.__dict__, "state": state, "metrics": {}}, tmp_path / "old.pt")
+    with pytest.raises(ValueError, match="rerun `just fit`"):
+        Predictor(tmp_path / "old.pt")
