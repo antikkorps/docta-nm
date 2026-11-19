@@ -13,6 +13,8 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Added
 
+- `just fit --resume --epochs N` adds N epochs to the last run
+  (`models/core_evaluate/last.pt`) instead of starting from scratch.
 - **Trap scores**: a `model · trap` table and a `traps` entry in the JSON
   scores: accuracy and justified accuracy on decidable traps, how often a
   model was fooled, and the precision and recall of the
