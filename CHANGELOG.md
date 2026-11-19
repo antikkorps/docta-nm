@@ -28,6 +28,9 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Changed
 
+- `just fit` balances the Evaluate labels within each question shape and
+  reports what guessing from the shape alone scores: on 20,000 worlds the
+  shape gave away 62.7% of labels, the first core scored 63.8%.
 - A false consensus's origin is now at least 0.10 less reliable than the
   true source (was 0.05), so no decidable trap can look undecidable.
 

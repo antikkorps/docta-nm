@@ -2,6 +2,7 @@
 
 import json
 
+import pytest
 from docta_orchestrator.search import Hit
 from docta_train.evaluate_data import Example
 from docta_train.fit import fit
@@ -96,5 +97,69 @@ def test_cli_caps_the_validation_set(tmp_path, monkeypatch):
     seen = {}
     monkeypatch.setattr(fit_module, "protect_machine", lambda **kw: None)
     monkeypatch.setattr(fit_module, "fit", lambda train, val, *a: seen.update(val=len(val)) or {})
-    fit_module.main(["--data", str(tmp_path), "--max-val", "3"])
+    fit_module.main(["--data", str(tmp_path), "--max-val", "3", "--no-balance"])
     assert seen["val"] == 3
+
+
+def shaped(split, n):
+    """One shape is never enough, the other half the time: the shape gives
+    away three labels in four."""
+    return [
+        Example("w", f"q{i}", split,
+                "When was Brask founded?" if i % 2 else "Where does Ana Lo live?",
+                (YES,), i % 4 == 3)
+        for i in range(n)
+    ]  # fmt: skip
+
+
+def run_cli(tmp_path, monkeypatch, *flags):
+    from docta_train import fit as fit_module
+    from docta_train.evaluate_data import write_examples
+
+    write_examples(shaped("train", 16), tmp_path / "train.jsonl")
+    write_examples(shaped("val", 16), tmp_path / "val.jsonl")
+    seen = {}
+    monkeypatch.setattr(fit_module, "protect_machine", lambda **kw: None)
+    monkeypatch.setattr(
+        fit_module, "fit", lambda train, val, *a: seen.update(train=train, val=val) or {}
+    )
+    fit_module.main(["--data", str(tmp_path), *flags])
+    return seen
+
+
+def test_cli_balances_labels_within_each_shape(tmp_path, monkeypatch):
+    seen = run_cli(tmp_path, monkeypatch)
+    for split in ("train", "val"):
+        labels = [e.label for e in seen[split]]
+        assert labels.count(True) == labels.count(False) == 4  # the chain shape went
+
+
+def test_cli_can_keep_every_example(tmp_path, monkeypatch):
+    seen = run_cli(tmp_path, monkeypatch, "--no-balance")
+    assert len(seen["train"]) == len(seen["val"]) == 16
+
+
+def test_cli_reports_what_the_shape_alone_would_score(tmp_path, monkeypatch, capsys):
+    run_cli(tmp_path, monkeypatch)
+    first, rest = capsys.readouterr().err.split("\n", 1)
+    assert first == "shape alone on val: 0.750 unbalanced, 0.500 as trained on (8 train, 8 val)"
+    assert json.loads(rest)["shape_accuracy"] == {"unbalanced": 0.75, "trained_on": 0.5}
+
+
+def test_cli_caps_before_balancing(tmp_path, monkeypatch):
+    seen = run_cli(tmp_path, monkeypatch, "--max-train", "8")
+    labels = [e.label for e in seen["train"]]
+    assert labels.count(True) == labels.count(False) == 2
+
+
+def test_cli_stops_when_balancing_leaves_nothing(tmp_path, monkeypatch, capsys):
+    from docta_train import fit as fit_module
+    from docta_train.evaluate_data import write_examples
+
+    one_label = [e for e in shaped("train", 16) if not e.label]
+    write_examples(one_label, tmp_path / "train.jsonl")
+    write_examples(shaped("val", 16), tmp_path / "val.jsonl")
+    monkeypatch.setattr(fit_module, "protect_machine", lambda **kw: None)
+    monkeypatch.setattr(fit_module, "fit", lambda *a: pytest.fail("trained on nothing"))
+    assert fit_module.main(["--data", str(tmp_path)]) == 1
+    assert "no example" in capsys.readouterr().err
