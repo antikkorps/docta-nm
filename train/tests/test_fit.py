@@ -96,7 +96,9 @@ def test_cli_caps_the_validation_set(tmp_path, monkeypatch):
     write_examples(examples("val", 10), tmp_path / "val.jsonl")
     seen = {}
     monkeypatch.setattr(fit_module, "protect_machine", lambda **kw: None)
-    monkeypatch.setattr(fit_module, "fit", lambda train, val, *a: seen.update(val=len(val)) or {})
+    monkeypatch.setattr(
+        fit_module, "fit", lambda train, val, *a, **kw: seen.update(val=len(val)) or {}
+    )
     fit_module.main(["--data", str(tmp_path), "--max-val", "3", "--no-balance"])
     assert seen["val"] == 3
 
@@ -121,7 +123,7 @@ def run_cli(tmp_path, monkeypatch, *flags):
     seen = {}
     monkeypatch.setattr(fit_module, "protect_machine", lambda **kw: None)
     monkeypatch.setattr(
-        fit_module, "fit", lambda train, val, *a: seen.update(train=train, val=val) or {}
+        fit_module, "fit", lambda train, val, *a, **kw: seen.update(train=train, val=val) or {}
     )
     fit_module.main(["--data", str(tmp_path), *flags])
     return seen
