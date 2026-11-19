@@ -1,7 +1,8 @@
 """Question shape: the label must not be guessable without reading."""
 
+import pytest
 from docta_train.evaluate_data import Example
-from docta_train.shortcut import balance, names, shape, shape_accuracy
+from docta_train.shortcut import balance, shape, shape_accuracy
 
 CHAIN = "In what year was the city where Orlan Teste lives founded?"
 RETRIEVE = "In what year was Varnelle founded?"
@@ -9,10 +10,6 @@ RETRIEVE = "In what year was Varnelle founded?"
 
 def example(i, question, label):
     return Example("w", f"q{i}", "train", question, (), label)
-
-
-def test_names_are_the_capitalised_words():
-    assert names(CHAIN) == ["In", "Orlan", "Teste"]
 
 
 def test_shape_hides_names_and_numbers():
@@ -46,3 +43,10 @@ def test_shape_accuracy_falls_back_to_the_overall_majority_on_unseen_shapes():
     train = [example(0, CHAIN, True), example(1, CHAIN, True), example(2, RETRIEVE, False)]
     val = [example(3, "Who is taller, Brask or Varnelle?", True)]
     assert shape_accuracy(train, val) == 1.0
+
+
+def test_shape_accuracy_refuses_an_empty_split():
+    with pytest.raises(ValueError, match="no example"):
+        shape_accuracy([], [example(0, CHAIN, True)])
+    with pytest.raises(ValueError, match="no example"):
+        shape_accuracy([example(0, CHAIN, True)], [])

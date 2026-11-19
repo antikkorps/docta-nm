@@ -87,8 +87,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--batch", type=int, default=64)
     p.add_argument("--lr", type=float, default=3e-4)
     p.add_argument("--seed", type=int, default=0)
-    p.add_argument("--max-train", type=int, help="cap the number of training examples")
-    p.add_argument("--max-val", type=int, help="cap validation examples: shorter epochs")
+    p.add_argument(
+        "--max-train", type=int, help="cap the training examples read (before balancing)"
+    )
+    p.add_argument(
+        "--max-val", type=int, help="cap the validation examples read (before balancing)"
+    )
     p.add_argument("--max-minutes", type=float, help="stop after the epoch that passes this budget")
     p.add_argument("--max-gb", type=float, default=6.0, help="address-space cap (Linux only)")
     p.add_argument("--threads", type=int, default=2, help="CPU threads left to training")
@@ -100,22 +104,29 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
-def load(args: argparse.Namespace) -> tuple[list[Example], list[Example], dict]:
+def load(args: argparse.Namespace) -> tuple[list[Example], list[Example], dict[str, float]]:
     """Train and val as trained on, and what guessing from the shape scores
-    before and after balancing: above that line, the core reads."""
-    train = list(read_examples(args.data / "train.jsonl"))
-    val = list(read_examples(args.data / "val.jsonl"))
+    before and after balancing: above that line, the core reads. Caps apply
+    first, so balancing is never undone by a cut and both scores see the same
+    examples."""
+    train = list(read_examples(args.data / "train.jsonl"))[: args.max_train]
+    val = list(read_examples(args.data / "val.jsonl"))[: args.max_val]
     shortcut = {"unbalanced": shape_accuracy(train, val)}
     if not args.no_balance:
         train, val = balance(train, args.seed), balance(val, args.seed)
-    train, val = train[: args.max_train], val[: args.max_val]
     return train, val, shortcut | {"trained_on": shape_accuracy(train, val)}
 
 
 def main(argv: list[str]) -> int:
     args = build_parser().parse_args(argv)
     protect_machine(max_gb=args.max_gb, threads=args.threads)
-    train, val, shortcut = load(args)
+    try:
+        train, val, shortcut = load(args)
+    except ValueError as e:
+        print(
+            f"error: {e} (balancing drops shapes with one label; see --no-balance)", file=sys.stderr
+        )
+        return 1
     # Printed before hours of training, so a run can be judged from its first log line.
     print(
         f"shape alone on val: {shortcut['unbalanced']:.3f} unbalanced, "

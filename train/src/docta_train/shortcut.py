@@ -15,13 +15,11 @@ from collections.abc import Sequence
 
 from docta_train.evaluate_data import Example
 
-# Invented names are the only capitalised words besides a question's first one.
+# Invented names are the only capitalised words besides a question's first
+# one, which is hidden too: two templates that differed only by their opening
+# word would share a shape (none do today; see worldgen's templates.rs).
 NAME = re.compile(r"\b[A-Z][a-z]+\b")
 NUMBER = re.compile(r"\d+")
-
-
-def names(question: str) -> list[str]:
-    return NAME.findall(question)
 
 
 def shape(question: str) -> str:
@@ -46,6 +44,8 @@ def balance(examples: Sequence[Example], seed: int) -> list[Example]:
 
 def shape_accuracy(train: Sequence[Example], val: Sequence[Example]) -> float:
     """Accuracy on `val` of the majority label of each shape seen in `train`."""
+    if not train or not val:
+        raise ValueError("no example to measure the shape shortcut on")
     by_shape: dict[str, Counter[bool]] = defaultdict(Counter)
     for e in train:
         by_shape[shape(e.question)][e.label] += 1
