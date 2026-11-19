@@ -98,3 +98,47 @@ def test_cli_caps_the_validation_set(tmp_path, monkeypatch):
     monkeypatch.setattr(fit_module, "fit", lambda train, val, *a: seen.update(val=len(val)) or {})
     fit_module.main(["--data", str(tmp_path), "--max-val", "3"])
     assert seen["val"] == 3
+
+
+def shaped(split, n):
+    """Enough for retrieve questions, never for chain ones: the shape gives it away."""
+    return [
+        Example("w", f"q{i}", split,
+                "When was Brask founded?" if i % 2 else "Where does Ana Lo live?",
+                (YES,), i % 4 == 3)
+        for i in range(n)
+    ]  # fmt: skip
+
+
+def run_cli(tmp_path, monkeypatch, *flags):
+    from docta_train import fit as fit_module
+    from docta_train.evaluate_data import write_examples
+
+    write_examples(shaped("train", 16), tmp_path / "train.jsonl")
+    write_examples(shaped("val", 16), tmp_path / "val.jsonl")
+    seen = {}
+    monkeypatch.setattr(fit_module, "protect_machine", lambda **kw: None)
+    monkeypatch.setattr(
+        fit_module, "fit", lambda train, val, *a: seen.update(train=train, val=val) or {}
+    )
+    fit_module.main(["--data", str(tmp_path), *flags])
+    return seen
+
+
+def test_cli_balances_labels_within_each_shape(tmp_path, monkeypatch):
+    seen = run_cli(tmp_path, monkeypatch)
+    for split in ("train", "val"):
+        labels = [e.label for e in seen[split]]
+        assert labels.count(True) == labels.count(False) == 4  # the chain shape went
+
+
+def test_cli_can_keep_every_example(tmp_path, monkeypatch):
+    seen = run_cli(tmp_path, monkeypatch, "--no-balance")
+    assert len(seen["train"]) == len(seen["val"]) == 16
+
+
+def test_cli_reports_what_the_shape_alone_would_score(tmp_path, monkeypatch, capsys):
+    run_cli(tmp_path, monkeypatch)
+    first, rest = capsys.readouterr().err.split("\n", 1)
+    assert first == "shape alone on val: 0.750 unbalanced, 0.500 as trained on (8 train, 8 val)"
+    assert json.loads(rest)["shape_accuracy"] == {"unbalanced": 0.75, "trained_on": 0.5}
