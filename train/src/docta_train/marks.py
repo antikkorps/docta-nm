@@ -15,7 +15,11 @@ MAX_NAMES = 4  # a comparison of two people names four words
 
 
 def names(question: str) -> list[str]:
-    """Capitalised words of the question but its opening one ("Who", "In")."""
+    """Capitalised words of the question except its opening one ("Who", "In").
+
+    Relies on worldgen: every question template opens with a question word, and
+    names are ASCII syllables, which is all NAME matches."""
+    question = question.strip()
     return [m.group() for m in NAME.finditer(question) if m.start() > 0]
 
 

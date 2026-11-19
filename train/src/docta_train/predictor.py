@@ -14,7 +14,14 @@ class Predictor:
         saved = torch.load(checkpoint, weights_only=True)
         self.config = Config(**saved["config"])
         self.model = CoreEvaluate(self.config)
-        self.model.load_state_dict(saved["state"])
+        try:
+            self.model.load_state_dict(saved["state"])
+        except RuntimeError as e:
+            # Raised as ValueError so run_core reports it instead of a traceback.
+            raise ValueError(
+                f"{checkpoint} does not match the current core (trained before name "
+                "marks?): rerun `just fit`"
+            ) from e
         self.model.eval()
 
     @torch.no_grad()

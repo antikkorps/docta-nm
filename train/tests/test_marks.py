@@ -50,5 +50,9 @@ def test_marks_follow_utf8_bytes():
 
 def test_names_past_the_cap_share_the_last_mark():
     question = "Is Ana Bo Cel Dun Eve here?"
-    marks = name_marks(question, question)
-    assert max(marks) == MAX_NAMES
+    assert MAX_NAMES == 4
+    assert [m for m, _ in marked(question, name_marks(question, question))] == [1, 2, 3, 4, 4]
+
+
+def test_leading_spaces_do_not_turn_the_opening_word_into_a_name():
+    assert names("  Who is Brask?") == ["Brask"]
