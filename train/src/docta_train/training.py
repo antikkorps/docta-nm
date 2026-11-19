@@ -5,9 +5,9 @@ from collections.abc import Iterable, Sequence
 import torch
 from torch import nn
 
-from docta_train.model import pad_batch
+from docta_train.model import Encoded, pad_batch
 
-Batch = tuple[Sequence[list[int]], torch.Tensor]  # (token sequences, 0/1 labels)
+Batch = tuple[Sequence[Encoded], torch.Tensor]  # (encoded examples, 0/1 labels)
 LOSS = nn.BCEWithLogitsLoss()
 
 
@@ -19,8 +19,7 @@ def run_epoch(
     model.train()
     losses = []
     for sequences, labels in batches:
-        ids, mask = pad_batch(sequences)
-        loss = LOSS(model(ids, mask), labels.float())
+        loss = LOSS(model(*pad_batch(sequences)), labels.float())
         optimiser.zero_grad()
         loss.backward()
         optimiser.step()
@@ -39,8 +38,7 @@ def validate(model: nn.Module, batches: Iterable[Batch]) -> dict:
     model.eval()
     total = n = right = tp = fp = fn = 0
     for sequences, labels in batches:
-        ids, mask = pad_batch(sequences)
-        logits = model(ids, mask)
+        logits = model(*pad_batch(sequences))
         total += LOSS(logits, labels.float()).item() * len(labels)
         said, truth = logits > 0, labels > 0.5
         n += len(labels)

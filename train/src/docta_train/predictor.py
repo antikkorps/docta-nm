@@ -19,5 +19,5 @@ class Predictor:
 
     @torch.no_grad()
     def prob_enough(self, question: str, excerpts: Iterable[Hit]) -> float:
-        ids, mask = pad_batch([encode(question, excerpts, self.config.max_len)])
-        return torch.sigmoid(self.model(ids, mask)).item()
+        batch = pad_batch([encode(question, excerpts, self.config.max_len)])
+        return torch.sigmoid(self.model(*batch)).item()
