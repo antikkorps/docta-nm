@@ -30,7 +30,7 @@ SENTENCES = {
         "{s} was born in {o}.",
         "{s} came into the world in {o}.",
         "The birth year of {s} is {o}.",
-        "{o} is the year {s} was born.",
+        "In {o}, {s} was born.",
     ],
     "lives_in": [
         "{s} lives in {o}.",
@@ -49,6 +49,7 @@ SENTENCES = {
         "{s} sits {o} metres above sea level.",
         "{o} metres is the elevation of {s}.",
         "At {o} metres above sea level lies {s}.",
+        "{s} lies at {o} metres above sea level.",
     ],
     "members": [
         "{s} has {o} members.",

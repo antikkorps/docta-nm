@@ -50,16 +50,16 @@ pub fn sentence_phrasings(pred: Pred) -> Phrasings {
                 "{o} is the seat of {s}.",
                 "In {o}, {s} has its seat.",
             ],
-            "The seat of {s} is in {o}.",
+            "The seat of {s} is {o}.",
         ),
         Pred::BornIn => p(
             &[
                 "{s} was born in {o}.",
                 "{s} came into the world in {o}.",
                 "The birth year of {s} is {o}.",
-                "{o} is the year {s} was born.",
+                "In {o}, {s} was born.",
             ],
-            "In {o}, {s} was born.",
+            "{o} is the year {s} was born.",
         ),
         Pred::LivesIn => p(
             &[
@@ -85,6 +85,7 @@ pub fn sentence_phrasings(pred: Pred) -> Phrasings {
                 "{s} sits {o} metres above sea level.",
                 "{o} metres is the elevation of {s}.",
                 "At {o} metres above sea level lies {s}.",
+                "{s} lies at {o} metres above sea level.",
             ],
             "The elevation of {s} is {o} metres.",
         ),
