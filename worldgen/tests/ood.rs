@@ -213,7 +213,8 @@ fn skeleton(template: &str) -> Vec<String> {
     let mut rest = template;
     while let Some(c) = rest.chars().next() {
         let token = if c == '{' {
-            rest[..3].to_string()
+            let end = rest.find('}').expect("placeholders are closed");
+            rest[..=end].to_string()
         } else if c.is_ascii_alphabetic() {
             rest.split(|c: char| !c.is_ascii_alphabetic())
                 .next()
