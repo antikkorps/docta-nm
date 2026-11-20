@@ -66,3 +66,14 @@ def test_a_revealed_name_matches_whole_not_by_one_of_its_words():
     link = Hit("s1", "Notes on Orlan Teste", "Orlan Teste lives in Kel Dorn.", 0.9)
     other = Hit("s2", "Annals of Kel Mora", "Kel Mora was founded in 900.", 0.9)
     assert DigModel().answer(Framing(CHAIN), (link, other)) is None
+
+
+def test_a_fronted_place_is_revealed_without_its_preposition():
+    fronted = Hit("s4", "Notes on Orlan Teste", "In Varnelle, Orlan Teste has a home.", 0.9)
+    assert revealed(CHAIN, (fronted,)) == ["Varnelle"]
+    assert DigModel().answer(Framing(CHAIN), (fronted, FOUNDING)) == ("1432", ("s4", "s2"))
+
+
+def test_a_sentence_opening_word_is_never_a_revealed_name():
+    rolls = Hit("s5", "Notes on Brask", "On the rolls of Brask are 300 members.", 0.8)
+    assert revealed("In which city is Brask based?", (rolls,)) == []
