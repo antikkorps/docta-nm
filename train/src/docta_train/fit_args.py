@@ -26,8 +26,8 @@ def config_of(args: argparse.Namespace) -> Config:
     """The run's own dropout on a resume that names none, like its learning rate."""
     if args.dropout is not None:
         return Config(dropout=args.dropout)
-    if not args.resume:
-        return Config()
+    if not args.resume or not (args.out / "last.pt").exists():
+        return Config()  # without last.pt, fit says there is nothing to resume
     saved = checkpoint.load_last(args.out / "last.pt").get("config") or {}
     return Config(dropout=saved.get("dropout", Config.dropout))
 
