@@ -226,13 +226,13 @@ def test_the_log_shows_where_the_core_fails_by_question_shape(tmp_path):
     assert json.loads(line)["val_by_shape"].keys() == {"_ was _ founded?"}
 
 
-def test_predictor_refuses_a_vocabulary_from_before_other_name_ranks(tmp_path):
+def test_predictor_refuses_a_vocabulary_without_the_current_special_tokens(tmp_path):
     import torch
 
     fit(examples("train", 32), examples("val", 8), tmp_path, TINY, epochs=1, batch=8,
         lr=3e-3, seed=0)  # fmt: skip
     saved = torch.load(tmp_path / "model.pt", weights_only=True)
-    saved["vocab"] = [w for w in saved["vocab"] if not w.startswith("<other_")]
+    saved["vocab"] = [w for w in saved["vocab"] if w != "<name_4>"]
     torch.save(saved, tmp_path / "model.pt")
     with pytest.raises(ValueError, match="rerun `just fit`"):
         Predictor(tmp_path / "model.pt")

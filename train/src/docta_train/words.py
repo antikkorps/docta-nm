@@ -9,9 +9,9 @@ do (on 20,000 worlds, 83 words and 3 signs reach 20 worlds, no name does: 97
 tokens with the special ones). Worldgen's name exclusion list must keep names
 apart from those words, or a name such as "Was" would read as `was`. A name of the
 question becomes its rank there, so the core sees where each one recurs without
-ever reading its spelling. Any other name gets a rank by order of appearance
-(<other_k>): a chain holds only if the city one excerpt says someone lives in
-is the city another excerpt dates, and a single <name> token hid that.
+ever reading its spelling. Other names share one <name> token: giving each its
+own rank by order of appearance was tried and changed nothing on 20,000 worlds
+(73.1% against 74.2% on balanced val, chains unmoved).
 """
 
 import re
@@ -26,9 +26,7 @@ from docta_train.shortcut import NAME
 SPECIAL = ("<pad>", "<cls>", "<unk>", "<num>", "<name>", "<src>", "<body>")
 MAX_NAMES = 4  # a comparison of two people names four words
 RANKS = tuple(f"<name_{k}>" for k in range(1, MAX_NAMES + 1))
-MAX_OTHERS = 24  # an example names at most 22 words outside its question
-OTHERS = tuple(f"<other_{k}>" for k in range(1, MAX_OTHERS + 1))
-FIXED = SPECIAL + RANKS + OTHERS
+FIXED = SPECIAL + RANKS
 PAD = 0
 WORD = re.compile(r"[A-Za-z]+|\d+|[^\sA-Za-z\d]")
 
@@ -61,14 +59,13 @@ class Vocab:
         return cls(FIXED + tuple(w for w in kept if not w.isdigit()))
 
     def tokens(self, question: str, excerpts: Iterable[Hit]) -> list[str]:
-        """`ranks` grows as other names are met, so each keeps its token."""
         ranks: dict[str, str] = {}
         for name in names(question):
             ranks.setdefault(name, RANKS[min(len(ranks), MAX_NAMES - 1)])
         opener = next(iter(WORD.findall(question)), "")
         if opener.lower() not in self.index and opener not in ranks:
             # Held-out questions open with words train never saw ("When"):
-            # capitalised, they would pass for a name and shift every rank.
+            # capitalised, they would pass for a name.
             ranks[opener] = "<unk>"
         out = ["<cls>", *self.words_of(question, ranks)]
         for hit in excerpts:
@@ -86,11 +83,7 @@ class Vocab:
             return ranks[word]
         if word.lower() in self.index:
             return word.lower()
-        if not word[0].isupper():
-            return "<unk>"
-        met = sum(r in OTHERS or r == "<name>" for r in ranks.values())
-        ranks[word] = OTHERS[met] if met < MAX_OTHERS else "<name>"
-        return ranks[word]
+        return "<name>" if word[0].isupper() else "<unk>"
 
     def encode(self, question: str, excerpts: Iterable[Hit]) -> list[int]:
         return [self.index[t] for t in self.tokens(question, excerpts)]

@@ -3,7 +3,7 @@
 import pytest
 from docta_orchestrator.search import Hit
 from docta_train.evaluate_data import Example
-from docta_train.words import MAX_NAMES, MAX_OTHERS, Vocab, names
+from docta_train.words import MAX_NAMES, Vocab, names
 
 S1 = Hit("s1", "Chronicle of Varnelle", "Varnelle was founded in 1432.", 0.9)
 
@@ -49,7 +49,7 @@ def test_question_then_each_excerpt_as_word_tokens():
 def test_other_names_and_unseen_words_get_their_own_tokens():
     hit = Hit("s3", "Chronicle", "Brask trades amber with Varnelle.", 0.5)
     assert vocab().tokens("Where is Brask?", [hit])[-7:] == [
-        "<body>", "<name_1>", "<unk>", "<unk>", "<unk>", "<other_1>", ".",
+        "<body>", "<name_1>", "<unk>", "<unk>", "<unk>", "<name>", ".",
     ]  # fmt: skip
 
 
@@ -69,26 +69,6 @@ def test_question_words_count_even_without_excerpts():
     assert {"who", "knows"} <= set(seen)
 
 
-def test_a_name_outside_the_question_keeps_one_rank_across_excerpts():
-    # A chain needs it: "<name_1> lives in X" then "X was founded in ..." is
-    # only a chain if both X are known to be the same name.
-    hits = [
-        Hit("s1", "Chronicle of Orlan", "Orlan lives in Varnelle.", 0.5),
-        Hit("s2", "Chronicle of Brask", "Brask was founded in 1610.", 0.5),
-        Hit("s3", "Chronicle of Varnelle", "Varnelle was founded in 1432.", 0.5),
-    ]
-    tokens = vocab().tokens("In what year was the city where Orlan lives founded?", hits)
-    others = [t for t in tokens if t.startswith("<other_")]
-    assert others == ["<other_1>", "<other_2>", "<other_2>", "<other_1>", "<other_1>"]
-    assert "<name>" not in tokens
-
-
-def test_names_past_the_other_cap_fall_back_to_the_plain_name_token():
-    words = [f"N{chr(97 + i // 26)}{chr(97 + i % 26)}" for i in range(MAX_OTHERS + 2)]
-    tokens = vocab().tokens("What?", [Hit("s", "Chronicle", " ".join(words), 0.5)])
-    assert tokens[-3:] == [f"<other_{MAX_OTHERS}>", "<name>", "<name>"]
-
-
 def test_a_vocabulary_without_the_special_tokens_is_refused():
     with pytest.raises(ValueError, match="special tokens"):
         Vocab(("<pad>", "<cls>", "the"))
@@ -96,8 +76,8 @@ def test_a_vocabulary_without_the_special_tokens_is_refused():
 
 def test_an_unseen_opening_word_is_no_name():
     # ood opens questions with words train never saw ("When", "Between"):
-    # read as names, they took <other_1> and shifted every real name's rank.
+    # they must not read as names.
     hit = Hit("s", "Chronicle of Varnelle", "Varnelle was founded in 1432.", 0.5)
     tokens = vocab().tokens("When was Brask founded?", [hit])
     assert tokens[:3] == ["<cls>", "<unk>", "was"]
-    assert [t for t in tokens if t.startswith("<other_")] == ["<other_1>", "<other_1>"]
+    assert tokens.count("<name>") == 2  # Varnelle, in the title and the body
