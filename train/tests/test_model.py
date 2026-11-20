@@ -47,3 +47,16 @@ def test_training_is_deterministic():
 
     a, b = trained(), trained()
     assert all(torch.equal(a[k], b[k]) for k in a)
+
+
+def test_validation_breaks_accuracy_down_by_question_shape():
+    from docta_train.training import validate
+
+    torch.manual_seed(0)
+    model = CoreEvaluate(TINY, VOCAB)
+    train_steps(model, toy_batches() * 60, lr=3e-3)
+    yes, no = [1, 5, 9, 10], [1, 6, 9, 10, 11]
+    batches = [([yes, no], torch.tensor([1.0, 1.0])), ([yes], torch.tensor([1.0]))]
+    metrics = validate(model, batches, shapes=["a", "b", "a"])
+    assert metrics["val_by_shape"] == {"a": 1.0, "b": 0.0}
+    assert "val_by_shape" not in validate(model, batches)

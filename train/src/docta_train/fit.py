@@ -18,7 +18,7 @@ from docta_train import checkpoint
 from docta_train.evaluate_data import Example, read_examples
 from docta_train.guard import protect_machine
 from docta_train.model import Config
-from docta_train.shortcut import balance, shape_accuracy
+from docta_train.shortcut import balance, shape, shape_accuracy
 from docta_train.training import Batch, run_epoch, validate
 from docta_train.words import Vocab
 
@@ -64,10 +64,11 @@ def fit(
     run = run or checkpoint.fresh(config, vocab, DEFAULT_LR if lr is None else lr, seed)
     train_data = encoded(train, vocab, config.max_len)
     val_data = encoded(val, vocab, config.max_len)
+    shapes = [shape(e.question) for e in val]
     start = time.monotonic()
     with (out / "log.jsonl").open("a" if resume else "w", encoding="utf-8") as log:
         for _ in range(epochs):
-            metrics = next_epoch(run, train_data, val_data, batch)
+            metrics = next_epoch(run, train_data, val_data, shapes, batch)
             # Best, then last, then the log: a run killed in between resumes from
             # an epoch whose best is already saved and whose line is not yet logged.
             if run.best is metrics:
@@ -80,14 +81,16 @@ def fit(
     return {"best": run.best, "parameters": sum(p.numel() for p in run.model.parameters())}
 
 
-def next_epoch(run: checkpoint.Run, train_data: Data, val_data: Data, batch: int) -> dict:
+def next_epoch(
+    run: checkpoint.Run, train_data: Data, val_data: Data, shapes: Sequence[str], batch: int
+) -> dict:
     """One epoch of training then validation; `run` moves to it."""
     run.epoch += 1
     metrics = {
         "epoch": run.epoch,
         "train_loss": run_epoch(run.model, run.optimiser, batches(train_data, batch, run.rng)),
     }
-    metrics |= validate(run.model, batches(val_data, batch))
+    metrics |= validate(run.model, batches(val_data, batch), shapes)
     if run.best is None or metrics["val_loss"] < run.best["val_loss"]:
         run.best = metrics
     return metrics

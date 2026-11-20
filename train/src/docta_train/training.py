@@ -33,22 +33,42 @@ def train_steps(model: nn.Module, batches: Iterable[Batch], lr: float) -> float:
 
 
 @torch.no_grad()
-def validate(model: nn.Module, batches: Iterable[Batch]) -> dict:
-    """Loss, accuracy, and precision/recall of the "enough" class."""
+def judged(model: nn.Module, batches: Iterable[Batch]) -> tuple[float, torch.Tensor, torch.Tensor]:
+    """Mean loss, then what the core said and what was true, in batch order."""
     model.eval()
-    total = n = right = tp = fp = fn = 0
+    total, said, truth = 0.0, [], []
     for sequences, labels in batches:
         logits = model(*pad_batch(sequences))
         total += LOSS(logits, labels.float()).item() * len(labels)
-        said, truth = logits > 0, labels > 0.5
-        n += len(labels)
-        right += (said == truth).sum().item()
-        tp += (said & truth).sum().item()
-        fp += (said & ~truth).sum().item()
-        fn += (~said & truth).sum().item()
-    return {
-        "val_loss": total / n,
-        "val_accuracy": right / n,
+        said.append(logits > 0)
+        truth.append(labels > 0.5)
+    said, truth = torch.cat(said), torch.cat(truth)
+    return total / len(truth), said, truth
+
+
+def validate(
+    model: nn.Module, batches: Iterable[Batch], shapes: Sequence[str] | None = None
+) -> dict:
+    """Loss, accuracy, and precision/recall of the "enough" class. With the
+    question shape of each example, in batch order, accuracy per shape too: it
+    shows which kind of reasoning fails, which one overall score hides."""
+    loss, said, truth = judged(model, batches)
+    tp, fp, fn = (said & truth).sum().item(), (said & ~truth).sum().item(), (~said & truth).sum()
+    metrics = {
+        "val_loss": loss,
+        "val_accuracy": (said == truth).float().mean().item(),
         "val_precision": tp / (tp + fp) if tp + fp else None,
-        "val_recall": tp / (tp + fn) if tp + fn else None,
+        "val_recall": tp / (tp + fn.item()) if tp + fn.item() else None,
     }
+    if shapes is not None:
+        metrics["val_by_shape"] = by_shape((said == truth).tolist(), shapes)
+    return metrics
+
+
+def by_shape(right: Sequence[bool], shapes: Sequence[str]) -> dict[str, float]:
+    counts: dict[str, list[int]] = {}
+    for ok, shape in zip(right, shapes, strict=True):
+        hit = counts.setdefault(shape, [0, 0])
+        hit[0] += ok
+        hit[1] += 1
+    return {shape: r / n for shape, (r, n) in sorted(counts.items())}

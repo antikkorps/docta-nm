@@ -9,7 +9,9 @@ do (on 20,000 worlds, 83 words and 3 signs reach 20 worlds, no name does: 97
 tokens with the special ones). Worldgen's name exclusion list must keep names
 apart from those words, or a name such as "Was" would read as `was`. A name of the
 question becomes its rank there, so the core sees where each one recurs without
-ever reading its spelling; other names become <name>.
+ever reading its spelling. Any other name gets a rank by order of appearance
+(<other_k>): a chain holds only if the city one excerpt says someone lives in
+is the city another excerpt dates, and a single <name> token hid that.
 """
 
 import re
@@ -24,6 +26,9 @@ from docta_train.shortcut import NAME
 SPECIAL = ("<pad>", "<cls>", "<unk>", "<num>", "<name>", "<src>", "<body>")
 MAX_NAMES = 4  # a comparison of two people names four words
 RANKS = tuple(f"<name_{k}>" for k in range(1, MAX_NAMES + 1))
+MAX_OTHERS = 24  # an example names at most 22 words outside its question
+OTHERS = tuple(f"<other_{k}>" for k in range(1, MAX_OTHERS + 1))
+FIXED = SPECIAL + RANKS + OTHERS
 PAD = 0
 WORD = re.compile(r"[A-Za-z]+|\d+|[^\sA-Za-z\d]")
 
@@ -39,6 +44,8 @@ def names(question: str) -> list[str]:
 
 class Vocab:
     def __init__(self, words: Sequence[str]):
+        if tuple(words[: len(FIXED)]) != FIXED:
+            raise ValueError("vocabulary without the current special tokens")
         self.words = tuple(words)
         self.index = {w: i for i, w in enumerate(self.words)}
 
@@ -51,9 +58,10 @@ class Vocab:
             for w in WORD.findall(text):
                 worlds[w.lower()].add(e.world_id)
         kept = sorted(w for w, seen in worlds.items() if len(seen) >= min_worlds)
-        return cls(SPECIAL + RANKS + tuple(w for w in kept if not w.isdigit()))
+        return cls(FIXED + tuple(w for w in kept if not w.isdigit()))
 
     def tokens(self, question: str, excerpts: Iterable[Hit]) -> list[str]:
+        """`ranks` grows as other names are met, so each keeps its token."""
         ranks: dict[str, str] = {}
         for name in names(question):
             ranks.setdefault(name, RANKS[min(len(ranks), MAX_NAMES - 1)])
@@ -73,7 +81,11 @@ class Vocab:
             return ranks[word]
         if word.lower() in self.index:
             return word.lower()
-        return "<name>" if word[0].isupper() else "<unk>"
+        if not word[0].isupper():
+            return "<unk>"
+        met = len(ranks) - sum(r in RANKS for r in ranks.values())
+        ranks[word] = OTHERS[met] if met < MAX_OTHERS else "<name>"
+        return ranks[word]
 
     def encode(self, question: str, excerpts: Iterable[Hit]) -> list[int]:
         return [self.index[t] for t in self.tokens(question, excerpts)]

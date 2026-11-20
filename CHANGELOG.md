@@ -38,6 +38,10 @@ lines under a new version, and its GitHub Release carries the reference scores.
   rank. Read byte by byte, it stayed near chance even on one-hop questions;
   an epoch also drops from about 50 minutes to a few. Earlier checkpoints
   no longer load: rerun `just fit`.
+- Names outside the question get their own rank by order of appearance
+  (`<other_1>`…`<other_24>`) instead of one shared `<name>` token, so a
+  chain can follow a city from one excerpt to another; `log.jsonl` gives
+  the validation accuracy per question shape.
 - A false consensus's origin is now at least 0.10 less reliable than the
   true source (was 0.05), so no decidable trap can look undecidable.
 
