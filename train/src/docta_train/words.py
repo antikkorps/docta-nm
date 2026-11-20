@@ -9,7 +9,9 @@ do (on 20,000 worlds, 83 words and 3 signs reach 20 worlds, no name does: 97
 tokens with the special ones). Worldgen's name exclusion list must keep names
 apart from those words, or a name such as "Was" would read as `was`. A name of the
 question becomes its rank there, so the core sees where each one recurs without
-ever reading its spelling; other names become <name>.
+ever reading its spelling. Other names share one <name> token: giving each its
+own rank by order of appearance was tried and changed nothing on 20,000 worlds
+(73.1% against 74.2% on balanced val, chains unmoved).
 """
 
 import re
@@ -24,6 +26,7 @@ from docta_train.shortcut import NAME
 SPECIAL = ("<pad>", "<cls>", "<unk>", "<num>", "<name>", "<src>", "<body>")
 MAX_NAMES = 4  # a comparison of two people names four words
 RANKS = tuple(f"<name_{k}>" for k in range(1, MAX_NAMES + 1))
+FIXED = SPECIAL + RANKS
 PAD = 0
 WORD = re.compile(r"[A-Za-z]+|\d+|[^\sA-Za-z\d]")
 
@@ -39,6 +42,8 @@ def names(question: str) -> list[str]:
 
 class Vocab:
     def __init__(self, words: Sequence[str]):
+        if tuple(words[: len(FIXED)]) != FIXED:
+            raise ValueError("vocabulary without the current special tokens")
         self.words = tuple(words)
         self.index = {w: i for i, w in enumerate(self.words)}
 
@@ -51,12 +56,17 @@ class Vocab:
             for w in WORD.findall(text):
                 worlds[w.lower()].add(e.world_id)
         kept = sorted(w for w, seen in worlds.items() if len(seen) >= min_worlds)
-        return cls(SPECIAL + RANKS + tuple(w for w in kept if not w.isdigit()))
+        return cls(FIXED + tuple(w for w in kept if not w.isdigit()))
 
     def tokens(self, question: str, excerpts: Iterable[Hit]) -> list[str]:
         ranks: dict[str, str] = {}
         for name in names(question):
             ranks.setdefault(name, RANKS[min(len(ranks), MAX_NAMES - 1)])
+        opener = next(iter(WORD.findall(question)), "")
+        if opener.lower() not in self.index and opener not in ranks:
+            # Held-out questions open with words train never saw ("When"):
+            # capitalised, they would pass for a name.
+            ranks[opener] = "<unk>"
         out = ["<cls>", *self.words_of(question, ranks)]
         for hit in excerpts:
             out += ["<src>", *self.words_of(hit.title, ranks)]

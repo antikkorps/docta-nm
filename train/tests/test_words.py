@@ -1,5 +1,6 @@
 """Word tokens: the templates' vocabulary from train, names as their rank in the question."""
 
+import pytest
 from docta_orchestrator.search import Hit
 from docta_train.evaluate_data import Example
 from docta_train.words import MAX_NAMES, Vocab, names
@@ -46,7 +47,7 @@ def test_question_then_each_excerpt_as_word_tokens():
 
 
 def test_other_names_and_unseen_words_get_their_own_tokens():
-    hit = Hit("s3", "Notes", "Brask trades amber with Varnelle.", 0.5)
+    hit = Hit("s3", "Chronicle", "Brask trades amber with Varnelle.", 0.5)
     assert vocab().tokens("Where is Brask?", [hit])[-7:] == [
         "<body>", "<name_1>", "<unk>", "<unk>", "<unk>", "<name>", ".",
     ]  # fmt: skip
@@ -66,3 +67,17 @@ def test_vocabulary_is_deterministic_and_round_trips():
 def test_question_words_count_even_without_excerpts():
     seen = Vocab.build([example("w1", "Who knows?"), example("w2", "Who knows?")], 2).words
     assert {"who", "knows"} <= set(seen)
+
+
+def test_a_vocabulary_without_the_special_tokens_is_refused():
+    with pytest.raises(ValueError, match="special tokens"):
+        Vocab(("<pad>", "<cls>", "the"))
+
+
+def test_an_unseen_opening_word_is_no_name():
+    # ood opens questions with words train never saw ("When", "Between"):
+    # they must not read as names.
+    hit = Hit("s", "Chronicle of Varnelle", "Varnelle was founded in 1432.", 0.5)
+    tokens = vocab().tokens("When was Brask founded?", [hit])
+    assert tokens[:3] == ["<cls>", "<unk>", "was"]
+    assert tokens.count("<name>") == 2  # Varnelle, in the title and the body

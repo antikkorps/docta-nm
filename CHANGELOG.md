@@ -38,6 +38,10 @@ lines under a new version, and its GitHub Release carries the reference scores.
   rank. Read byte by byte, it stayed near chance even on one-hop questions;
   an epoch also drops from about 50 minutes to a few. Earlier checkpoints
   no longer load: rerun `just fit`.
+- `log.jsonl` gives the validation accuracy per question shape
+  (`val_by_shape`), which shows which kind of reasoning fails.
+- A question opening with a word the training split never saw ("When" on
+  `ood`) no longer has that word read as a name.
 - A false consensus's origin is now at least 0.10 less reliable than the
   true source (was 0.05), so no decidable trap can look undecidable.
 

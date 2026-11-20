@@ -18,11 +18,11 @@ class Predictor:
             self.vocab = Vocab(saved["vocab"])
             self.model = CoreEvaluate(self.config, len(self.vocab.words))
             self.model.load_state_dict(saved["state"])
-        except (KeyError, TypeError, RuntimeError) as e:
+        except (KeyError, TypeError, ValueError, RuntimeError) as e:
             # Raised as ValueError so run_core reports it instead of a traceback.
             raise ValueError(
-                f"{checkpoint} does not match the current core (trained before word "
-                "tokens?): rerun `just fit`"
+                f"{checkpoint} does not match the current core (trained before the "
+                "current word tokens?): rerun `just fit`"
             ) from e
         self.model.eval()
 
