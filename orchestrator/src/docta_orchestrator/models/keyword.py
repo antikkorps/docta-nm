@@ -16,7 +16,8 @@ from docta_orchestrator.states import (
     Verdict,
 )
 
-QUESTION_WORDS = {"In", "What", "Which", "Who", "How", "At", "The"}
+# Capitalised only because they open a question or a sentence: never names.
+QUESTION_WORDS = {"In", "What", "Which", "Who", "How", "At", "The", "On"}
 NUMBER_STARTS = ("in what year", "what is the", "how ", "at what")
 Found = tuple[str, tuple[str, ...]]  # (answer, cited source ids)
 

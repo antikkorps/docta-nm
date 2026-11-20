@@ -28,6 +28,8 @@ pub fn sentence_phrasings(pred: Pred) -> Phrasings {
                 "{s} was founded in {o}.",
                 "The founding of {s} dates back to {o}.",
                 "{s} has existed since {o}.",
+                "The founding year of {s} is {o}.",
+                "{o} is the year {s} was founded.",
             ],
             "In {o}, {s} was founded.",
         ),
@@ -35,6 +37,8 @@ pub fn sentence_phrasings(pred: Pred) -> Phrasings {
             &[
                 "{s} has a population of {o}.",
                 "The last census counted {o} inhabitants in {s}.",
+                "{o} inhabitants live in {s}.",
+                "At the last census, {s} had {o} inhabitants.",
             ],
             "The population of {s} is {o}.",
         ),
@@ -43,11 +47,18 @@ pub fn sentence_phrasings(pred: Pred) -> Phrasings {
                 "{s} is based in {o}.",
                 "{s} keeps its seat in {o}.",
                 "The halls of {s} stand in {o}.",
+                "{o} is the seat of {s}.",
+                "In {o}, {s} has its seat.",
             ],
             "The seat of {s} is in {o}.",
         ),
         Pred::BornIn => p(
-            &["{s} was born in {o}.", "{s} came into the world in {o}."],
+            &[
+                "{s} was born in {o}.",
+                "{s} came into the world in {o}.",
+                "The birth year of {s} is {o}.",
+                "{o} is the year {s} was born.",
+            ],
             "In {o}, {s} was born.",
         ),
         Pred::LivesIn => p(
@@ -55,26 +66,44 @@ pub fn sentence_phrasings(pred: Pred) -> Phrasings {
                 "{s} lives in {o}.",
                 "{s} resides in {o}.",
                 "{o} is home to {s}.",
+                "In {o}, {s} has a home.",
             ],
             "The home of {s} is {o}.",
         ),
         Pred::MemberOf => p(
-            &["{s} is a member of {o}.", "{s} belongs to {o}."],
+            &[
+                "{s} is a member of {o}.",
+                "{s} belongs to {o}.",
+                "The guild of {s} is {o}.",
+                "{o} has {s} as a member.",
+            ],
             "{o} is the guild of {s}.",
         ),
         Pred::Elevation => p(
             &[
                 "{s} lies at an elevation of {o} metres.",
                 "{s} sits {o} metres above sea level.",
+                "{o} metres is the elevation of {s}.",
+                "At {o} metres above sea level lies {s}.",
             ],
             "The elevation of {s} is {o} metres.",
         ),
         Pred::Members => p(
-            &["{s} has {o} members.", "The rolls of {s} list {o} members."],
+            &[
+                "{s} has {o} members.",
+                "The rolls of {s} list {o} members.",
+                "The number of members of {s} is {o}.",
+                "On the rolls of {s} are {o} members.",
+            ],
             "{o} members belong to {s}.",
         ),
         Pred::Height => p(
-            &["{s} is {o} centimetres tall.", "{s} stands {o} cm tall."],
+            &[
+                "{s} is {o} centimetres tall.",
+                "{s} stands {o} cm tall.",
+                "The height of {s} is {o} centimetres.",
+                "{o} centimetres is the height of {s}.",
+            ],
             "{s} stands at {o} centimetres.",
         ),
     }
@@ -85,39 +114,63 @@ pub fn sentence_phrasings(pred: Pred) -> Phrasings {
 pub fn question_phrasings(pred: Pred) -> Phrasings {
     match pred {
         Pred::FoundedIn => p(
-            &["In what year was {s} founded?"],
+            &[
+                "In what year was {s} founded?",
+                "What is the founding year of {s}?",
+            ],
             "What year was {s} founded in?",
         ),
         Pred::Population => p(
-            &["What is the population of {s}?"],
+            &[
+                "What is the population of {s}?",
+                "How many people live in {s}?",
+            ],
             "What population does {s} have?",
         ),
         Pred::BasedIn => p(
-            &["In which city is {s} based?"],
+            &[
+                "In which city is {s} based?",
+                "Which city holds the seat of {s}?",
+            ],
             "Which city is {s} based in?",
         ),
         Pred::BornIn => p(
-            &["In what year was {s} born?"],
+            &[
+                "In what year was {s} born?",
+                "What is the birth year of {s}?",
+            ],
             "What year was {s} born in?",
         ),
         Pred::LivesIn => p(
-            &["In which city does {s} live?"],
+            &["In which city does {s} live?", "Which city is home to {s}?"],
             "Which city does {s} live in?",
         ),
         Pred::MemberOf => p(
-            &["Which guild does {s} belong to?"],
+            &[
+                "Which guild does {s} belong to?",
+                "Which guild has {s} as a member?",
+            ],
             "Which guild is {s} a member of?",
         ),
         Pred::Elevation => p(
-            &["At what elevation, in metres, does {s} lie?"],
+            &[
+                "At what elevation, in metres, does {s} lie?",
+                "How high above sea level does {s} lie, in metres?",
+            ],
             "What is the elevation of {s}, in metres?",
         ),
         Pred::Members => p(
-            &["How many members does {s} have?"],
+            &[
+                "How many members does {s} have?",
+                "What is the number of members of {s}?",
+            ],
             "How many members belong to {s}?",
         ),
         Pred::Height => p(
-            &["How tall is {s}, in centimetres?"],
+            &[
+                "How tall is {s}, in centimetres?",
+                "What is the height of {s}, in centimetres?",
+            ],
             "How tall, in centimetres, is {s}?",
         ),
     }
@@ -157,18 +210,11 @@ pub fn comparison_phrasings(pred: Pred) -> Option<Phrasings> {
 /// A sentence stating `subj pred obj`. Seen phrasings vary at random so a model
 /// cannot rely on a single surface form.
 pub fn sentence<R: Rng>(pred: Pred, subj: &str, obj: &str, held_out: bool, rng: &mut R) -> String {
-    let phrasings = sentence_phrasings(pred);
-    // The held-out branch draws nothing, so seen splits keep their RNG stream.
-    let template = if held_out {
-        phrasings.held_out
-    } else {
-        phrasings.seen.choose(rng).expect("templates are non-empty")
-    };
-    fill(template, subj, obj)
+    fill(pick(sentence_phrasings(pred), held_out, rng), subj, obj)
 }
 
-pub fn question(pred: Pred, subj: &str, held_out: bool) -> String {
-    fill(one(question_phrasings(pred), held_out), subj, "")
+pub fn question<R: Rng>(pred: Pred, subj: &str, held_out: bool, rng: &mut R) -> String {
+    fill(pick(question_phrasings(pred), held_out, rng), subj, "")
 }
 
 pub fn comparison(pred: Pred, a: &str, b: &str, held_out: bool) -> String {
@@ -216,8 +262,18 @@ pub fn describe(pred: Pred, subj: &str) -> String {
     fill(template, subj, "")
 }
 
-/// Questions and comparisons have one seen phrasing: no draw, so the RNG
-/// stream (and every seen split's bytes) stays as it was.
+/// A seen phrasing at random, or the held-out one. The held-out branch draws
+/// nothing, so ood never shifts the RNG stream of the other splits.
+fn pick<R: Rng>(phrasings: Phrasings, held_out: bool, rng: &mut R) -> &'static str {
+    if held_out {
+        phrasings.held_out
+    } else {
+        phrasings.seen.choose(rng).expect("templates are non-empty")
+    }
+}
+
+/// Comparisons have one seen phrasing: no draw, so the RNG stream stays as it
+/// was. The keyword baseline reads their ", A or B?" ending.
 fn one(phrasings: Phrasings, held_out: bool) -> &'static str {
     if held_out {
         phrasings.held_out
@@ -233,16 +289,34 @@ fn fill(template: &str, s: &str, o: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand::SeedableRng;
+
+    /// Two or three near-identical phrasings let a core recognise strings
+    /// instead of reading: it scored 85% on test and chance on ood, whose
+    /// structures were new though its words were all seen.
+    #[test]
+    fn every_predicate_reads_in_several_seen_structures() {
+        for pred in Pred::ALL {
+            assert!(sentence_phrasings(pred).seen.len() >= 4, "{pred:?}");
+            assert!(question_phrasings(pred).seen.len() >= 2, "{pred:?}");
+        }
+    }
 
     #[test]
     fn chain_questions_read_naturally() {
         let via = describe(Pred::MemberOf, "Orlan Teste");
-        assert_eq!(
-            question(Pred::FoundedIn, &via, false),
-            "In what year was the guild that Orlan Teste belongs to founded?"
+        let mut rng = rand::rngs::ChaCha8Rng::seed_from_u64(0);
+        let seen = question(Pred::FoundedIn, &via, false, &mut rng);
+        assert!(
+            [
+                "In what year was the guild that Orlan Teste belongs to founded?",
+                "What is the founding year of the guild that Orlan Teste belongs to?",
+            ]
+            .contains(&seen.as_str()),
+            "{seen}"
         );
         assert_eq!(
-            question(Pred::FoundedIn, &via, true),
+            question(Pred::FoundedIn, &via, true, &mut rng),
             "What year was the guild that Orlan Teste belongs to founded in?"
         );
     }

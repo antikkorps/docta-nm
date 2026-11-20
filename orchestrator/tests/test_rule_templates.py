@@ -91,8 +91,9 @@ def test_every_template_copy_round_trips():
             assert read_sentence(t.format(s="Kel Dorn", o="Varnelle")) == [
                 ("Kel Dorn", pred, "Varnelle")
             ]
-    for pred, t in QUESTIONS.items():
-        assert needs(t.format(s="Kel Dorn")) == [("Kel Dorn", (pred,))]
+    for pred, templates in QUESTIONS.items():
+        for t in templates:
+            assert needs(t.format(s="Kel Dorn")) == [("Kel Dorn", (pred,))]
     for pred, t in COMPARISONS.items():
         assert needs(t.format(s="Kel Dorn", o="Brask")) == [
             ("Kel Dorn", (pred,)),

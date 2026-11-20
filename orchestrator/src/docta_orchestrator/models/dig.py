@@ -33,7 +33,9 @@ def indirect(question: str) -> bool:
 
 def proper_names(sentence: str) -> list[str]:
     names = re.findall(r"\b[A-Z][a-z]+(?: [A-Z][a-z]+)*\b", sentence)
-    return [n for n in names if n not in QUESTION_WORDS]
+    # "In Varnelle, ..." opens with a capitalised preposition glued to the name.
+    trimmed = [" ".join(w for w in n.split() if w not in QUESTION_WORDS) for n in names]
+    return [n for n in trimmed if n]
 
 
 def links(question: str, evidence: Evidence) -> list[Link]:

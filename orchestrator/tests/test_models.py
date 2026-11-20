@@ -55,3 +55,14 @@ def test_keyword_model_compares_two_numbers():
 def test_keyword_model_abstains_when_nothing_relevant_comes_back():
     assert ask(KeywordModel(), "In what year was Orlan Teste born?").exit == Exit.NOT_FOUND
     assert ask(KeywordModel(), "How tall is Zorvath, in centimetres?").exit == Exit.NOT_FOUND
+
+
+def test_keyword_model_never_answers_a_sentence_opening_word():
+    from docta_orchestrator.models import KeywordModel
+    from docta_orchestrator.search import Hit
+    from docta_orchestrator.states import Framing
+
+    rolls = Hit("s1", "Survey", "On the rolls of Kortha are 40 members.", 0.9)
+    seat = Hit("s2", "Notes", "Kortha keeps its seat in Varnelle.", 0.9)
+    found = KeywordModel().answer(Framing("Which city holds the seat of Kortha?"), (rolls, seat))
+    assert found == ("Varnelle", ("s2",))
