@@ -16,6 +16,7 @@ import torch
 
 from docta_train import checkpoint
 from docta_train.evaluate_data import Example, read_examples
+from docta_train.fit_args import DEFAULT_LR, build_parser, config_of
 from docta_train.guard import protect_machine
 from docta_train.model import Config
 from docta_train.shortcut import balance, shape, shape_accuracy
@@ -23,7 +24,6 @@ from docta_train.training import Batch, run_epoch, validate
 from docta_train.words import Vocab
 
 Data = list[tuple[list[int], float]]
-DEFAULT_LR = 3e-4
 
 
 def encoded(examples: Sequence[Example], vocab: Vocab, max_len: int) -> Data:
@@ -99,38 +99,6 @@ def next_epoch(
     return metrics
 
 
-def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="python -m docta_train.fit")
-    p.add_argument("--data", type=Path, default=Path("data/evaluate"))
-    p.add_argument("--out", type=Path, default=Path("models/core_evaluate"))
-    p.add_argument("--epochs", type=int, default=3)
-    p.add_argument("--batch", type=int, default=64)
-    p.add_argument("--lr", type=float, help=f"default {DEFAULT_LR}; with --resume, the run's own")
-    p.add_argument("--seed", type=int, default=0)
-    p.add_argument("--dropout", type=float, default=Config.dropout)
-    p.add_argument("--warmup", type=int, default=0, help="steps of learning-rate climb")
-    p.add_argument(
-        "--max-train", type=int, help="cap the training examples read (before balancing)"
-    )
-    p.add_argument(
-        "--max-val", type=int, help="cap the validation examples read (before balancing)"
-    )
-    p.add_argument("--max-minutes", type=float, help="stop after the epoch that passes this budget")
-    p.add_argument("--max-gb", type=float, default=6.0, help="address-space cap (Linux only)")
-    p.add_argument("--threads", type=int, default=2, help="CPU threads left to training")
-    p.add_argument(
-        "--no-balance",
-        action="store_true",
-        help="keep every example, even where the question's shape gives the label away",
-    )
-    p.add_argument(
-        "--resume",
-        action="store_true",
-        help="train --epochs more on OUT/last.pt instead of starting from scratch",
-    )
-    return p
-
-
 def load(args: argparse.Namespace) -> tuple[list[Example], list[Example], dict[str, float], Vocab]:
     """Train and val as trained on, and what guessing from the shape scores
     before and after balancing: above that line, the core reads. Caps apply
@@ -166,7 +134,7 @@ def main(argv: list[str]) -> int:
     announce(shortcut, train, val)
     try:
         report = fit(
-            train, val, args.out, Config(dropout=args.dropout), args.epochs, args.batch,
+            train, val, args.out, config_of(args), args.epochs, args.batch,
             args.lr, args.seed, args.max_minutes,
             resume=args.resume, vocab=vocab, warmup=args.warmup,
         )  # fmt: skip

@@ -61,3 +61,39 @@ def test_resume_refuses_a_run_saved_before_warmup(tmp_path):
     torch.save(saved, tmp_path / "last.pt")
     with pytest.raises(ValueError, match="without --resume"):
         run(tmp_path, 1, resume=True)
+
+
+def test_resume_keeps_its_own_warmup_whatever_is_asked(tmp_path):
+    at_once = run(tmp_path / "a", 3)
+    run(tmp_path / "b", 2)
+    resumed = fit(examples("train", 32), examples("val", 8), tmp_path / "b", TINY, epochs=1,
+                  batch=8, lr=3e-3, seed=1, resume=True, warmup=999)  # fmt: skip
+    assert resumed["best"] == at_once["best"]
+
+
+def cli(tmp_path, *args):
+    from docta_train import fit as fit_module
+    from docta_train.evaluate_data import write_examples
+
+    write_examples(examples("train", 32), tmp_path / "train.jsonl")
+    write_examples(examples("val", 8), tmp_path / "val.jsonl")
+    base = ["--data", str(tmp_path), "--out", str(tmp_path / "out"), "--no-balance"]
+    return fit_module.main([*base, "--epochs", "1", "--batch", "8", *args])
+
+
+def test_cli_resume_keeps_the_dropout_of_the_run(tmp_path, monkeypatch):
+    from docta_train import fit as fit_module
+
+    monkeypatch.setattr(fit_module, "protect_machine", lambda **kw: None)
+    assert cli(tmp_path, "--dropout", "0.1") == 0
+    assert cli(tmp_path, "--resume") == 0
+    saved = torch.load(tmp_path / "out" / "last.pt", weights_only=True)
+    assert saved["epoch"] == 2 and saved["config"]["dropout"] == 0.1
+
+
+def test_cli_refuses_a_negative_warmup_and_an_impossible_dropout(tmp_path):
+    import pytest
+
+    for bad in (["--warmup", "-5"], ["--dropout", "1.5"], ["--dropout", "-0.1"]):
+        with pytest.raises(SystemExit):
+            cli(tmp_path, *bad)
