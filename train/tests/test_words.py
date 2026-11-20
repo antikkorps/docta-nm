@@ -48,7 +48,7 @@ def test_question_then_each_excerpt_as_word_tokens():
 
 def test_other_names_and_unseen_words_get_their_own_tokens():
     hit = Hit("s3", "Chronicle", "Brask trades amber with Varnelle.", 0.5)
-    assert vocab().tokens("What is Brask?", [hit])[-7:] == [
+    assert vocab().tokens("Where is Brask?", [hit])[-7:] == [
         "<body>", "<name_1>", "<unk>", "<unk>", "<unk>", "<other_1>", ".",
     ]  # fmt: skip
 
@@ -92,3 +92,12 @@ def test_names_past_the_other_cap_fall_back_to_the_plain_name_token():
 def test_a_vocabulary_without_the_special_tokens_is_refused():
     with pytest.raises(ValueError, match="special tokens"):
         Vocab(("<pad>", "<cls>", "the"))
+
+
+def test_an_unseen_opening_word_is_no_name():
+    # ood opens questions with words train never saw ("When", "Between"):
+    # read as names, they took <other_1> and shifted every real name's rank.
+    hit = Hit("s", "Chronicle of Varnelle", "Varnelle was founded in 1432.", 0.5)
+    tokens = vocab().tokens("When was Brask founded?", [hit])
+    assert tokens[:3] == ["<cls>", "<unk>", "was"]
+    assert [t for t in tokens if t.startswith("<other_")] == ["<other_1>", "<other_1>"]

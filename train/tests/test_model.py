@@ -59,4 +59,5 @@ def test_validation_breaks_accuracy_down_by_question_shape():
     batches = [([yes, no], torch.tensor([1.0, 1.0])), ([yes], torch.tensor([1.0]))]
     metrics = validate(model, batches, shapes=["a", "b", "a"])
     assert metrics["val_by_shape"] == {"a": 1.0, "b": 0.0}
+    assert metrics["val_accuracy"] == 2 / 3  # exact, not a float32 mean
     assert "val_by_shape" not in validate(model, batches)

@@ -65,6 +65,11 @@ class Vocab:
         ranks: dict[str, str] = {}
         for name in names(question):
             ranks.setdefault(name, RANKS[min(len(ranks), MAX_NAMES - 1)])
+        opener = next(iter(WORD.findall(question)), "")
+        if opener.lower() not in self.index and opener not in ranks:
+            # Held-out questions open with words train never saw ("When"):
+            # capitalised, they would pass for a name and shift every rank.
+            ranks[opener] = "<unk>"
         out = ["<cls>", *self.words_of(question, ranks)]
         for hit in excerpts:
             out += ["<src>", *self.words_of(hit.title, ranks)]
@@ -83,7 +88,7 @@ class Vocab:
             return word.lower()
         if not word[0].isupper():
             return "<unk>"
-        met = len(ranks) - sum(r in RANKS for r in ranks.values())
+        met = sum(r in OTHERS or r == "<name>" for r in ranks.values())
         ranks[word] = OTHERS[met] if met < MAX_OTHERS else "<name>"
         return ranks[word]
 

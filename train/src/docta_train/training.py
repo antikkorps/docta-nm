@@ -53,12 +53,12 @@ def validate(
     question shape of each example, in batch order, accuracy per shape too: it
     shows which kind of reasoning fails, which one overall score hides."""
     loss, said, truth = judged(model, batches)
-    tp, fp, fn = (said & truth).sum().item(), (said & ~truth).sum().item(), (~said & truth).sum()
+    tp, fp, fn = ((a & b).sum().item() for a, b in ((said, truth), (said, ~truth), (~said, truth)))
     metrics = {
         "val_loss": loss,
-        "val_accuracy": (said == truth).float().mean().item(),
+        "val_accuracy": (said == truth).sum().item() / len(truth),
         "val_precision": tp / (tp + fp) if tp + fp else None,
-        "val_recall": tp / (tp + fn.item()) if tp + fn.item() else None,
+        "val_recall": tp / (tp + fn) if tp + fn else None,
     }
     if shapes is not None:
         metrics["val_by_shape"] = by_shape((said == truth).tolist(), shapes)
@@ -66,9 +66,10 @@ def validate(
 
 
 def by_shape(right: Sequence[bool], shapes: Sequence[str]) -> dict[str, float]:
+    """Share of right answers per question shape, shapes in sorted order."""
     counts: dict[str, list[int]] = {}
-    for ok, shape in zip(right, shapes, strict=True):
-        hit = counts.setdefault(shape, [0, 0])
-        hit[0] += ok
-        hit[1] += 1
-    return {shape: r / n for shape, (r, n) in sorted(counts.items())}
+    for ok, key in zip(right, shapes, strict=True):
+        tally = counts.setdefault(key, [0, 0])
+        tally[0] += ok
+        tally[1] += 1
+    return {key: r / n for key, (r, n) in sorted(counts.items())}
