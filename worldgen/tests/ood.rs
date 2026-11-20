@@ -202,3 +202,61 @@ fn held_out_phrasings_use_only_words_the_seen_ones_use() {
         "held-out words no seen phrasing uses: {unseen:?}"
     );
 }
+
+/// A sentence's structure: placeholders, punctuation and a few function words
+/// kept, prepositions merged, any run of other words one slot.
+fn skeleton(template: &str) -> Vec<String> {
+    const KEPT: [&str; 10] = [
+        "is", "the", "of", "was", "a", "an", "has", "its", "as", "are",
+    ];
+    let mut out: Vec<String> = Vec::new();
+    let mut rest = template;
+    while let Some(c) = rest.chars().next() {
+        let token = if c == '{' {
+            let end = rest.find('}').expect("placeholders are closed");
+            rest[..=end].to_string()
+        } else if c.is_ascii_alphabetic() {
+            rest.split(|c: char| !c.is_ascii_alphabetic())
+                .next()
+                .unwrap_or("")
+                .to_string()
+        } else {
+            c.to_string()
+        };
+        rest = &rest[token.len()..];
+        let lower = token.to_lowercase();
+        let slot = match lower.as_str() {
+            " " => continue,
+            "in" | "to" | "at" | "on" => "P".to_string(),
+            w if w.chars().all(|c| c.is_ascii_alphabetic()) && !KEPT.contains(&w) => "w".into(),
+            _ => lower,
+        };
+        if !(slot == "w" && out.last().is_some_and(|l| l == "w")) {
+            out.push(slot);
+        }
+    }
+    out
+}
+
+/// ood tests new combinations of known pieces: a held-out sentence's structure
+/// must be seen for another predicate with the same kind of object (a number
+/// or an entity). "In {o}, {s} was founded." stayed at chance while "In {o}"
+/// was only ever seen before a city.
+#[test]
+fn every_held_out_structure_is_seen_for_another_predicate_of_its_kind() {
+    for pred in PREDS {
+        let held = skeleton(sentence_phrasings(pred).held_out);
+        let found = PREDS.into_iter().any(|other| {
+            other != pred
+                && other.target().is_none() == pred.target().is_none()
+                && sentence_phrasings(other)
+                    .seen
+                    .iter()
+                    .any(|t| skeleton(t) == held)
+        });
+        assert!(
+            found,
+            "{pred:?}: {held:?} is seen for no other predicate of its kind"
+        );
+    }
+}

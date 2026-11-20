@@ -36,6 +36,11 @@ lines under a new version, and its GitHub Release carries the reference scores.
   phrasings a core recognised strings: 85% on test, chance on `ood`. Every
   split changes: regenerate the data and retrain; scores from before are not
   comparable.
+- Each held-out sentence structure is seen for another predicate with the
+  same kind of object (`tests/ood.rs` checks it). "In 1432, X was founded."
+  stayed at chance on `ood` while "In ..., X ..." was only ever seen before a
+  city; births now use it, and their held-out phrasing is "1432 is the year X
+  was born.".
 - Template words the name syllables can spell ("live", "notes", "dates")
   are excluded from names: the core would read such a name as the word.
 - The `ood` split's held-out phrasings are new structures built only from
