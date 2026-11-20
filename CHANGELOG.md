@@ -42,6 +42,8 @@ lines under a new version, and its GitHub Release carries the reference scores.
   (`val_by_shape`), which shows which kind of reasoning fails.
 - A question opening with a word the training split never saw ("When" on
   `ood`) no longer has that word read as a name.
+- `just fit` takes `--dropout` and `--warmup` (steps of learning-rate
+  climb). A `last.pt` saved before this no longer resumes.
 - A false consensus's origin is now at least 0.10 less reliable than the
   true source (was 0.05), so no decidable trap can look undecidable.
 

@@ -75,8 +75,20 @@ def test_cli_passes_resume_on(tmp_path, monkeypatch):
     seen = {}
     monkeypatch.setattr(fit_module, "protect_machine", lambda **kw: None)
     monkeypatch.setattr(fit_module, "fit", lambda *a, **kw: seen.update(kw) or {})
-    fit_module.main(["--data", str(tmp_path), "--no-balance", "--resume"])
+    out = ["--out", str(tmp_path / "out")]  # never the real models/ directory
+    fit_module.main(["--data", str(tmp_path), *out, "--no-balance", "--resume"])
     assert seen["resume"] is True
+
+
+def test_cli_resume_without_a_run_says_so(tmp_path, capsys):
+    from docta_train import fit as fit_module
+    from docta_train.evaluate_data import write_examples
+
+    write_examples(examples("train", 4), tmp_path / "train.jsonl")
+    write_examples(examples("val", 2), tmp_path / "val.jsonl")
+    args = ["--data", str(tmp_path), "--out", str(tmp_path / "out"), "--no-balance", "--resume"]
+    assert fit_module.main(args) == 1
+    assert "nothing to resume" in capsys.readouterr().err
 
 
 def test_cli_reports_a_refused_resume(tmp_path, monkeypatch, capsys):
