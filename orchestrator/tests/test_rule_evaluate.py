@@ -41,7 +41,7 @@ def test_turns_each_question_shape_into_the_facts_it_needs():
         ("Kel Dorn", ("height",)),
         ("Orlan Teste", ("height",)),
     ]
-    assert needs("When was Brask founded?") is None  # held-out phrasing: unknown to the rule
+    assert needs("What year was Brask founded in?") is None  # held-out: unknown to the rule
 
 
 def test_enough_only_when_every_needed_fact_was_read():

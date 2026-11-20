@@ -1,9 +1,10 @@
 //! English text templates. No LLM: every phrasing is written here by hand.
 //!
 //! Each kind of text has phrasings every split sees, and one held out for the
-//! ood split only. Held-out phrasings avoid the seen ones' key words ("first
-//! appeared" for a founding), so the ood split rewards reading the meaning,
-//! not recognising a template.
+//! ood split only. A held-out phrasing is a new structure built from words the
+//! seen ones already use ("In {o}, {s} was founded."): a core trained from
+//! scratch learns its words from train only, so a word it never met would test
+//! vocabulary, not the method. tests/ood.rs guards both.
 
 use crate::model::Pred;
 use rand::Rng;
@@ -28,14 +29,14 @@ pub fn sentence_phrasings(pred: Pred) -> Phrasings {
                 "The founding of {s} dates back to {o}.",
                 "{s} has existed since {o}.",
             ],
-            "{s} first appeared in the year {o}.",
+            "In {o}, {s} was founded.",
         ),
         Pred::Population => p(
             &[
                 "{s} has a population of {o}.",
                 "The last census counted {o} inhabitants in {s}.",
             ],
-            "{o} people call {s} home.",
+            "The population of {s} is {o}.",
         ),
         Pred::BasedIn => p(
             &[
@@ -43,11 +44,11 @@ pub fn sentence_phrasings(pred: Pred) -> Phrasings {
                 "{s} keeps its seat in {o}.",
                 "The halls of {s} stand in {o}.",
             ],
-            "{s} operates out of {o}.",
+            "The seat of {s} is in {o}.",
         ),
         Pred::BornIn => p(
             &["{s} was born in {o}.", "{s} came into the world in {o}."],
-            "The birth of {s} took place in {o}.",
+            "In {o}, {s} was born.",
         ),
         Pred::LivesIn => p(
             &[
@@ -55,26 +56,26 @@ pub fn sentence_phrasings(pred: Pred) -> Phrasings {
                 "{s} resides in {o}.",
                 "{o} is home to {s}.",
             ],
-            "{s} has settled in {o}.",
+            "The home of {s} is {o}.",
         ),
         Pred::MemberOf => p(
             &["{s} is a member of {o}.", "{s} belongs to {o}."],
-            "{s} joined the ranks of {o}.",
+            "{o} is the guild of {s}.",
         ),
         Pred::Elevation => p(
             &[
                 "{s} lies at an elevation of {o} metres.",
                 "{s} sits {o} metres above sea level.",
             ],
-            "The altitude of {s} is {o} metres.",
+            "The elevation of {s} is {o} metres.",
         ),
         Pred::Members => p(
             &["{s} has {o} members.", "The rolls of {s} list {o} members."],
-            "{s} counts {o} members.",
+            "{o} members belong to {s}.",
         ),
         Pred::Height => p(
             &["{s} is {o} centimetres tall.", "{s} stands {o} cm tall."],
-            "{s} measures {o} centimetres.",
+            "{s} stands at {o} centimetres.",
         ),
     }
 }
@@ -83,29 +84,41 @@ pub fn sentence_phrasings(pred: Pred) -> Phrasings {
 /// where X lives"), which is how 2-hop questions are built.
 pub fn question_phrasings(pred: Pred) -> Phrasings {
     match pred {
-        Pred::FoundedIn => p(&["In what year was {s} founded?"], "When was {s} founded?"),
+        Pred::FoundedIn => p(
+            &["In what year was {s} founded?"],
+            "What year was {s} founded in?",
+        ),
         Pred::Population => p(
             &["What is the population of {s}?"],
-            "How many people live in {s}?",
+            "What population does {s} have?",
         ),
-        Pred::BasedIn => p(&["In which city is {s} based?"], "Where is {s} based?"),
-        Pred::BornIn => p(&["In what year was {s} born?"], "When was {s} born?"),
-        Pred::LivesIn => p(&["In which city does {s} live?"], "Where does {s} live?"),
+        Pred::BasedIn => p(
+            &["In which city is {s} based?"],
+            "Which city is {s} based in?",
+        ),
+        Pred::BornIn => p(
+            &["In what year was {s} born?"],
+            "What year was {s} born in?",
+        ),
+        Pred::LivesIn => p(
+            &["In which city does {s} live?"],
+            "Which city does {s} live in?",
+        ),
         Pred::MemberOf => p(
             &["Which guild does {s} belong to?"],
             "Which guild is {s} a member of?",
         ),
         Pred::Elevation => p(
             &["At what elevation, in metres, does {s} lie?"],
-            "How high above sea level is {s}, in metres?",
+            "What is the elevation of {s}, in metres?",
         ),
         Pred::Members => p(
             &["How many members does {s} have?"],
-            "What is the membership of {s}?",
+            "How many members belong to {s}?",
         ),
         Pred::Height => p(
             &["How tall is {s}, in centimetres?"],
-            "What is the height of {s}, in centimetres?",
+            "How tall, in centimetres, is {s}?",
         ),
     }
 }
@@ -115,27 +128,27 @@ pub fn comparison_phrasings(pred: Pred) -> Option<Phrasings> {
     Some(match pred {
         Pred::FoundedIn => p(
             &["Which was founded earlier, {s} or {o}?"],
-            "Of {s} and {o}, which is older?",
+            "Which of {s} or {o} was founded earlier?",
         ),
         Pred::Population => p(
             &["Which has the larger population, {s} or {o}?"],
-            "Between {s} and {o}, which is more populous?",
+            "Which of {s} or {o} has the larger population?",
         ),
         Pred::BornIn => p(
             &["Who was born earlier, {s} or {o}?"],
-            "Of {s} and {o}, who is older?",
+            "Which of {s} or {o} was born earlier?",
         ),
         Pred::Elevation => p(
             &["Which lies higher, {s} or {o}?"],
-            "Between {s} and {o}, which lies at a greater altitude?",
+            "Which of {s} or {o} lies higher?",
         ),
         Pred::Members => p(
             &["Which has more members, {s} or {o}?"],
-            "Of {s} and {o}, which guild is bigger?",
+            "Which of {s} or {o} has more members?",
         ),
         Pred::Height => p(
             &["Who is taller, {s} or {o}?"],
-            "Between {s} and {o}, who stands taller?",
+            "Which of {s} or {o} is taller?",
         ),
         Pred::BasedIn | Pred::LivesIn | Pred::MemberOf => return None,
     })
@@ -230,7 +243,7 @@ mod tests {
         );
         assert_eq!(
             question(Pred::FoundedIn, &via, true),
-            "When was the guild that Orlan Teste belongs to founded?"
+            "What year was the guild that Orlan Teste belongs to founded in?"
         );
     }
 }
