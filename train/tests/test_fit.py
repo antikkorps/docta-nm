@@ -15,11 +15,17 @@ NO = Hit("s2", "T", "Brask keeps its seat in Varnelle.", 0.9)
 
 
 def examples(split, n):
-    """Enough exactly when the excerpt states a founding year: learnable."""
+    """Enough exactly when the excerpt states a founding year: learnable. One
+    world each, so the template's words reach the vocabulary's world count."""
     return [
         Example(
-            "w", f"q{i}", split, "When was Brask founded?", (YES if i % 2 else NO,), bool(i % 2)
-        )
+            f"w{i}",
+            f"q{i}",
+            split,
+            "When was Brask founded?",
+            (YES if i % 2 else NO,),
+            bool(i % 2),
+        )  # fmt: skip
         for i in range(n)
     ]
 
@@ -107,7 +113,7 @@ def shaped(split, n):
     """One shape is never enough, the other half the time: the shape gives
     away three labels in four."""
     return [
-        Example("w", f"q{i}", split,
+        Example(f"w{i}", f"q{i}", split,
                 "When was Brask founded?" if i % 2 else "Where does Ana Lo live?",
                 (YES,), i % 4 == 3)
         for i in range(n)
@@ -123,7 +129,9 @@ def run_cli(tmp_path, monkeypatch, *flags):
     seen = {}
     monkeypatch.setattr(fit_module, "protect_machine", lambda **kw: None)
     monkeypatch.setattr(
-        fit_module, "fit", lambda train, val, *a, **kw: seen.update(train=train, val=val) or {}
+        fit_module,
+        "fit",
+        lambda train, val, *a, **kw: seen.update(train=train, val=val, **kw) or {},
     )
     fit_module.main(["--data", str(tmp_path), *flags])
     return seen
@@ -167,12 +175,45 @@ def test_cli_stops_when_balancing_leaves_nothing(tmp_path, monkeypatch, capsys):
     assert "no example" in capsys.readouterr().err
 
 
-def test_predictor_says_how_to_fix_a_checkpoint_from_before_name_marks(tmp_path):
+def test_predictor_says_how_to_fix_a_checkpoint_from_before_word_tokens(tmp_path):
     import torch
-    from docta_train.model import CoreEvaluate
 
-    state = CoreEvaluate(TINY).state_dict()
-    del state["marks.weight"]
-    torch.save({"config": TINY.__dict__, "state": state, "metrics": {}}, tmp_path / "old.pt")
+    torch.save({"config": TINY.__dict__, "state": {}, "metrics": {}}, tmp_path / "old.pt")
     with pytest.raises(ValueError, match="rerun `just fit`"):
         Predictor(tmp_path / "old.pt")
+
+
+def test_the_checkpoint_carries_the_vocabulary_learned_from_train(tmp_path):
+    import torch
+
+    fit(examples("train", 32), examples("val", 8), tmp_path, TINY, epochs=1, batch=8,
+        lr=3e-3, seed=0)  # fmt: skip
+    words = torch.load(tmp_path / "model.pt", weights_only=True)["vocab"]
+    assert {"<cls>", "<name_1>", "when", "founded", "?"} <= set(words)
+
+
+def test_predictor_tokenizes_with_the_vocabulary_it_was_trained_with(tmp_path):
+    import torch
+
+    fit(examples("train", 32), examples("val", 8), tmp_path, TINY, epochs=1, batch=8,
+        lr=3e-3, seed=0)  # fmt: skip
+    saved = torch.load(tmp_path / "model.pt", weights_only=True)["vocab"]
+    assert Predictor(tmp_path / "model.pt").vocab.words == tuple(saved)
+
+
+def test_cli_learns_the_vocabulary_before_balancing(tmp_path, monkeypatch):
+    # Balancing picks examples by label: building after it would let labels
+    # decide which words make the vocabulary.
+    from docta_train.words import Vocab
+
+    built_from = []
+    real = Vocab.build.__func__
+    monkeypatch.setattr(
+        Vocab,
+        "build",
+        classmethod(
+            lambda cls, ex, *a: built_from.append(len(ex := list(ex))) or real(cls, ex, *a)
+        ),
+    )
+    seen = run_cli(tmp_path, monkeypatch)
+    assert built_from == [16] and len(seen["train"]) == 8

@@ -17,16 +17,17 @@ import torch
 from docta_train import checkpoint
 from docta_train.evaluate_data import Example, read_examples
 from docta_train.guard import protect_machine
-from docta_train.model import Config, Encoded, encode
+from docta_train.model import Config
 from docta_train.shortcut import balance, shape_accuracy
 from docta_train.training import Batch, run_epoch, validate
+from docta_train.words import Vocab
 
-Data = list[tuple[Encoded, float]]
+Data = list[tuple[list[int], float]]
 DEFAULT_LR = 3e-4
 
 
-def encoded(examples: Sequence[Example], config: Config) -> Data:
-    return [(encode(e.question, e.excerpts, config.max_len), float(e.label)) for e in examples]
+def encoded(examples: Sequence[Example], vocab: Vocab, max_len: int) -> Data:
+    return [(vocab.encode(e.question, e.excerpts)[:max_len], float(e.label)) for e in examples]
 
 
 def batches(data: Data, size: int, rng: random.Random | None = None) -> list[Batch]:
@@ -49,16 +50,20 @@ def fit(
     seed: int,
     max_minutes: float | None = None,
     resume: bool = False,
+    vocab: Vocab | None = None,
 ) -> dict:
     """Trains from scratch, or `epochs` more on OUT/last.pt with `resume`;
     keeps the epoch with the lowest validation loss in OUT/model.pt. `lr`
-    None means the default when fresh, the run's own when resumed."""
+    None means the default when fresh, the run's own when resumed. `vocab`
+    defaults to the one learned from `train`."""
     out.mkdir(parents=True, exist_ok=True)
-    # Sizes, not contents: a dataset regenerated at the same size would resume.
+    # With the vocabulary, a dataset regenerated at the same size is refused too.
     data = {"seed": seed, "batch": batch, "train": len(train), "val": len(val)}
-    run = checkpoint.resume(out / "last.pt", config, lr, data) if resume else None
-    run = run or checkpoint.fresh(config, DEFAULT_LR if lr is None else lr, seed)
-    train_data, val_data = encoded(train, config), encoded(val, config)
+    vocab = vocab or Vocab.build(train)  # from train only: val stays unseen
+    run = checkpoint.resume(out / "last.pt", config, vocab, lr, data) if resume else None
+    run = run or checkpoint.fresh(config, vocab, DEFAULT_LR if lr is None else lr, seed)
+    train_data = encoded(train, vocab, config.max_len)
+    val_data = encoded(val, vocab, config.max_len)
     start = time.monotonic()
     with (out / "log.jsonl").open("a" if resume else "w", encoding="utf-8") as log:
         for _ in range(epochs):
@@ -66,7 +71,7 @@ def fit(
             # Best, then last, then the log: a run killed in between resumes from
             # an epoch whose best is already saved and whose line is not yet logged.
             if run.best is metrics:
-                checkpoint.save_best(run.model, metrics, out / "model.pt")
+                checkpoint.save_best(run, metrics, out / "model.pt")
             checkpoint.save_last(run, out / "last.pt", data)
             log.write(json.dumps({**metrics, "minutes": (time.monotonic() - start) / 60}) + "\n")
             log.flush()
@@ -118,17 +123,18 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
-def load(args: argparse.Namespace) -> tuple[list[Example], list[Example], dict[str, float]]:
+def load(args: argparse.Namespace) -> tuple[list[Example], list[Example], dict[str, float], Vocab]:
     """Train and val as trained on, and what guessing from the shape scores
     before and after balancing: above that line, the core reads. Caps apply
     first, so balancing is never undone by a cut and both scores see the same
-    examples."""
+    examples. The vocabulary is learned before balancing, which picks by label."""
     train = list(read_examples(args.data / "train.jsonl"))[: args.max_train]
     val = list(read_examples(args.data / "val.jsonl"))[: args.max_val]
     shortcut = {"unbalanced": shape_accuracy(train, val)}
+    vocab = Vocab.build(train)
     if not args.no_balance:
         train, val = balance(train, args.seed), balance(val, args.seed)
-    return train, val, shortcut | {"trained_on": shape_accuracy(train, val)}
+    return train, val, shortcut | {"trained_on": shape_accuracy(train, val)}, vocab
 
 
 def announce(shortcut: dict[str, float], train: Sequence[Example], val: Sequence[Example]) -> None:
@@ -144,7 +150,7 @@ def main(argv: list[str]) -> int:
     args = build_parser().parse_args(argv)
     protect_machine(max_gb=args.max_gb, threads=args.threads)
     try:
-        train, val, shortcut = load(args)
+        train, val, shortcut, vocab = load(args)
     except ValueError as e:
         print(f"error: {e} (balancing drops shapes with one label; see --no-balance)",
               file=sys.stderr)  # fmt: skip
@@ -153,7 +159,7 @@ def main(argv: list[str]) -> int:
     try:
         report = fit(
             train, val, args.out, Config(), args.epochs, args.batch, args.lr, args.seed,
-            args.max_minutes, resume=args.resume,
+            args.max_minutes, resume=args.resume, vocab=vocab,
         )  # fmt: skip
     except checkpoint.ResumeError as e:
         print(f"error: {e}", file=sys.stderr)

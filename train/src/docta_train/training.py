@@ -5,9 +5,9 @@ from collections.abc import Iterable, Sequence
 import torch
 from torch import nn
 
-from docta_train.model import Encoded, pad_batch
+from docta_train.model import pad_batch
 
-Batch = tuple[Sequence[Encoded], torch.Tensor]  # (encoded examples, 0/1 labels)
+Batch = tuple[Sequence[list[int]], torch.Tensor]  # (token ids, 0/1 labels)
 LOSS = nn.BCEWithLogitsLoss()
 
 

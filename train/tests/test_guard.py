@@ -10,11 +10,11 @@ from docta_train import guard
 PROTECTED_STEP = """
 import torch
 from docta_train.guard import protect_machine
-from docta_train.model import Config, CoreEvaluate, Encoded
+from docta_train.model import Config, CoreEvaluate
 from docta_train.training import train_steps
 protect_machine(max_gb={max_gb}, threads=1)
-seqs = [Encoded([5] * 1000, [1] * 1000) for _ in range({batch})]
-train_steps(CoreEvaluate(Config()), [(seqs, torch.zeros({batch}))], 1e-3)
+seqs = [[5] * Config().max_len for _ in range({batch})]
+train_steps(CoreEvaluate(Config(), 100), [(seqs, torch.zeros({batch}))], 1e-3)
 """
 
 
@@ -40,8 +40,8 @@ def test_guard_caps_memory_threads_and_priority():
 
 def test_default_core_trains_long_sequences_in_little_memory():
     # Attention dropout forces PyTorch's CPU attention to keep every
-    # length x length matrix for backward (~250 MB per 1000-byte example):
-    # batch 64 needed ~16 GB and froze the machine.
+    # length x length matrix for backward: with 1000-byte examples, batch 64
+    # needed ~16 GB and froze the machine. Word tokens are shorter; the check stays.
     child = run(PROTECTED_STEP.format(max_gb=2, batch=8))
     assert child.returncode == 0, child.stderr[-500:]
 
