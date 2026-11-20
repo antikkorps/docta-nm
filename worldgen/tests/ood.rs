@@ -5,12 +5,14 @@ mod common;
 
 use common::{DEFAULT, corpora_in, fact};
 use docta_worldgen::corpus::{Corpus, Primitive};
+use docta_worldgen::liars::{ATTRIBUTIONS, HELD_OUT_ATTRIBUTION};
 use docta_worldgen::model::Pred;
 use docta_worldgen::questions::HELD_OUT_CHAINS;
 use docta_worldgen::split::Split;
 use docta_worldgen::templates::{
-    Phrasings, comparison_phrasings, question_phrasings, sentence_phrasings,
+    Phrasings, comparison_phrasings, describe, question_phrasings, sentence_phrasings, titles,
 };
+use std::collections::BTreeSet;
 
 const PREDS: [Pred; 9] = [
     Pred::FoundedIn,
@@ -152,4 +154,51 @@ fn ood_keeps_every_shape_and_its_share_of_unanswerables() {
     }
     let missing = questions.iter().filter(|q| !q.answerable()).count();
     assert_eq!(missing * 9, questions.len() * 3);
+}
+
+/// Lowercased words of templates, placeholders left out.
+fn words<'a>(texts: impl IntoIterator<Item = &'a str>) -> BTreeSet<String> {
+    texts
+        .into_iter()
+        .flat_map(|t| t.split(|c: char| !c.is_ascii_alphabetic()))
+        .filter(|w| !w.is_empty() && *w != "s" && *w != "o" && *w != "t" && *w != "x")
+        .map(str::to_lowercase)
+        .collect()
+}
+
+/// A core learns words from train only: an ood word it never met cannot be
+/// read, whatever the method learned. Held-out phrasings recombine seen
+/// words in new structures, so ood measures generalisation, not vocabulary.
+#[test]
+fn held_out_phrasings_use_only_words_the_seen_ones_use() {
+    let seen_texts: Vec<String> = [
+        templates(|p| Some(sentence_phrasings(p)), false),
+        templates(|p| Some(question_phrasings(p)), false),
+        templates(comparison_phrasings, false),
+        ATTRIBUTIONS.to_vec(),
+    ]
+    .concat()
+    .into_iter()
+    .map(String::from)
+    .chain(titles("{s}"))
+    // Only chain links reach a model; other descriptions stay in ground truth.
+    .chain(
+        [Pred::BasedIn, Pred::LivesIn, Pred::MemberOf]
+            .into_iter()
+            .map(|p| describe(p, "{s}")),
+    )
+    .collect();
+    let seen = words(seen_texts.iter().map(String::as_str));
+    let held = [
+        templates(|p| Some(sentence_phrasings(p)), true),
+        templates(|p| Some(question_phrasings(p)), true),
+        templates(comparison_phrasings, true),
+        vec![HELD_OUT_ATTRIBUTION],
+    ]
+    .concat();
+    let unseen: Vec<_> = words(held).difference(&seen).cloned().collect();
+    assert!(
+        unseen.is_empty(),
+        "held-out words no seen phrasing uses: {unseen:?}"
+    );
 }
