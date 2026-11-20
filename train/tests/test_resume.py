@@ -89,3 +89,24 @@ def test_cli_reports_a_refused_resume(tmp_path, monkeypatch, capsys):
     args = ["--data", str(tmp_path), "--out", str(tmp_path / "core"), "--no-balance", "--resume"]
     assert fit_module.main(args) == 1
     assert "nothing to resume" in capsys.readouterr().err
+
+
+def test_resume_refuses_another_vocabulary(tmp_path):
+    from docta_train.words import Vocab
+
+    run(tmp_path, 1)
+    other = Vocab(Vocab.build(examples("train", 32)).words + ("amber",))
+    with pytest.raises(ValueError, match="without --resume"):
+        fit(examples("train", 32), examples("val", 8), tmp_path, TINY, epochs=1, batch=8,
+            lr=3e-3, seed=1, resume=True, vocab=other)  # fmt: skip
+
+
+def test_resume_refuses_a_run_saved_before_word_tokens(tmp_path):
+    import torch
+
+    run(tmp_path, 1)
+    saved = torch.load(tmp_path / "last.pt", weights_only=True)
+    del saved["vocab"]
+    torch.save(saved, tmp_path / "last.pt")
+    with pytest.raises(ValueError, match="without --resume"):
+        run(tmp_path, 1, resume=True)

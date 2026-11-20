@@ -129,7 +129,9 @@ def run_cli(tmp_path, monkeypatch, *flags):
     seen = {}
     monkeypatch.setattr(fit_module, "protect_machine", lambda **kw: None)
     monkeypatch.setattr(
-        fit_module, "fit", lambda train, val, *a, **kw: seen.update(train=train, val=val) or {}
+        fit_module,
+        "fit",
+        lambda train, val, *a, **kw: seen.update(train=train, val=val, **kw) or {},
     )
     fit_module.main(["--data", str(tmp_path), *flags])
     return seen
@@ -188,3 +190,30 @@ def test_the_checkpoint_carries_the_vocabulary_learned_from_train(tmp_path):
         lr=3e-3, seed=0)  # fmt: skip
     words = torch.load(tmp_path / "model.pt", weights_only=True)["vocab"]
     assert {"<cls>", "<name_1>", "when", "founded", "?"} <= set(words)
+
+
+def test_predictor_tokenizes_with_the_vocabulary_it_was_trained_with(tmp_path):
+    import torch
+
+    fit(examples("train", 32), examples("val", 8), tmp_path, TINY, epochs=1, batch=8,
+        lr=3e-3, seed=0)  # fmt: skip
+    saved = torch.load(tmp_path / "model.pt", weights_only=True)["vocab"]
+    assert Predictor(tmp_path / "model.pt").vocab.words == tuple(saved)
+
+
+def test_cli_learns_the_vocabulary_before_balancing(tmp_path, monkeypatch):
+    # Balancing picks examples by label: building after it would let labels
+    # decide which words make the vocabulary.
+    from docta_train.words import Vocab
+
+    built_from = []
+    real = Vocab.build.__func__
+    monkeypatch.setattr(
+        Vocab,
+        "build",
+        classmethod(
+            lambda cls, ex, *a: built_from.append(len(ex := list(ex))) or real(cls, ex, *a)
+        ),
+    )
+    seen = run_cli(tmp_path, monkeypatch)
+    assert built_from == [16] and len(seen["train"]) == 8
