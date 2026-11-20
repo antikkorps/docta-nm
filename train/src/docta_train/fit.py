@@ -17,16 +17,17 @@ import torch
 from docta_train import checkpoint
 from docta_train.evaluate_data import Example, read_examples
 from docta_train.guard import protect_machine
-from docta_train.model import Config, Encoded, encode
+from docta_train.model import Config
 from docta_train.shortcut import balance, shape_accuracy
 from docta_train.training import Batch, run_epoch, validate
+from docta_train.words import Vocab
 
-Data = list[tuple[Encoded, float]]
+Data = list[tuple[list[int], float]]
 DEFAULT_LR = 3e-4
 
 
-def encoded(examples: Sequence[Example], config: Config) -> Data:
-    return [(encode(e.question, e.excerpts, config.max_len), float(e.label)) for e in examples]
+def encoded(examples: Sequence[Example], vocab: Vocab, max_len: int) -> Data:
+    return [(vocab.encode(e.question, e.excerpts)[:max_len], float(e.label)) for e in examples]
 
 
 def batches(data: Data, size: int, rng: random.Random | None = None) -> list[Batch]:
@@ -56,9 +57,11 @@ def fit(
     out.mkdir(parents=True, exist_ok=True)
     # Sizes, not contents: a dataset regenerated at the same size would resume.
     data = {"seed": seed, "batch": batch, "train": len(train), "val": len(val)}
-    run = checkpoint.resume(out / "last.pt", config, lr, data) if resume else None
-    run = run or checkpoint.fresh(config, DEFAULT_LR if lr is None else lr, seed)
-    train_data, val_data = encoded(train, config), encoded(val, config)
+    vocab = Vocab.build(train)  # from train only: val stays unseen
+    run = checkpoint.resume(out / "last.pt", config, vocab, lr, data) if resume else None
+    run = run or checkpoint.fresh(config, vocab, DEFAULT_LR if lr is None else lr, seed)
+    train_data = encoded(train, vocab, config.max_len)
+    val_data = encoded(val, vocab, config.max_len)
     start = time.monotonic()
     with (out / "log.jsonl").open("a" if resume else "w", encoding="utf-8") as log:
         for _ in range(epochs):
@@ -66,7 +69,7 @@ def fit(
             # Best, then last, then the log: a run killed in between resumes from
             # an epoch whose best is already saved and whose line is not yet logged.
             if run.best is metrics:
-                checkpoint.save_best(run.model, metrics, out / "model.pt")
+                checkpoint.save_best(run, metrics, out / "model.pt")
             checkpoint.save_last(run, out / "last.pt", data)
             log.write(json.dumps({**metrics, "minutes": (time.monotonic() - start) / 60}) + "\n")
             log.flush()

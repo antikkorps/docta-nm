@@ -14,6 +14,7 @@ from pathlib import Path
 import torch
 
 from docta_train.model import Config, CoreEvaluate
+from docta_train.words import Vocab
 
 RERUN = "rerun without --resume"
 
@@ -27,19 +28,28 @@ class Run:
     model: CoreEvaluate
     optimiser: torch.optim.Optimizer
     rng: random.Random  # shuffles training batches
+    vocab: Vocab
     epoch: int = 0  # last finished epoch
     best: dict | None = None
 
 
-def fresh(config: Config, lr: float, seed: int) -> Run:
+def fresh(config: Config, vocab: Vocab, lr: float, seed: int) -> Run:
     torch.manual_seed(seed)
-    model = CoreEvaluate(config)
-    return Run(model, torch.optim.AdamW(model.parameters(), lr=lr), random.Random(seed))
+    model = CoreEvaluate(config, len(vocab.words))
+    optimiser = torch.optim.AdamW(model.parameters(), lr=lr)
+    return Run(model, optimiser, random.Random(seed), vocab)
 
 
-def save_best(model: CoreEvaluate, metrics: dict, path: Path) -> None:
+def save_best(run: Run, metrics: dict, path: Path) -> None:
+    """The vocabulary goes with the weights: they mean nothing without it."""
     torch.save(
-        {"config": asdict(model.config), "state": model.state_dict(), "metrics": metrics}, path
+        {
+            "config": asdict(run.model.config),
+            "vocab": list(run.vocab.words),
+            "state": run.model.state_dict(),
+            "metrics": metrics,
+        },
+        path,
     )
 
 
@@ -48,6 +58,7 @@ def save_last(run: Run, path: Path, data: dict) -> None:
     Written aside then renamed: a run killed mid-write keeps its previous last.pt."""
     state = {
         "config": asdict(run.model.config),
+        "vocab": list(run.vocab.words),
         "state": run.model.state_dict(),
         "optimiser": run.optimiser.state_dict(),
         "rng": run.rng.getstate(),
@@ -70,12 +81,13 @@ def load_last(path: Path) -> dict:
         raise ResumeError(f"{path} cannot be read ({e.__class__.__name__}): {RERUN}") from e
 
 
-def resume(path: Path, config: Config, lr: float | None, data: dict) -> Run:
+def resume(path: Path, config: Config, vocab: Vocab, lr: float | None, data: dict) -> Run:
     """The run saved at `path`; `lr` replaces its learning rate when given."""
     saved = load_last(path)
-    if saved.get("config") != asdict(config) or saved.get("data") != data:
+    same = (saved.get(k) for k in ("config", "vocab", "data"))
+    if list(same) != [asdict(config), list(vocab.words), data]:
         raise ResumeError(f"{path} was trained with another core or other data: {RERUN}")
-    model = CoreEvaluate(config)
+    model = CoreEvaluate(config, len(vocab.words))
     model.load_state_dict(saved["state"])
     optimiser = torch.optim.AdamW(model.parameters())
     optimiser.load_state_dict(saved["optimiser"])
@@ -84,4 +96,4 @@ def resume(path: Path, config: Config, lr: float | None, data: dict) -> Run:
     rng = random.Random()
     rng.setstate(saved["rng"])
     torch.set_rng_state(saved["torch_rng"])
-    return Run(model, optimiser, rng, saved["epoch"], saved["best"])
+    return Run(model, optimiser, rng, vocab, saved["epoch"], saved["best"])
