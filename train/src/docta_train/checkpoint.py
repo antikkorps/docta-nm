@@ -14,6 +14,7 @@ from pathlib import Path
 import torch
 
 from docta_train.model import Config, CoreEvaluate
+from docta_train.training import Warmup
 from docta_train.words import Vocab
 
 RERUN = "rerun without --resume"
@@ -29,15 +30,16 @@ class Run:
     optimiser: torch.optim.Optimizer
     rng: random.Random  # shuffles training batches
     vocab: Vocab
+    warmup: Warmup  # holds the learning rate and how far its climb got
     epoch: int = 0  # last finished epoch
     best: dict | None = None
 
 
-def fresh(config: Config, vocab: Vocab, lr: float, seed: int) -> Run:
+def fresh(config: Config, vocab: Vocab, lr: float, seed: int, warmup: int = 0) -> Run:
     torch.manual_seed(seed)
     model = CoreEvaluate(config, len(vocab.words))
     optimiser = torch.optim.AdamW(model.parameters(), lr=lr)
-    return Run(model, optimiser, random.Random(seed), vocab)
+    return Run(model, optimiser, random.Random(seed), vocab, Warmup(lr, warmup))
 
 
 def save_best(run: Run, metrics: dict, path: Path) -> None:
@@ -61,6 +63,7 @@ def save_last(run: Run, path: Path, data: dict) -> None:
         "vocab": list(run.vocab.words),
         "state": run.model.state_dict(),
         "optimiser": run.optimiser.state_dict(),
+        "warmup": asdict(run.warmup),
         "rng": run.rng.getstate(),
         "torch_rng": torch.get_rng_state(),  # dropout draws from it
         "epoch": run.epoch,
@@ -87,13 +90,15 @@ def resume(path: Path, config: Config, vocab: Vocab, lr: float | None, data: dic
     same = (saved.get(k) for k in ("config", "vocab", "data"))
     if list(same) != [asdict(config), list(vocab.words), data]:
         raise ResumeError(f"{path} was trained with another core or other data: {RERUN}")
+    if "warmup" not in saved:
+        raise ResumeError(f"{path} was saved by an earlier version: {RERUN}")
     model = CoreEvaluate(config, len(vocab.words))
     model.load_state_dict(saved["state"])
     optimiser = torch.optim.AdamW(model.parameters())
     optimiser.load_state_dict(saved["optimiser"])
-    for group in optimiser.param_groups:
-        group["lr"] = group["lr"] if lr is None else lr
+    warmup = Warmup(**saved["warmup"])
+    warmup.lr = warmup.lr if lr is None else lr
     rng = random.Random()
     rng.setstate(saved["rng"])
     torch.set_rng_state(saved["torch_rng"])
-    return Run(model, optimiser, rng, vocab, saved["epoch"], saved["best"])
+    return Run(model, optimiser, rng, vocab, warmup, saved["epoch"], saved["best"])

@@ -1,6 +1,7 @@
 """Training steps and validation for the Evaluate core: deterministic, CPU-only."""
 
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 
 import torch
 from torch import nn
@@ -11,14 +12,35 @@ Batch = tuple[Sequence[list[int]], torch.Tensor]  # (token ids, 0/1 labels)
 LOSS = nn.BCEWithLogitsLoss()
 
 
+@dataclass
+class Warmup:
+    """The learning rate of each step: a straight climb over the first `steps`
+    ones, then `lr`. Without it a high rate locks a fresh transformer on one
+    constant answer (seen at 1e-3: two epochs at 50%)."""
+
+    lr: float
+    steps: int
+    done: int = 0  # steps taken so far, across epochs and resumes
+
+    def next(self) -> float:
+        self.done += 1
+        return self.lr * min(1.0, self.done / self.steps) if self.steps else self.lr
+
+
 def run_epoch(
-    model: nn.Module, optimiser: torch.optim.Optimizer, batches: Iterable[Batch]
+    model: nn.Module,
+    optimiser: torch.optim.Optimizer,
+    batches: Iterable[Batch],
+    warmup: Warmup | None = None,
 ) -> float:
     """One optimiser step per batch; returns the mean loss. The optimiser is
     passed in so AdamW's moments carry over from one epoch to the next."""
     model.train()
     losses = []
     for sequences, labels in batches:
+        if warmup is not None:
+            for group in optimiser.param_groups:
+                group["lr"] = warmup.next()
         loss = LOSS(model(*pad_batch(sequences)), labels.float())
         optimiser.zero_grad()
         loss.backward()

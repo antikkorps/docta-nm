@@ -51,6 +51,7 @@ def fit(
     max_minutes: float | None = None,
     resume: bool = False,
     vocab: Vocab | None = None,
+    warmup: int = 0,
 ) -> dict:
     """Trains from scratch, or `epochs` more on OUT/last.pt with `resume`;
     keeps the epoch with the lowest validation loss in OUT/model.pt. `lr`
@@ -61,7 +62,7 @@ def fit(
     data = {"seed": seed, "batch": batch, "train": len(train), "val": len(val)}
     vocab = vocab or Vocab.build(train)  # from train only: val stays unseen
     run = checkpoint.resume(out / "last.pt", config, vocab, lr, data) if resume else None
-    run = run or checkpoint.fresh(config, vocab, DEFAULT_LR if lr is None else lr, seed)
+    run = run or checkpoint.fresh(config, vocab, DEFAULT_LR if lr is None else lr, seed, warmup)
     train_data = encoded(train, vocab, config.max_len)
     val_data = encoded(val, vocab, config.max_len)
     shapes = [shape(e.question) for e in val]
@@ -88,7 +89,9 @@ def next_epoch(
     run.epoch += 1
     metrics = {
         "epoch": run.epoch,
-        "train_loss": run_epoch(run.model, run.optimiser, batches(train_data, batch, run.rng)),
+        "train_loss": run_epoch(
+            run.model, run.optimiser, batches(train_data, batch, run.rng), run.warmup
+        ),
     }
     metrics |= validate(run.model, batches(val_data, batch), shapes)
     if run.best is None or metrics["val_loss"] < run.best["val_loss"]:
@@ -104,6 +107,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--batch", type=int, default=64)
     p.add_argument("--lr", type=float, help=f"default {DEFAULT_LR}; with --resume, the run's own")
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--dropout", type=float, default=Config.dropout)
+    p.add_argument("--warmup", type=int, default=0, help="steps of learning-rate climb")
     p.add_argument(
         "--max-train", type=int, help="cap the training examples read (before balancing)"
     )
@@ -161,8 +166,9 @@ def main(argv: list[str]) -> int:
     announce(shortcut, train, val)
     try:
         report = fit(
-            train, val, args.out, Config(), args.epochs, args.batch, args.lr, args.seed,
-            args.max_minutes, resume=args.resume, vocab=vocab,
+            train, val, args.out, Config(dropout=args.dropout), args.epochs, args.batch,
+            args.lr, args.seed, args.max_minutes,
+            resume=args.resume, vocab=vocab, warmup=args.warmup,
         )  # fmt: skip
     except checkpoint.ResumeError as e:
         print(f"error: {e}", file=sys.stderr)
