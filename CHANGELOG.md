@@ -11,12 +11,6 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ## [Unreleased]
 
-- The `ood` split's held-out phrasings are new structures built only from
-  words the seen phrasings use ("In 1432, Varnelle was founded."). Its old
-  ones brought words train never shows ("altitude", "settled"), which a core
-  trained from scratch cannot read: a core at 85% on test was at chance on
-  `ood`. Regenerate the data (`just gen`, `just load`, `just evaluate-data`);
-  `ood` scores from before are not comparable.
 ### Added
 
 - `just fit --resume --epochs N` adds N epochs to the last run
@@ -36,6 +30,12 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Changed
 
+- The `ood` split's held-out phrasings are new structures built only from
+  words the seen phrasings use ("In 1432, Varnelle was founded."). Its old
+  ones brought words train never shows ("altitude", "settled"), which a core
+  trained from scratch cannot read: a core at 85% on test was at chance on
+  `ood`. Regenerate the data (`just gen`, `just load`, `just evaluate-data`);
+  `ood` scores from before are not comparable.
 - `just fit` balances the Evaluate labels within each question shape and
   reports what guessing from the shape alone scores: on 20,000 worlds the
   shape gave away 62.7% of labels, the first core scored 63.8%.

@@ -181,7 +181,12 @@ fn held_out_phrasings_use_only_words_the_seen_ones_use() {
     .into_iter()
     .map(String::from)
     .chain(titles("{s}"))
-    .chain(PREDS.into_iter().map(|p| describe(p, "{s}")))
+    // Only chain links reach a model; other descriptions stay in ground truth.
+    .chain(
+        [Pred::BasedIn, Pred::LivesIn, Pred::MemberOf]
+            .into_iter()
+            .map(|p| describe(p, "{s}")),
+    )
     .collect();
     let seen = words(seen_texts.iter().map(String::as_str));
     let held = [
