@@ -30,6 +30,14 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Changed
 
+- Seen phrasings are more varied: 4 or 5 sentence structures per predicate
+  instead of 2 or 3 ("The height of X is N centimetres.", "In Y, X has its
+  seat."), and 2 questions per predicate instead of 1. With near-identical
+  phrasings a core recognised strings: 85% on test, chance on `ood`. Every
+  split changes: regenerate the data and retrain; scores from before are not
+  comparable.
+- Template words the name syllables can spell ("live", "notes", "dates")
+  are excluded from names: the core would read such a name as the word.
 - The `ood` split's held-out phrasings are new structures built only from
   words the seen phrasings use ("In 1432, Varnelle was founded."). Its old
   ones brought words train never shows ("altitude", "settled"), which a core

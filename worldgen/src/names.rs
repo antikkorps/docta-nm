@@ -13,12 +13,15 @@ const VOWELS: &[&str] = &["a", "e", "i", "o", "u", "ae", "ia", "ou"];
 const CODAS: &[&str] = &["", "", "", "n", "r", "l", "s", "th"];
 
 /// Real places and words the syllables can produce. Not exhaustive: it catches
-/// the collisions most likely to leak real-world knowledge into a world.
+/// the collisions most likely to leak real-world knowledge into a world. It
+/// also holds the template words the syllables can spell: the core would read
+/// a name such as "Live" as the word `live` (tests check the templates).
 const EXCLUDED: &[&str] = &[
-    "baku", "bali", "baron", "bern", "boston", "dakar", "dallas", "data", "delhi", "doha", "java",
-    "kiev", "laos", "lemon", "lima", "linen", "lyon", "malta", "mars", "melon", "milan", "minsk",
-    "nepal", "nice", "oslo", "paris", "pasta", "peru", "riga", "robin", "roma", "rome", "salad",
-    "salon", "satin", "sofia", "sudan", "talon", "togo", "venus",
+    "baku", "bali", "baron", "bern", "boston", "dakar", "dallas", "data", "dates", "delhi", "doha",
+    "java", "kiev", "laos", "larger", "lemon", "level", "lima", "linen", "live", "lives", "lyon",
+    "malta", "mars", "melon", "milan", "minsk", "more", "nepal", "nice", "notes", "oslo", "paris",
+    "pasta", "peru", "register", "resides", "riga", "robin", "roma", "rome", "salad", "salon",
+    "satin", "sofia", "sudan", "taller", "talon", "togo", "venus",
 ];
 
 /// Draws names for one world. Every name token is unique within the world, so a
@@ -110,6 +113,58 @@ mod tests {
         assert!(!is_allowed("Paris"));
         assert!(!is_allowed("lima"));
         assert!(is_allowed("Varnelle"));
+    }
+
+    /// Whether the syllable tables can spell `word` (2 or 3 syllables).
+    fn spellable(word: &str, syllables: usize) -> bool {
+        if word.is_empty() {
+            return (2..=3).contains(&syllables);
+        }
+        syllables < 3
+            && ONSETS.iter().any(|o| {
+                word.strip_prefix(o).is_some_and(|rest| {
+                    VOWELS.iter().any(|v| {
+                        rest.strip_prefix(v).is_some_and(|rest| {
+                            CODAS.iter().any(|c| {
+                                rest.strip_prefix(c)
+                                    .is_some_and(|rest| spellable(rest, syllables + 1))
+                            })
+                        })
+                    })
+                })
+            })
+    }
+
+    /// The core reads a name that spells a template word as that word ("Live"
+    /// would read as `live`), so such names must be excluded.
+    #[test]
+    fn no_name_spells_a_template_word() {
+        use crate::model::Pred;
+        use crate::templates::{comparison_phrasings, question_phrasings, sentence_phrasings};
+        let mut texts: Vec<&str> = crate::liars::ATTRIBUTIONS.to_vec();
+        texts.push(crate::liars::HELD_OUT_ATTRIBUTION);
+        for pred in Pred::ALL {
+            let mut kinds = vec![sentence_phrasings(pred), question_phrasings(pred)];
+            kinds.extend(comparison_phrasings(pred));
+            for p in kinds {
+                texts.extend(p.seen);
+                texts.push(p.held_out);
+            }
+        }
+        let titles = crate::templates::titles("");
+        texts.extend(titles.iter().map(String::as_str));
+        let words = texts
+            .iter()
+            .flat_map(|t| t.split(|c: char| !c.is_ascii_alphabetic()));
+        for w in words
+            .map(str::to_ascii_lowercase)
+            .filter(|w| (4..=12).contains(&w.len()))
+        {
+            assert!(
+                !spellable(&w, 0) || !is_allowed(&w),
+                "a name could spell {w:?}"
+            );
+        }
     }
 
     #[test]

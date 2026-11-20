@@ -42,10 +42,11 @@ def needs(question: str) -> list[Need] | None:
         m = pattern(template).fullmatch(question)
         if m:
             return [(m["s"], (pred,)), (m["o"], (pred,))]
-    for pred, template in QUESTIONS.items():
-        m = pattern(template).fullmatch(question)
-        if m:
-            return [chain(m["s"], pred)]
+    for pred, templates in QUESTIONS.items():
+        for template in templates:
+            m = pattern(template).fullmatch(question)
+            if m:
+                return [chain(m["s"], pred)]
     return None
 
 

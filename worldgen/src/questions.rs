@@ -139,7 +139,7 @@ impl<'a> Ctx<'a> {
             .filter(|f| f.subj == subject.id && self.stated(f) == answerable)
             .collect();
         let f = *own.choose(rng)?;
-        let text = templates::question(f.pred, &subject.name, self.held_out);
+        let text = templates::question(f.pred, &subject.name, self.held_out, rng);
         Some(Draft {
             shape: Primitive::Retrieve,
             text,
@@ -156,7 +156,7 @@ impl<'a> Ctx<'a> {
                 && (self.held_out || !HELD_OUT_CHAINS.contains(&(a.pred, b.pred)))
         })?;
         let via = templates::describe(a.pred, name(self.world, &a.subj));
-        let text = templates::question(b.pred, &via, self.held_out);
+        let text = templates::question(b.pred, &via, self.held_out, rng);
         Some(Draft {
             shape: Primitive::Chain,
             text,
