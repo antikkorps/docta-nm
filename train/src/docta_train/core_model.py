@@ -74,6 +74,10 @@ class CoreChainModel(DigModel):
         # Enough by the core, but no answer to read: nothing may be stated unsupported.
         if judged and self.answer(framing, evidence) is not None:
             return Verdict(True)
-        if chain is not None and can_dig(q, evidence):
+        if chain is not None and self.digs(q, evidence):
             return Verdict(False)  # back to Plan: search the revealed bridge
         return Verdict(False, Exit.NOT_FOUND)
+
+    def digs(self, question: str, evidence: Evidence) -> bool:
+        """Whether a bridge was revealed to search next."""
+        return can_dig(question, evidence)

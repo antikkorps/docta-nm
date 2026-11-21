@@ -61,7 +61,7 @@ read-data:
 fit-read *args:
     uv run python -m docta_train.fit_read {{args}}
 
-# Run the trained core on a split (alone, and judging chains hop by hop), then score it next to the baselines
+# Run the trained cores on a split (core_read too once `just fit-read` ran), then score them next to the baselines
 core split="test":
     uv run python -m docta_train.run_core data/{{split}}.jsonl --out predictions/{{split}} --traces data/traces/{{split}}
-    uv run python -m docta_eval data/{{split}}.jsonl predictions/{{split}}/random.jsonl predictions/{{split}}/always_abstain.jsonl predictions/{{split}}/keyword.jsonl predictions/{{split}}/rule_evaluate.jsonl predictions/{{split}}/dig.jsonl predictions/{{split}}/majority.jsonl predictions/{{split}}/challenge.jsonl predictions/{{split}}/core_evaluate.jsonl predictions/{{split}}/core_chain.jsonl --traces data/traces/{{split}} --json predictions/{{split}}/scores.json
+    uv run python -m docta_eval data/{{split}}.jsonl predictions/{{split}}/random.jsonl predictions/{{split}}/always_abstain.jsonl predictions/{{split}}/keyword.jsonl predictions/{{split}}/rule_evaluate.jsonl predictions/{{split}}/dig.jsonl predictions/{{split}}/majority.jsonl predictions/{{split}}/challenge.jsonl predictions/{{split}}/core_*.jsonl --traces data/traces/{{split}} --json predictions/{{split}}/scores.json
