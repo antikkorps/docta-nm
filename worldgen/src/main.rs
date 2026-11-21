@@ -31,6 +31,10 @@ struct Args {
     /// (contradiction, false consensus or undecidable).
     #[arg(long, default_value_t = 0.3, value_parser = parse_ratio)]
     trap_ratio: f64,
+    /// Write the seen phrasings the orchestrator's rules read to this file,
+    /// then stop.
+    #[arg(long)]
+    emit_templates: Option<PathBuf>,
 }
 
 fn parse_ratio(text: &str) -> Result<f64, String> {
@@ -44,6 +48,15 @@ fn parse_ratio(text: &str) -> Result<f64, String> {
 
 fn main() -> ExitCode {
     let args = Args::parse();
+    if let Some(path) = &args.emit_templates {
+        return match std::fs::write(path, docta_worldgen::export::seen_templates_json()) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e}");
+                ExitCode::FAILURE
+            }
+        };
+    }
     let cfg = Config {
         seed: args.seed,
         worlds: args.worlds,

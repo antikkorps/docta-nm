@@ -140,11 +140,13 @@ mod tests {
     #[test]
     fn no_name_spells_a_template_word() {
         use crate::model::Pred;
-        use crate::templates::{comparison_phrasings, question_phrasings, sentence_phrasings};
+        use crate::templates::{comparison_phrasings, question_phrasings, sentence_clauses};
         let mut texts: Vec<&str> = crate::liars::ATTRIBUTIONS.to_vec();
         texts.push(crate::liars::HELD_OUT_ATTRIBUTION);
+        texts.extend(crate::grammar::FRAMES);
+        texts.push(crate::grammar::PARENTHETICAL);
         for pred in Pred::ALL {
-            let mut kinds = vec![sentence_phrasings(pred), question_phrasings(pred)];
+            let mut kinds = vec![sentence_clauses(pred), question_phrasings(pred)];
             kinds.extend(comparison_phrasings(pred));
             for p in kinds {
                 texts.extend(p.seen);
