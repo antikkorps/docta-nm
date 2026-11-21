@@ -32,7 +32,10 @@ def test_resume_keeps_the_learning_rate_unless_told_otherwise(tmp_path):
     at_once = run(tmp_path / "a", 3)
     run(tmp_path / "b", 2)
     assert run(tmp_path / "b", 1, resume=True, lr=None)["best"] == at_once["best"]
-    assert run(tmp_path / "c", 2)["best"] != run(tmp_path / "c", 1, resume=True, lr=1e-5)["best"]
+    run(tmp_path / "c", 2)
+    run(tmp_path / "c", 1, resume=True, lr=1e-5)
+    # The last epoch, not the best: a tiny run may peak before the rate changes.
+    assert logged(tmp_path / "c")[-1] != logged(tmp_path / "a")[-1]
 
 
 def test_resume_carries_torch_randomness_on(tmp_path):
