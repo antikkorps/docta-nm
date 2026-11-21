@@ -2,9 +2,11 @@
 
 from dataclasses import replace
 
+import pytest
 import torch
 from docta_orchestrator.search import Hit
-from docta_train.model import CoreEvaluate, attention_mask, pad_batch, sentence_ids
+from docta_train import model as model_module
+from docta_train.model import Config, CoreEvaluate, attention_mask, pad_batch, sentence_ids
 from docta_train.words import BODY, SRC, STOP
 from test_model import TINY, VOCAB
 from test_words import vocab
@@ -44,16 +46,29 @@ def test_local_heads_see_their_sentence_and_the_others_everything_but_padding():
     assert blocked[1, 0, 2:].tolist() == [[True, True, False, False]] * 2
 
 
-def test_with_local_heads_only_the_question_never_sees_the_excerpts():
+def test_a_core_keeps_at_least_one_head_reading_everything():
+    # With every head local, <cls> never sees an excerpt: the core would train
+    # without error and never learn.
+    with pytest.raises(ValueError, match="local_heads"):
+        Config(heads=2, local_heads=2)
+    with pytest.raises(ValueError, match="local_heads"):
+        Config(local_heads=-1)
+
+
+def test_the_core_applies_the_sentence_mask(monkeypatch):
+    # Forcing every head local through the mask: the question then never
+    # sees the excerpts, which shows the mask reaches the encoder.
+    whole = model_module.attention_mask
     torch.manual_seed(0)
-    local = CoreEvaluate(replace(TINY, local_heads=TINY.heads), VOCAB).eval()
     shared = CoreEvaluate(replace(TINY, local_heads=0), VOCAB).eval()
+    local = CoreEvaluate(replace(TINY, local_heads=0), VOCAB).eval()
     a, b = (
         pad_batch([[1, W, SRC, 10, BODY, 10, STOP]]),
         pad_batch([[1, W, SRC, 11, BODY, 11, STOP]]),
     )
-    assert local(*a).item() == local(*b).item()
     assert shared(*a).item() != shared(*b).item()
+    monkeypatch.setattr(model_module, "attention_mask", lambda ids, h, _: whole(ids, h, h))
+    assert local(*a).item() == local(*b).item()
 
 
 def test_padding_changes_nothing_and_gives_no_nan():

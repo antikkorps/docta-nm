@@ -20,10 +20,16 @@ class Config:
     heads: int = 4
     ff: int = 256
     max_len: int = 256  # longest example is 157 words on 20,000 worlds
-    # Any dropout disables PyTorch's memory-efficient CPU attention, which then
-    # keeps each length x length matrix for backward.
+    # Each attention matrix (length x length per head) is kept for backward:
+    # the sentence mask, like any dropout, rules out the memory-efficient kernel.
     dropout: float = 0.0
     local_heads: int = 2  # heads that read within one sentence; the others read all
+
+    def __post_init__(self):
+        # With every head local, <cls> never sees an excerpt: training would run
+        # fine and learn nothing.
+        if not 0 <= self.local_heads < self.heads:
+            raise ValueError(f"local_heads must be in [0, heads), got {self.local_heads}")
 
 
 def pad_batch(batch: Sequence[list[int]]) -> tuple[torch.Tensor, torch.Tensor]:
@@ -54,7 +60,7 @@ def attention_mask(ids: torch.Tensor, heads: int, local: int) -> torch.Tensor:
     sentence = sentence_ids(ids)
     same = sentence[:, :, None] == sentence[:, None, :]
     real = (sentence >= 0)[:, None, :].expand_as(same)
-    itself = torch.eye(ids.shape[1], dtype=torch.bool)
+    itself = torch.eye(ids.shape[1], dtype=torch.bool, device=ids.device)
     allowed = torch.stack([same if h < local else real for h in range(heads)], 1) | itself
     return ~allowed.flatten(0, 1)
 
