@@ -257,3 +257,30 @@ fn copies_are_not_longer_than_their_origin_by_more_than_today() {
         "copies are {ratio:.2} times as long as their origin"
     );
 }
+
+/// A copy repeats its origin's claim mid-sentence: an opening template word
+/// ("Records", "It", "In") loses its capital there, a name keeps it. A capital
+/// left after ", " or "that " would read wrong and would mark the copy.
+#[test]
+fn a_copied_claim_reads_on_mid_sentence() {
+    let openers = docta_worldgen::grammar::opening_words();
+    for c in common::corpora_in(Split::Train, 100, &TRAPPED)
+        .into_iter()
+        .chain(common::corpora_in(Split::Ood, 100, &TRAPPED))
+    {
+        for copy in c.sources.iter().filter(|s| s.copy_of.is_some()) {
+            // The cited title ("Records of X") keeps its capitals.
+            let origin = copy.copy_of.as_deref().expect("a copy");
+            let title = &c
+                .sources
+                .iter()
+                .find(|s| s.id == origin)
+                .expect("its origin")
+                .title;
+            let text = copy.text.replace(title.as_str(), "");
+            for w in text.split(|ch: char| !ch.is_ascii_alphabetic()).skip(1) {
+                assert!(!openers.contains(w), "{}", copy.text);
+            }
+        }
+    }
+}

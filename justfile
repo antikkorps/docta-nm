@@ -26,6 +26,10 @@ gen seed="42" worlds="1000":
     cargo run --release -q -p docta-worldgen -- --seed {{seed}} --worlds {{worlds}} --out data \
         --split-ratio 0.7,0.1,0.1,0.1 --unanswerable-ratio 0.33 --max-hops 2
 
+# Refresh the seen phrasings the orchestrator's rules read (after any template change)
+templates:
+    cargo run --release -q -p docta-worldgen -- --emit-templates orchestrator/src/docta_orchestrator/models/templates_seen.json
+
 # Load data/*.jsonl into Postgres, mirroring it: worlds no longer in data/ are removed
 load:
     uv run python -m docta_orchestrator.load --prune data/*.jsonl

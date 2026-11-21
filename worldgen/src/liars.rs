@@ -112,7 +112,7 @@ impl<'a> Claim<'a> {
         } else {
             ATTRIBUTIONS.choose(rng).expect("non-empty")
         };
-        let claim = lower_first_article(&origin.text);
+        let claim = crate::grammar::lower_opening(&origin.text);
         Source {
             id: format!("{}:copy{k}", origin.id),
             title: self.titles.for_copy(name(self.world, &self.fact.subj), rng),
@@ -148,14 +148,6 @@ fn wrong_value<R: Rng>(world: &World, fact: &Fact, rng: &mut R) -> Obj {
             let other = others.choose(rng).expect("two entities per kind");
             Obj::Entity(other.id.clone())
         }
-    }
-}
-
-/// "The founding of X…" reads "…, the founding of X…" mid-sentence.
-fn lower_first_article(sentence: &str) -> String {
-    match sentence.strip_prefix("The ") {
-        Some(rest) => format!("the {rest}"),
-        None => sentence.to_string(),
     }
 }
 

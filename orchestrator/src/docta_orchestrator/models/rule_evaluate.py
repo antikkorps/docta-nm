@@ -25,12 +25,23 @@ def pattern(template: str) -> re.Pattern[str]:
     return re.compile(escaped)
 
 
+NAME = r"[A-Z][a-z]+(?: [A-Z][a-z]+)*"
+
+
+@cache
+def sentence_pattern(template: str) -> re.Pattern[str]:
+    """A sentence states a name and a name or number, as worldgen fills it: a
+    looser group would let "{o}" swallow a frame ("Records show that 1432")."""
+    escaped = re.escape(template).replace(r"\{s\}", f"(?P<s>{NAME})")
+    return re.compile(escaped.replace(r"\{o\}", rf"(?P<o>{NAME}|\d+)"))
+
+
 def read_sentence(sentence: str) -> list[Statement]:
     """Every fact a seen sentence template states; none for anything else."""
     found = []
     for pred, templates in SENTENCES.items():
         for template in templates:
-            m = pattern(template).fullmatch(sentence)
+            m = sentence_pattern(template).fullmatch(sentence)
             if m:
                 found.append((m["s"], pred, m["o"]))
     return found

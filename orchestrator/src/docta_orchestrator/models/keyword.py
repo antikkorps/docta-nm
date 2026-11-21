@@ -7,6 +7,7 @@ with the question, then takes a number or a new proper name from it.
 
 import re
 
+from docta_orchestrator.models.templates import TEMPLATE_WORDS
 from docta_orchestrator.states import (
     Conclusion,
     Confrontation,
@@ -16,8 +17,9 @@ from docta_orchestrator.states import (
     Verdict,
 )
 
-# Capitalised only because they open a question or a sentence: never names.
-QUESTION_WORDS = {"In", "What", "Which", "Who", "How", "At", "The", "On"}
+# Capitalised only because they open a question or a sentence, never names:
+# every capitalised word a seen template writes ("Records", "It", "Which").
+QUESTION_WORDS = TEMPLATE_WORDS
 NAME = r"\b[A-Z][a-z]+(?: [A-Z][a-z]+)*\b"
 Found = tuple[str, tuple[str, ...]]  # (answer, cited source ids)
 

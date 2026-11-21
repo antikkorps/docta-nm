@@ -17,7 +17,7 @@ from docta_train.evaluate_data import Example
 
 # Invented names are the only capitalised words besides a question's first
 # one, which is hidden too: two templates that differed only by their opening
-# word would share a shape (none do today; see worldgen's templates.rs).
+# word would share a shape (none do today; see worldgen's phrasings.rs).
 NAME = re.compile(r"\b[A-Z][a-z]+\b")
 NUMBER = re.compile(r"\d+")
 
