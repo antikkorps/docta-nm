@@ -13,6 +13,11 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Added
 
+- **Read core** and `core_read` in `just core`: `just read-data` and
+  `just fit-read` train a core that points at the answer in the excerpts;
+  code copies it and cites its source, and compares values itself. On test,
+  `core_read` answers 77.8% (`core_chain` 65.3%, `dig` 68.1%) with citation
+  precision 0.92; `ood` stays at 26–32%, held back by Evaluate's abstentions.
 - `core_chain` in `just core`: the orchestrator splits a two-hop question
   into one-hop questions and the trained core judges each. Chains go from
   none answered to 57% on test, abstention F1 from 0.71 to 0.77.
