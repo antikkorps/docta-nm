@@ -27,8 +27,8 @@ To be sure the core reads instead of remembering, it is trained and tested on **
 ### Where it stands
 
 - **Done**: the full measurement chain (world generator, sources in Postgres, the reasoning loop, scores on both the answers and the reasoning traces), with simple baseline models to beat; digging, with the `dig` baseline; and sources that disagree, scored by the trap table, with the `majority` and `challenge` baselines for the challenge step.
-- **In progress**: the first tiny core, trained from scratch on one step of the method: judging whether what it has read is enough. The training chain is in place (see [Training the Evaluate core](#training-the-evaluate-core)); a trained Confront for the challenge step is still to come.
-- **Next**: beat the baselines with the trained core, on `ood` as well as on test.
+- **In progress**: tiny cores trained from scratch, one step of the method each. The Evaluate core judges whether what was read is enough; the Read core points at the answer in it, and code copies and cites it (see [Training the Evaluate core](#training-the-evaluate-core) and [Training the Read core](#training-the-read-core)). On test, `core_read` beats every baseline (76.9% exact, all justified); on `ood` it stays at 26–32%, because the Evaluate core wrongly abstains on 60% of answerable questions phrased in held-out ways.
+- **Next**: make `ood` honest and then pass it: a chain link phrasing held out for `ood`, many more sentence structures per predicate, then a learned Plan, a trained Confront, and a measure of how the core resumes when a human corrects it mid-way.
 
 ```
 fictional worlds (Rust) → JSONL → Postgres → reasoning loop + models → evaluation → scores
