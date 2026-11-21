@@ -38,6 +38,10 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Changed
 
+- **`ood` chains word their link in a held-out way** ("the guild Orlan Teste
+  is a member of"): rules that spot a chain by its seen wording no longer
+  pass `ood` for free. Train, val and test are unchanged byte for byte;
+  regenerate with `just gen && just load`.
 - `keyword` (and `dig`, `core_chain`) read answers by what a question asks,
   not by its opening words: a question without "which" or "who" asks a number,
   and a comparison is two names joined by "or". On `ood` they read no answer

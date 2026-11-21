@@ -12,8 +12,9 @@ the core judges each hop.
   phrasing stays held out, so any ood gain comes from the split, not from a
   rewrite into seen words.
 
-The cue is the chain wording (CHAIN_LINKS), which every split shares, ood
-included, as DigModel already relies on.
+The cue is the seen chain wording (CHAIN_LINKS). ood words its links its own
+way, so this split misses ood chains on purpose: they are read whole, and any
+ood chain gain must come from what generalises, not from this regex.
 """
 
 import re

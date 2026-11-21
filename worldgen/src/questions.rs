@@ -155,7 +155,7 @@ impl<'a> Ctx<'a> {
             a.obj == Obj::Entity(b.subj.clone())
                 && (self.held_out || !HELD_OUT_CHAINS.contains(&(a.pred, b.pred)))
         })?;
-        let via = templates::describe(a.pred, name(self.world, &a.subj));
+        let via = templates::link(a.pred, name(self.world, &a.subj), self.held_out);
         let text = templates::question(b.pred, &via, self.held_out, rng);
         Some(Draft {
             shape: Primitive::Chain,
