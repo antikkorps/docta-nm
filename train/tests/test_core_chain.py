@@ -101,9 +101,8 @@ def test_the_first_hop_reads_the_revealing_sentence_not_its_whole_source():
 
 
 def test_a_held_out_chain_phrasing_splits_the_same_way():
-    # Only the split is checked: keyword's answer reading does not take
-    # "What year" for a number question, so the answer itself is not read.
     core = Core({FIRST, "What year was Varnelle founded in?"})
-    ask("What year was the city where Orlan Teste lives founded in?", core)
+    outcome, _ = ask("What year was the city where Orlan Teste lives founded in?", core)
+    assert outcome.answer == "1432"
     assert (FIRST, ["s1"]) in core.calls
     assert ("What year was Varnelle founded in?", ["s1", "s2"]) in core.calls

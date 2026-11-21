@@ -274,7 +274,7 @@ fn pick<R: Rng>(phrasings: Phrasings, held_out: bool, rng: &mut R) -> &'static s
 }
 
 /// Comparisons have one seen phrasing: no draw, so the RNG stream stays as it
-/// was. The keyword baseline reads their ", A or B?" ending.
+/// was. The keyword baseline finds the two names joined by "or", in any wording.
 fn one(phrasings: Phrasings, held_out: bool) -> &'static str {
     if held_out {
         phrasings.held_out
