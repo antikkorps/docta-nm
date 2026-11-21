@@ -101,6 +101,7 @@ just evaluate-data     # data/{train,val,test,ood}.jsonl → data/evaluate: ques
 just fit               # train the core on data/evaluate → models/core_evaluate (model.pt, log.jsonl)
 just core              # run the trained core on test and score it next to the baselines
 just core ood          # the same on ood
+just human             # each chain with no hint, the right bridge and a wrong one said mid-way
 ```
 
 - `just evaluate-data` builds each example from the question and the excerpts the real `search()` returns; the label is "enough" only when the question has an answer and every source it needs was read.
@@ -125,6 +126,14 @@ just core              # core_read joins the other cores once models/core_read/m
 - `just read-data` keeps the Evaluate examples labelled enough, on retrieve and compare questions. A comparison becomes one example per option, named again after the question: the core reads each value, code compares them. Chains are left out (the orchestrator splits them into one-hop questions) and so are traps (weighing sources is Confront's step). The answer and its sources serve as training targets only, never as input.
 - `just fit-read` takes `--epochs` (2 by default), `--batch`, `--lr`, `--seed`, `--warmup`, `--dropout`, `--max-train`, `--max-minutes`, `--max-gb` and `--threads`, and keeps the last epoch. Val is no guide: it reads 100% exactly from epoch 1, while `ood` still moves and peaks at epoch 2 on three seeds (75%, 91%, 82%; the `keyword` rule reads 87% of the same examples). Its weights never load as an Evaluate core, nor the reverse.
 - `core_read` is `core_chain` with the Read core's answers: one hop, it reads the answer; a comparison, it reads each value and code compares; a chain, it reads the bridge on the first hop, which counts only if a sentence about the subject brings that name in (as `core_chain`'s bridges), the first hop is judged on those sentences, and the value is read on the second. An answer is a number or a name, never a word in between. End to end on test (Evaluate core `seed-v3-1`, three Read seeds) it answers 76.9% exactly (all justified) against 65.3% for `core_chain` and 68.1% for `dig` (chains 69% against 57% and 54%), with citation precision 0.91–0.94 and abstention F1 0.78–0.80. A rerun of `just fit` and `just fit-read` with the same settings gives 75.5% on test. On `ood` it stays at 13–32% depending on the Evaluate run: the Evaluate core wrongly abstains on 60–80% of answerable questions before the Read core reads anything.
+
+### A human in the reflection
+
+The point of the method is a human–machine pair: a person can step into the reflection mid-way and the core resumes from there. `just human` (after `just core`'s training) measures it on every answerable chain, run three times: with no hint, with the right bridge ("Orlan Teste lives in Varnelle.") said before round 2, and with a wrong one of the same kind.
+
+- The hint goes through a **human channel**: Plan hears it, so it may steer the next search; Evaluate, Confront and Conclude never do, so the answer must still stand on sources. A wrong hint can cost a search, never support a wrong answer. A model about to give up after round 1 is given that round to hear the human; a model already sure of its answer never hears it.
+- Columns: accuracy with no hint, the right hint and the wrong one; `heard` (the hint reached the model) and `reoriented` (its next search went after the hinted name); `recovered` (chains failed alone that the right hint turned right); `fooled` (wrong-hint runs that answered what the wrong bridge would give).
+- The simulated human knows the bridge from ground truth: the one exception to "ground truth is never a model input", at evaluation only.
 
 ## How it works
 

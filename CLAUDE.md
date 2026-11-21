@@ -44,6 +44,7 @@ just reset-db    # drop the volume, re-apply db/schema.sql (needed after any sch
 just gen         # cargo run worldgen → data/{train,val,test,ood}.jsonl
 just load        # load data/*.jsonl into Postgres, mirroring it (--prune)
 just baseline    # run the 3 fake models + eval on test (`just baseline ood` for ood)
+just human       # human-correction protocol on test (`just human ood`), after training
 just test        # cargo fmt/clippy/test, ruff, pytest (database included)
 uv sync          # Python deps
 ```
@@ -114,7 +115,10 @@ docs/                # brief and design notes
   It may serve as a training target or for scoring (Evaluate's label, Read's
   answer position, which sentence carries a hop): a target teaches the method;
   what a model reads at inference holds no ground truth, and its weights hold
-  no facts.
+  no facts. One exception: the human-correction protocol (`just human`) plays
+  a person who knows the bridge of a chain, right or wrong, through the human
+  channel (`orchestrator/.../human.py`), at evaluation only, never in training;
+  only Plan hears it, so it can steer a search but never support an answer.
 - The loop lives in the orchestrator (explicit state machine); a model only
   fills each state. Anything computable (arithmetic, comparison) goes through
   deterministic code, not the model.

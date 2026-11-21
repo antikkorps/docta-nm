@@ -135,7 +135,8 @@ def _type_problem(r: dict) -> str | None:
     return None
 
 
-STATES = {"frame", "plan", "consult", "evaluate", "confront", "conclude"}
+# "human": a hint the protocol gave mid-way (orchestrator human.py).
+STATES = {"frame", "plan", "consult", "evaluate", "confront", "conclude", "human"}
 
 
 def _trace_problem(r: dict) -> str | None:

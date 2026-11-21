@@ -61,6 +61,12 @@ read-data:
 fit-read *args:
     uv run python -m docta_train.fit_read {{args}}
 
+# Human-correction protocol: each answerable chain with no hint, the right bridge, a wrong one
+human split="test":
+    uv run python -m docta_orchestrator.protocol data/{{split}}.jsonl --out predictions/{{split}}/human
+    uv run python -m docta_train.run_core data/{{split}}.jsonl --human predictions/{{split}}/human
+    uv run python -m docta_eval.human data/{{split}}.jsonl predictions/{{split}}/human
+
 # Run the trained cores on a split (core_read too once `just fit-read` ran), then score them next to the baselines
 core split="test":
     uv run python -m docta_train.run_core data/{{split}}.jsonl --out predictions/{{split}} --traces data/traces/{{split}}

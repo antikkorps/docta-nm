@@ -13,6 +13,10 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Added
 
+- **Human-correction protocol** (`just human`): each answerable chain runs
+  with no hint, the right bridge and a wrong one said mid-way, through a
+  human channel only Plan hears. Scores: accuracy per variant, `heard`,
+  `reoriented`, `recovered` and `fooled`.
 - **Read core** and `core_read` in `just core`: `just read-data` and
   `just fit-read` train a core that points at the answer in the excerpts;
   code copies it and cites its source, and compares values itself. On test,
