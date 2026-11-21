@@ -305,7 +305,11 @@ fn ood_chains_word_their_link_in_a_held_out_way_only() {
             "{q}"
         );
     }
-    for c in corpora_in(Split::Train, 100, &DEFAULT) {
+    let others = [Split::Train, Split::Val, Split::Test];
+    for c in others
+        .into_iter()
+        .flat_map(|s| corpora_in(s, 100, &DEFAULT))
+    {
         for q in chains(&c) {
             assert!(
                 seen.iter().any(|t| holds(t, &q)) && !held.iter().any(|t| holds(t, &q)),

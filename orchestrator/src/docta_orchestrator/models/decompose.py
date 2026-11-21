@@ -13,8 +13,9 @@ the core judges each hop.
   rewrite into seen words.
 
 The cue is the seen chain wording (CHAIN_LINKS). ood words its links its own
-way, so this split misses ood chains on purpose: they are read whole, and any
-ood chain gain must come from what generalises, not from this regex.
+way, so this split misses ood chains on purpose: they are read whole, on the
+first search only (Plan's dig cue is the same wording), and any ood chain
+gain must come from what generalises, not from this regex.
 """
 
 import re
