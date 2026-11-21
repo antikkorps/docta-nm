@@ -19,7 +19,8 @@ included, as DigModel already relies on.
 import re
 from dataclasses import dataclass
 
-from docta_orchestrator.models.dig import links
+from docta_orchestrator.models.dig import proper_names
+from docta_orchestrator.models.keyword import capitalised_words
 from docta_orchestrator.models.templates import CHAIN_LINKS, QUESTIONS
 from docta_orchestrator.search import Hit
 from docta_orchestrator.states import Evidence
@@ -53,11 +54,17 @@ def split_chain(question: str) -> Chain | None:
 
 
 def bridges(chain: Chain, evidence: Evidence) -> dict[str, tuple[Hit, ...]]:
-    """Each name a sentence about the subject brings in, with the sources
-    saying so: the first hop is judged on those alone, so a guild cannot pass
-    for the city the question asks about."""
-    by_id = {h.source_id: h for h in evidence}
+    """Each name a sentence about the subject brings in, with those sentences
+    as excerpts. The first hop is judged on them alone: on whole sources, a
+    guild named next to the city would pass for the city asked about."""
+    subject = set(chain.subject.split())
     found: dict[str, tuple[Hit, ...]] = {}
-    for name, source_id in links(chain.subject, evidence):
-        found[name] = (*found.get(name, ()), by_id[source_id])
+    for hit in evidence:
+        for sentence in re.split(r"(?<=\.)\s+", hit.body):
+            if not subject & set(capitalised_words(sentence)):
+                continue
+            for name in proper_names(sentence):
+                if not subject & set(name.split()):
+                    said = Hit(hit.source_id, hit.title, sentence, hit.reliability)
+                    found[name] = (*found.get(name, ()), said)
     return found

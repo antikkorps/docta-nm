@@ -34,3 +34,13 @@ def test_each_bridge_comes_with_the_sources_that_reveal_it():
     chain = split_chain("In what year was the city where Orlan Teste lives founded?")
     found = bridges(chain, (LIVES, GUILD, FOUNDING))
     assert found == {"Varnelle": (LIVES,), "Amber Guild": (GUILD,)}
+
+
+def test_a_bridge_comes_with_its_sentence_not_the_rest_of_its_source():
+    chain = split_chain("In what year was the city where Orlan Teste lives founded?")
+    both = Hit(
+        "s4", "Notes", "Orlan Teste lives in Varnelle. Orlan Teste is a member of Amber.", 0.9
+    )
+    found = bridges(chain, (both,))
+    assert [h.body for h in found["Amber"]] == ["Orlan Teste is a member of Amber."]
+    assert found["Amber"][0].source_id == "s4"
