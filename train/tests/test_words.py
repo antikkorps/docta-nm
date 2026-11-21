@@ -31,7 +31,7 @@ def test_names_are_the_capitalised_words_after_the_opening_one():
 
 def test_vocabulary_keeps_words_seen_in_enough_worlds_lowercased():
     words = vocab().words
-    assert {"in", "what", "chronicle", "founded", "?", "."} <= set(words)
+    assert {"in", "what", "chronicle", "founded", "?", "<stop>"} <= set(words)
     assert "varnelle" not in words and "brask" not in words
 
 
@@ -41,7 +41,7 @@ def test_question_then_each_excerpt_as_word_tokens():
     assert tokens == [
         "<cls>", "in", "what", "year", "was", "<name_1>", "founded", "?",
         "<src>", "chronicle", "of", "<name_1>",
-        "<body>", "<name_1>", "was", "founded", "in", "<num>", ".",
+        "<body>", "<name_1>", "was", "founded", "in", "<num>", "<stop>",
     ]  # fmt: skip
     assert v.encode("In what year was Varnelle founded?", [S1]) == [v.index[t] for t in tokens]
 
@@ -49,7 +49,7 @@ def test_question_then_each_excerpt_as_word_tokens():
 def test_other_names_and_unseen_words_get_their_own_tokens():
     hit = Hit("s3", "Chronicle", "Brask trades amber with Varnelle.", 0.5)
     assert vocab().tokens("Where is Brask?", [hit])[-7:] == [
-        "<body>", "<name_1>", "<unk>", "<unk>", "<unk>", "<name>", ".",
+        "<body>", "<name_1>", "<unk>", "<unk>", "<unk>", "<name>", "<stop>",
     ]  # fmt: skip
 
 
