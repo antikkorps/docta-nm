@@ -101,6 +101,7 @@ just evaluate-data     # data/{train,val,test,ood}.jsonl → data/evaluate: ques
 just fit               # train the core on data/evaluate → models/core_evaluate (model.pt, log.jsonl)
 just core              # run the trained core on test and score it next to the baselines
 just core ood          # the same on ood
+just human             # each chain with no hint, the right bridge and a wrong one said mid-way
 ```
 
 - `just evaluate-data` builds each example from the question and the excerpts the real `search()` returns; the label is "enough" only when the question has an answer and every source it needs was read.

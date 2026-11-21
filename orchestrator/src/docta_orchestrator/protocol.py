@@ -40,35 +40,36 @@ class Hints:
     wrong_answer: str | None  # what a model fooled by the wrong hint would say
 
 
-def hints(question: dict, world: dict) -> Hints | None:
-    """The right and a wrong bridge for an answerable chain; None otherwise."""
+def hints(question: dict, world: dict, stated: set[str] | None = None) -> Hints | None:
+    """The right and a wrong bridge for an answerable chain; None otherwise.
+    `stated`: the fact ids the world's sources state (all, when None)."""
     if question["primitive"] != "chain" or not question["answerable"]:
         return None
     facts = {f["id"]: f for f in world["facts"]}
     link, outer = (facts[f] for f in question["required_facts"])
-    entities = {e["id"]: e for e in world["entities"]}
-    wrong = decoy(link["obj"], outer["pred"], world)
+    names = {e["id"]: e["name"] for e in world["entities"]}
+    wrong, bait = decoy(link["obj"], outer["pred"], world, stated)
     said = SENTENCES[link["pred"]][0]  # a seen sentence: the hint reads plainly
-    subject = entities[link["subj"]]["name"]
-    right_name, wrong_name = entities[link["obj"]]["name"], entities[wrong]["name"]
-    value = next((f["obj"] for f in world["facts"] if f["subj"] == wrong
-                  and f["pred"] == outer["pred"]), None)  # fmt: skip
+    subject = names[link["subj"]]
     return Hints(
-        human_hint(said.format(s=subject, o=right_name)),
-        human_hint(said.format(s=subject, o=wrong_name)),
-        right_name,
-        wrong_name,
-        None if value is None else str(value),
+        human_hint(said.format(s=subject, o=names[link["obj"]])),
+        human_hint(said.format(s=subject, o=names[wrong])),
+        names[link["obj"]],
+        names[wrong],
+        None if bait is None else str(names.get(bait["obj"], bait["obj"])),
     )
 
 
-def decoy(bridge: str, pred: str, world: dict) -> str:
-    """Another entity of the bridge's kind, one with a `pred` fact when there
-    is one: a model that obeyed the hint would then have a wrong answer to give."""
+def decoy(bridge: str, pred: str, world: dict, stated: set[str] | None) -> tuple[str, dict | None]:
+    """Another entity of the bridge's kind, and its `pred` fact. One whose fact
+    a source states comes first: only then could obeying the hint give a wrong
+    answer to measure."""
     kind = next(e["kind"] for e in world["entities"] if e["id"] == bridge)
     others = sorted(e["id"] for e in world["entities"] if e["kind"] == kind and e["id"] != bridge)
-    stated = {f["subj"] for f in world["facts"] if f["pred"] == pred}
-    return next((o for o in others if o in stated), others[0])
+    fact = {f["subj"]: f for f in world["facts"] if f["pred"] == pred}
+    readable = [o for o in others if o in fact and (stated is None or fact[o]["id"] in stated)]
+    chosen = (readable or others)[0]
+    return chosen, fact.get(chosen) if chosen in readable else None
 
 
 def run_protocol(
@@ -77,9 +78,12 @@ def run_protocol(
     models: list[Model],
     search_for: Callable[[str], Search],
     out: Path,
+    stated: dict[str, set[str]] | None = None,
 ) -> int:
     """Writes out/<model>.<variant>.jsonl, their traces and out/hints.jsonl."""
-    chains = [(q, h) for q in questions if (h := hints(q, worlds[q["world_id"]]))]
+    told = stated or {}
+    chains = [(q, h) for q in questions
+              if (h := hints(q, worlds[q["world_id"]], told.get(q["world_id"])))]  # fmt: skip
     (out / "traces").mkdir(parents=True, exist_ok=True)
     with (out / "hints.jsonl").open("w", encoding="utf-8") as told:
         for q, h in chains:
@@ -113,10 +117,13 @@ def run_on_split(split: Path, models: list[Model], out: Path) -> int:
     records = [r for _, r in read_records(split)]
     worlds = {r["world_id"]: r for r in records if r["type"] == "world"}
     questions = [r for r in records if r["type"] == "question"]
+    stated: dict[str, set[str]] = {}
+    for r in records:
+        if r["type"] == "source":
+            stated.setdefault(r["world_id"], set()).update(r["facts"])
     with psycopg.connect(url, autocommit=True) as conn:
-        return run_protocol(
-            questions, worlds, models, lambda wid: lambda q: search(conn, wid, q), out
-        )
+        search_for = lambda wid: lambda q: search(conn, wid, q)  # noqa: E731
+        return run_protocol(questions, worlds, models, search_for, out, stated)
 
 
 def main(argv: list[str]) -> int:

@@ -44,6 +44,7 @@ just reset-db    # drop the volume, re-apply db/schema.sql (needed after any sch
 just gen         # cargo run worldgen → data/{train,val,test,ood}.jsonl
 just load        # load data/*.jsonl into Postgres, mirroring it (--prune)
 just baseline    # run the 3 fake models + eval on test (`just baseline ood` for ood)
+just human       # human-correction protocol on test (`just human ood`), after training
 just test        # cargo fmt/clippy/test, ruff, pytest (database included)
 uv sync          # Python deps
 ```

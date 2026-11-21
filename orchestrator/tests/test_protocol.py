@@ -43,6 +43,35 @@ def test_a_chain_gets_its_bridge_and_a_wrong_city_with_what_it_would_answer():
     assert (h.right_bridge, h.wrong_bridge, h.wrong_answer) == ("Varnelle", "Brask", "1610")
 
 
+def entity(eid, kind, name):
+    return {"id": eid, "kind": kind, "name": name}
+
+
+def fact(fid, subj, pred, obj):
+    return {"id": fid, "subj": subj, "pred": pred, "obj": obj}
+
+
+def grown(entities=(), facts=()):
+    return {**WORLD, "entities": [*WORLD["entities"], *entities],
+            "facts": [*WORLD["facts"], *facts]}  # fmt: skip
+
+
+def test_the_decoy_is_one_whose_fact_a_source_states():
+    world = grown([entity("e0", "city", "Aldun")], [fact("f9", "e0", "founded_in", 1500)])
+    # Aldun sorts first, but no source states its founding: Brask is the decoy.
+    assert hints(CHAIN, world, stated={"f1", "f2", "f3"}).wrong_bridge == "Brask"
+
+
+def test_an_entity_valued_bait_is_its_name():
+    world = grown(
+        [entity("g1", "guild", "Kortha"), entity("g2", "guild", "Dun")],
+        [fact("f4", "e1", "member_of", "g1"), fact("f5", "g1", "based_in", "e2"),
+         fact("f6", "g2", "based_in", "e3")],
+    )  # fmt: skip
+    chain = {**CHAIN, "required_facts": ["f4", "f5"]}
+    assert hints(chain, world, stated={"f4", "f5", "f6"}).wrong_answer == "Brask"
+
+
 def test_only_answerable_chains_take_part():
     assert hints({**CHAIN, "primitive": "retrieve"}, WORLD) is None
     assert hints({**CHAIN, "answerable": False}, WORLD) is None

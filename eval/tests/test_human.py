@@ -24,9 +24,12 @@ def heard(*queries):
 
 
 NOT_HEARD = {"states": [{"state": "plan", "queries": ["q"]}]}
+DUG_KORTHA = {
+    "states": [{"state": "plan", "queries": ["q"]}, {"state": "plan", "queries": ["Kortha"]}]
+}
 RUNS = {
-    "none": ({K1: said(None), K2: said("300")}, {K1: NOT_HEARD, K2: NOT_HEARD}),
-    "right": ({K1: said("1432"), K2: said("300")}, {K1: heard("Varnelle"), K2: NOT_HEARD}),
+    "none": ({K1: said(None), K2: said("300")}, {K1: NOT_HEARD, K2: DUG_KORTHA}),
+    "right": ({K1: said("1432"), K2: said("300")}, {K1: heard("Varnelle"), K2: heard("Kortha")}),
     "wrong": ({K1: said("1610"), K2: said(None)}, {K1: heard("Brask"), K2: heard("other")}),
 }
 
@@ -45,7 +48,14 @@ def test_fooled_is_answering_what_the_wrong_hint_implies():
     assert human_scores(GOLDS, RUNS, HINTS)["fooled"] == 0.5
 
 
-def test_heard_and_reoriented_read_the_trace():
+def test_reoriented_counts_only_searches_the_model_would_not_have_made_alone():
     s = human_scores(GOLDS, RUNS, HINTS)
-    assert (s["right"]["heard"], s["right"]["reoriented"]) == (0.5, 1.0)
+    # q2 dug Kortha with no hint too: hearing it changed nothing.
+    assert (s["right"]["heard"], s["right"]["reoriented"]) == (1.0, 0.5)
     assert (s["wrong"]["heard"], s["wrong"]["reoriented"]) == (1.0, 0.5)
+
+
+def test_fooled_counts_heard_runs_whose_bait_differs_from_the_answer():
+    hints = {**HINTS, K2: {**HINTS[K2], "wrong_answer": "300"}}  # bait = gold: no bait
+    runs = {**RUNS, "wrong": (RUNS["wrong"][0], {K1: heard("Brask"), K2: NOT_HEARD})}
+    assert human_scores(GOLDS, runs, hints)["fooled"] == 1.0  # q1 only, and it was fooled

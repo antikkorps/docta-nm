@@ -33,21 +33,27 @@ def right(gold: Gold, pred: Pred) -> bool:
     )
 
 
-def reoriented(trace: dict, name: str) -> bool | None:
-    """None when the hint never came; else whether a later plan sought `name`."""
+def plan_queries(states: list[dict]) -> list[str]:
+    return [q for e in states if e["state"] == "plan" for q in e.get("queries", [])]
+
+
+def reoriented(trace: dict, alone: dict, name: str) -> bool | None:
+    """None when the hint never came; else whether a later plan sought `name`
+    where the same model, with no hint, never did: digging a bridge it had
+    found itself is not resuming from the human."""
     states = trace["states"]
     at = next((i for i, e in enumerate(states) if e["state"] == "human"), None)
     if at is None:
         return None
-    later = (q for e in states[at:] if e["state"] == "plan" for q in e.get("queries", []))
-    return any(mentions(q, name) for q in later)
+    sought = any(mentions(q, name) for q in plan_queries(states[at:]))
+    return sought and not any(mentions(q, name) for q in plan_queries(alone["states"]))
 
 
-def variant_scores(golds, preds, traces, hints, variant: str) -> dict:
-    keys = list(hints)
+def variant_scores(golds, runs, hints, variant: str) -> dict:
+    keys, (preds, traces), (_, alone) = list(hints), runs[variant], runs["none"]
     scores = {"accuracy": ratio(sum(right(golds[k], preds[k]) for k in keys), len(keys))}
     if variant != "none":
-        moves = [reoriented(traces[k], hints[k][variant]) for k in keys]
+        moves = [reoriented(traces[k], alone[k], hints[k][variant]) for k in keys]
         heard = [m for m in moves if m is not None]
         scores |= {
             "heard": ratio(len(heard), len(keys)),
@@ -56,16 +62,29 @@ def variant_scores(golds, preds, traces, hints, variant: str) -> dict:
     return scores
 
 
+def said(pred: Pred, value: str | None) -> bool:
+    return (
+        value is not None
+        and pred.answer is not None
+        and (normalize(pred.answer) == normalize(value))
+    )
+
+
 def human_scores(golds: dict[Key, Gold], runs: dict, hints: dict[Key, dict]) -> dict:
     """runs: variant → (predictions, traces), each keyed like `hints`."""
-    out = {v: variant_scores(golds, *runs[v], hints, v) for v in runs}
-    (alone, _), (helped, _), (misled, _) = runs["none"], runs["right"], runs["wrong"]
+    out = {v: variant_scores(golds, runs, hints, v) for v in runs}
+    (alone, _), (helped, _), (misled, told) = runs["none"], runs["right"], runs["wrong"]
     failed = [k for k in hints if not right(golds[k], alone[k])]
-    baited = [k for k in hints if hints[k]["wrong_answer"] is not None]
-    fooled = [k for k in baited if misled[k].answer is not None
-              and normalize(misled[k].answer) == normalize(hints[k]["wrong_answer"])]  # fmt: skip
     out["recovered"] = ratio(sum(right(golds[k], helped[k]) for k in failed), len(failed))
-    out["fooled"] = ratio(len(fooled), len(baited))
+    # A bait counts where the wrong hint was heard, its value differs from the
+    # answer, and the model did not already say it alone.
+    baited = [k for k in hints if (bait := hints[k]["wrong_answer"]) is not None
+              and normalize(bait) != normalize(golds[k].answer or "")
+              and any(e["state"] == "human" for e in told[k]["states"])
+              and not said(alone[k], bait)]  # fmt: skip
+    out["fooled"] = ratio(
+        sum(said(misled[k], hints[k]["wrong_answer"]) for k in baited), len(baited)
+    )
     return out
 
 

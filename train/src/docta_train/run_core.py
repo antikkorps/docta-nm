@@ -11,7 +11,7 @@ from pathlib import Path
 import psycopg
 from docta_orchestrator.baseline import run_models
 from docta_orchestrator.jsonl import read_records
-from docta_orchestrator.protocol import run_on_split
+from docta_orchestrator.protocol import VARIANTS, run_on_split
 from docta_orchestrator.search import search
 
 from docta_train.core_model import CoreChainModel, CoreEvaluateModel
@@ -40,8 +40,15 @@ def build_models(args: argparse.Namespace) -> list:
     if args.reader.exists():
         models.append(CoreReadModel(core, ReadPredictor(args.reader), args.threshold))
     else:
-        # `just core` scores every core_*.jsonl: an old run must not pass for this one.
-        (args.out / "core_read.jsonl").unlink(missing_ok=True)
+        # Every core_*.jsonl (or protocol file) is scored: an old run must not
+        # pass for this one.
+        stale = (
+            [args.human / f"core_read.{v}.jsonl" for v in VARIANTS]
+            if args.human
+            else [args.out / "core_read.jsonl"]
+        )
+        for path in stale:
+            path.unlink(missing_ok=True)
     return models
 
 

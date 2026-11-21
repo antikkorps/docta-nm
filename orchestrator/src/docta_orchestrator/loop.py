@@ -96,7 +96,9 @@ def _heard(work: Work, env: Env) -> Evidence:
 
 
 def _hint_pending(work: Work, env: Env) -> bool:
-    """A human steps in when the model would give up before hearing them."""
+    """A human steps in when the model would give up before hearing them. The
+    trace then shows a round-1 evaluate with `not_found` that did not end the
+    run: the human event and a second plan follow it."""
     return env.hint is not None and work.round_ == HINT_ROUND < env.max_rounds
 
 
