@@ -9,7 +9,7 @@ Only Plan's first query and Confront stay rules.
 
 from typing import Protocol
 
-from docta_orchestrator.models.decompose import Chain, split_chain
+from docta_orchestrator.models.decompose import Chain, bridges, split_chain
 from docta_orchestrator.models.dig import dig_query
 from docta_orchestrator.models.keyword import Found, compared, winner
 from docta_orchestrator.search import Hit
@@ -22,6 +22,11 @@ Reading = tuple[str, str | None]  # (answer, source id)
 
 class Reader(Protocol):
     def read(self, question: str, excerpts: list[Hit]) -> Reading | None: ...
+
+
+def stated(answer: str) -> bool:
+    """What Conclude may state: a number or a name, never a word in between."""
+    return answer.isdigit() or answer[:1].isupper()
 
 
 class CoreReadModel(CoreChainModel):
@@ -40,7 +45,7 @@ class CoreReadModel(CoreChainModel):
         if chain is not None:
             return self.through(chain, read)
         found = self.reader.read(q, read)
-        return (found[0], (found[1],)) if found else None
+        return (found[0], (found[1],)) if found and stated(found[0]) else None
 
     def compare(self, question: str, options: tuple[str, str], read: list[Hit]) -> Found | None:
         # The option is named again after the question, as the core was trained.
@@ -53,22 +58,31 @@ class CoreReadModel(CoreChainModel):
 
     def through(self, chain: Chain, read: list[Hit]) -> Found | None:
         """The value read about the bridge, once the Evaluate core judged both
-        hops enough: the link on the bridge's source, the value on everything."""
+        hops enough: the link on the sentences naming the bridge, the value on
+        everything."""
         bridge = self.bridge(chain, read)
         if bridge is None:
             return None
-        name, via = bridge
+        name, revealing = bridge
         second = chain.second_hop(name)
-        revealing = [h for h in read if h.source_id == via]
-        if min(self.core.prob_enough(chain.first_hop, revealing),
+        if min(self.core.prob_enough(chain.first_hop, list(revealing)),
                self.core.prob_enough(second, read)) < self.threshold:  # fmt: skip
             return None
         found = self.reader.read(second, read)
-        return (found[0], tuple(dict.fromkeys((via, found[1])))) if found else None
+        if not found or not stated(found[0]):
+            return None
+        return found[0], tuple(dict.fromkeys((revealing[0].source_id, found[1])))
 
-    def bridge(self, chain: Chain, read: list[Hit]) -> Reading | None:
+    def bridge(self, chain: Chain, read: list[Hit]) -> tuple[str, tuple[Hit, ...]] | None:
+        """The name read on the link question, with the sentences of its source
+        that bring it in about the subject: the first hop is judged on those
+        alone, since on the whole source a guild named next to the city would
+        pass for the city. A word read anywhere else is no bridge."""
         found = self.reader.read(chain.first_hop, read)
-        return found if found and not found[0].isdigit() else None  # a bridge is a name
+        if found is None:
+            return None
+        said = tuple(h for h in bridges(chain, read).get(found[0], ()) if h.source_id == found[1])
+        return (found[0], said) if said else None
 
     def digs(self, question: str, evidence: Evidence) -> bool:
         chain = split_chain(question)

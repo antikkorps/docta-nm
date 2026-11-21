@@ -77,3 +77,31 @@ def test_the_bridge_the_reader_found_leads_the_second_search():
 def test_nothing_read_means_not_found():
     assert ask(SECOND, reader=Reader({})).exit == Exit.NOT_FOUND
     assert ask(COMPARE, hits=(BRASK,)).exit == Exit.NOT_FOUND  # one value only
+
+
+def test_a_bridge_is_a_name_a_sentence_about_the_subject_brings_in():
+    for misread in [("lives", "s1"), ("Orlan Teste", "s1"), ("1432", "s2")]:
+        # Whatever the bridge, a value about it would be read: only the bridge check stops it.
+        second = f"In what year was {misread[0]} founded?"
+        reader = Reader({**READER.answers, FIRST: misread, second: ("1432", "s2")})
+        assert ask(CHAIN, reader=reader).exit == Exit.NOT_FOUND
+
+
+def test_the_first_hop_is_judged_on_the_sentence_naming_the_bridge():
+    # On the whole source, a guild named next to the city would pass for it.
+    both = Hit("s1", "Notes", "Orlan Teste lives in Varnelle. Orlan Teste is in Kel Guild.", 0.9)
+    judged = []
+
+    @dataclass
+    class Recording:
+        def prob_enough(self, question, excerpts):
+            judged.append((question, [h.body for h in excerpts]))
+            return 0.9
+
+    reader = Reader({**READER.answers, FIRST: ("Kel Guild", "s1")})
+    run(CHAIN, CoreReadModel(Recording(), reader), lambda q: [both, FOUNDED])
+    assert (FIRST, ["Orlan Teste is in Kel Guild."]) in judged
+
+
+def test_a_one_hop_answer_is_a_number_or_a_name():
+    assert ask(SECOND, reader=Reader({SECOND: ("founded", "s2")})).exit == Exit.NOT_FOUND

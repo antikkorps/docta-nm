@@ -78,14 +78,20 @@ def validate(model: CoreRead, val: Sequence[ReadExample], items: list[Item], bat
     """Loss, and the share of answers copied exactly: what Conclude would state."""
     model.eval()
     right, loss = [], 0.0
+    reachable = 0
     for start in range(0, len(items), batch):
         scores, target, allowed = scored(model, items[start : start + batch])
-        loss += pointer_loss(scores, target, allowed).item() * len(scores)
+        # An answer cut off or absent has no probability to sum: it counts as
+        # wrong below, never as an infinite loss.
+        has = target.any(1)
+        if has.any():
+            loss += pointer_loss(scores[has], target[has], allowed[has]).item() * int(has.sum())
+        reachable += int(has.sum())
         best = scores.masked_fill(~allowed, float("-inf")).argmax(1).tolist()
         for e, at in zip(val[start : start + batch], best, strict=True):
             right.append(extract(aligned(e.question, e.excerpts), at)[0] == e.answer)
     return {
-        "val_loss": loss / len(items),
+        "val_loss": loss / max(reachable, 1),
         "val_exact": sum(right) / len(right),
         "val_by_shape": by_shape(right, [shape(e.question) for e in val]),
     }

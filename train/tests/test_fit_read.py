@@ -69,3 +69,12 @@ def test_the_saved_core_is_the_last_epoch(tmp_path):
     report = train(tmp_path, epochs=3)
     saved = torch.load(tmp_path / "model.pt", weights_only=False)
     assert saved["metrics"]["epoch"] == report["last"]["epoch"] == 3
+
+
+def test_a_val_answer_out_of_reach_does_not_wreck_the_loss(tmp_path):
+    import math
+
+    lost = ReadExample("w", "q", "val", "When was Brask founded?", (NOISE,), "1610", ("s1",))
+    report = fit_read(examples("train", 16), [*examples("val", 4), lost, lost], tmp_path, TINY,
+                      epochs=1, batch=16, lr=3e-3, seed=0)  # fmt: skip
+    assert math.isfinite(report["last"]["val_loss"])
