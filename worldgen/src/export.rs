@@ -33,6 +33,9 @@ pub fn seen_templates_json() -> String {
         "questions": Value::Object(questions),
         "comparisons": Value::Object(comparisons),
         "chain_links": Value::Object(links),
+        // Copies and titles write these words too: never names either.
+        "attributions": json!(crate::liars::ATTRIBUTIONS),
+        "titles": json!(crate::templates::titles("{s}")),
     });
     serde_json::to_string_pretty(&all).expect("plain strings serialise") + "\n"
 }

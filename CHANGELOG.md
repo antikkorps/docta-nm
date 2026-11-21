@@ -39,7 +39,7 @@ lines under a new version, and its GitHub Release carries the reference scores.
 ### Changed
 
 - **Sentences come from a combinatorial grammar**: each relation clause in
-  eight frames, with or without a parenthetical after its subject, 30–40
+  eight frames, with or without a parenthetical after its subject, 30–48
   structures per predicate instead of 4–5. `ood` holds out (clause, form)
   pairs on top of its held-out clause. All data changes: rerun `just gen`,
   `just load`, then retrain. The rules read the seen phrasings from

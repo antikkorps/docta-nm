@@ -109,3 +109,9 @@ def test_a_frame_word_opening_a_sentence_is_never_a_name():
         ("s1",),
     )
     assert model.answer(Framing("In which city does Mira Kol live?"), (records,))[0] == "Varnelle"
+
+
+def test_an_attribution_word_is_never_a_name():
+    from docta_orchestrator.models.templates import TEMPLATE_WORDS
+
+    assert {"According", "Chronicle", "Notes"} <= TEMPLATE_WORDS

@@ -24,12 +24,17 @@ def _capitalised(template: str) -> set[str]:
     return set(re.findall(r"\b[A-Z][a-z]+\b", re.sub(r"\{[so]\}", "", template)))
 
 
-# A capitalised word a seen template writes ("Records", "It", "Which") is a
-# template word, never a name: worlds' names are invented and spell none.
+# A capitalised word a seen template, attribution or title writes ("Records",
+# "It", "According", "Notes") is a template word, never a name: worlds' names
+# are invented and spell none.
 TEMPLATE_WORDS: frozenset[str] = frozenset(
     w
     for kind in (SENTENCES, QUESTIONS)
     for templates in kind.values()
     for t in templates
     for w in _capitalised(t)
-) | frozenset(w for t in COMPARISONS.values() for w in _capitalised(t))
+) | frozenset(
+    w
+    for t in [*COMPARISONS.values(), *_SEEN["attributions"], *_SEEN["titles"]]
+    for w in _capitalised(t.replace("{t}", "").replace("{x}", ""))
+)

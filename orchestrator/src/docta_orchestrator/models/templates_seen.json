@@ -1,4 +1,8 @@
 {
+  "attributions": [
+    "According to {t}, {x}",
+    "As {t} reports, {x}"
+  ],
   "chain_links": {
     "based_in": "the city where {s} is based",
     "lives_in": "the city where {s} lives",
@@ -405,5 +409,15 @@
       "At the last census, {s} had {o} inhabitants, as far as anyone knows.",
       "It is known that at the last census, {s} had {o} inhabitants."
     ]
-  }
+  },
+  "titles": [
+    "Chronicle of {s}",
+    "Notes on {s}",
+    "Register of {s}",
+    "Annals of {s}",
+    "Records of {s}",
+    "Letters on {s}",
+    "Survey of {s}",
+    "Memoirs of {s}"
+  ]
 }

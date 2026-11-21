@@ -14,6 +14,7 @@
 
 use crate::model::Pred;
 use crate::templates::sentence_clauses;
+use std::collections::BTreeSet;
 
 /// Structural frames any clause takes; `{c}` is the clause without its stop.
 pub const FRAMES: [&str; 8] = [
@@ -54,6 +55,31 @@ pub fn sentence_phrasings(pred: Pred) -> Sentences {
     }
     held_out.extend(forms(clauses.held_out));
     Sentences { seen, held_out }
+}
+
+/// The capitalised words a sentence can open with that are template words,
+/// never names: a copy lowers them when it repeats the sentence mid-way.
+pub fn opening_words() -> BTreeSet<&'static str> {
+    let clauses = Pred::ALL.into_iter().flat_map(|p| {
+        let c = sentence_clauses(p);
+        c.seen.iter().copied().chain([c.held_out])
+    });
+    FRAMES
+        .into_iter()
+        .chain(clauses)
+        .filter(|t| !t.starts_with('{'))
+        .filter_map(|t| t.split(' ').next())
+        .collect()
+}
+
+/// A sentence repeated mid-way: an opening template word loses its capital.
+pub fn lower_opening(sentence: &str) -> String {
+    let first = sentence.split(' ').next().unwrap_or("");
+    if opening_words().contains(first) {
+        lower_first(sentence)
+    } else {
+        sentence.to_string()
+    }
 }
 
 /// Every form of a clause: each frame, without and with the parenthetical.
@@ -99,7 +125,6 @@ mod tests {
     use super::*;
     use crate::model::Pred;
     use crate::templates::sentence_clauses;
-    use std::collections::BTreeSet;
 
     #[test]
     fn every_predicate_reads_in_dozens_of_seen_structures() {
@@ -135,7 +160,13 @@ mod tests {
                     "{pred:?}: {clause}"
                 );
             }
-            for frame in FRAMES {
+            // The bare clause (frame "{c}.") is seen for some clause.
+            assert!(
+                seen.iter()
+                    .any(|s| sentence_clauses(pred).seen.contains(&s.as_str())),
+                "{pred:?}"
+            );
+            for frame in &FRAMES[1..] {
                 let (head, tail) = frame.split_once("{c}").expect("a frame holds its clause");
                 assert!(
                     seen.iter()
