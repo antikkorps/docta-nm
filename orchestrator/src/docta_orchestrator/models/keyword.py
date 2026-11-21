@@ -18,7 +18,7 @@ from docta_orchestrator.states import (
 
 # Capitalised only because they open a question or a sentence: never names.
 QUESTION_WORDS = {"In", "What", "Which", "Who", "How", "At", "The", "On"}
-NAME = r"[A-Z][a-z]+(?: [A-Z][a-z]+)*"
+NAME = r"\b[A-Z][a-z]+(?: [A-Z][a-z]+)*\b"
 Found = tuple[str, tuple[str, ...]]  # (answer, cited source ids)
 
 
@@ -85,7 +85,9 @@ class KeywordModel:
         # Rules on what a question asks, never on its wording: the ood split
         # words questions differently, and a rule fitted to train's openings
         # would hide whatever the judgement gets right there.
-        options = re.search(rf"({NAME}) or ({NAME})", q)
+        # The opening word is skipped: capitalised, it would join the first name.
+        opening = re.match(r"\W*\w+", q)
+        options = re.search(rf"({NAME}) or ({NAME})", q[opening.end() if opening else 0 :])
         if options:
             return _choice(q, evidence, options[1], options[2])
         return best_sentence(q, evidence, capitalised_words(q), asked_kind(q))

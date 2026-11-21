@@ -62,8 +62,21 @@ def test_keyword_model_asks_a_name_only_with_which_or_who():
 
 
 def test_keyword_model_compares_two_names_joined_by_or_in_any_wording():
-    older = ask(KeywordModel(), "Of Brask or Varnelle, which was founded earlier?")
+    older = ask(KeywordModel(), "Which of Brask or Varnelle was founded earlier?")
     assert older.answer == "Varnelle"
+    # A question's opening word is never a name, capitalised or not.
+    later = ask(KeywordModel(), "Of Brask or Varnelle, which was founded more recently?")
+    assert later.answer == "Brask"
+
+
+def test_keyword_model_compares_two_people_with_two_word_names():
+    people = [
+        Hit("p1", "Notes", "Orlan Teste is 182 centimetres tall.", 0.9),
+        Hit("p2", "Notes", "Mira Kol is 175 centimetres tall.", 0.9),
+    ]
+    question = "Which of Mira Kol or Orlan Teste is taller?"
+    outcome, _ = run(question, KeywordModel(), lambda q: people)
+    assert (outcome.answer, set(outcome.cited)) == ("Orlan Teste", {"p1", "p2"})
 
 
 def test_keyword_model_abstains_when_nothing_relevant_comes_back():
