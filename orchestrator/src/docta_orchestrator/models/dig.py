@@ -57,12 +57,13 @@ def can_dig(question: str, evidence: Evidence) -> bool:
     return indirect(question) and bool(revealed(question, evidence))
 
 
-def dug_answer(question: str, evidence: Evidence) -> Found | None:
+def dug_answer(question: str, evidence: Evidence, only: set[str] | None = None) -> Found | None:
     """The answer read about a revealed name, citing the link that led there.
     A subject has several links (a city, a guild): the answer whose sentence
-    best fits the question wins, not the first link met."""
+    best fits the question wins, not the first link met. `only` keeps the
+    names a judge accepted as the bridge, so the answer comes from one of them."""
     kind = "number" if question.lower().startswith(NUMBER_STARTS) else "name"
-    found = links(question, evidence)
+    found = [(n, s) for n, s in links(question, evidence) if only is None or n in only]
     best: tuple[int, str, tuple[str, ...]] | None = None
     for name in dict.fromkeys(n for n, _ in found):
         # The revealed name joins the question, so it is never its own answer;

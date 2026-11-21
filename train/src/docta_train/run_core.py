@@ -13,7 +13,7 @@ from docta_orchestrator.baseline import run_models
 from docta_orchestrator.jsonl import read_records
 from docta_orchestrator.search import search
 
-from docta_train.core_model import CoreEvaluateModel
+from docta_train.core_model import CoreChainModel, CoreEvaluateModel
 from docta_train.predictor import Predictor
 
 
@@ -30,12 +30,13 @@ def main(argv: list[str]) -> int:
         print("error: DATABASE_URL is not set (see .env.example)", file=sys.stderr)
         return 2
     try:
-        model = CoreEvaluateModel(Predictor(args.checkpoint), args.threshold)
+        core = Predictor(args.checkpoint)
+        models = [CoreEvaluateModel(core, args.threshold), CoreChainModel(core, args.threshold)]
         questions = [r for _, r in read_records(args.split) if r["type"] == "question"]
         with psycopg.connect(url, autocommit=True) as conn:
             run_models(
                 questions,
-                [model],
+                models,
                 lambda wid: lambda q: search(conn, wid, q),
                 args.out,
                 args.traces,
