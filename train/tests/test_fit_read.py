@@ -34,7 +34,7 @@ def test_fit_read_learns_to_point_and_logs_exact_answers(tmp_path):
     report = train(tmp_path)
     log = [json.loads(line) for line in (tmp_path / "log.jsonl").read_text().splitlines()]
     assert {"epoch", "train_loss", "val_loss", "val_exact", "val_by_shape"} <= log[0].keys()
-    assert report["best"]["val_exact"] == 1.0
+    assert report["last"]["val_exact"] == 1.0
 
 
 def test_the_reader_answers_and_cites_from_the_saved_core(tmp_path):
@@ -59,3 +59,13 @@ def test_each_core_refuses_the_other_ones_checkpoint(tmp_path):
         lr=3e-3, seed=0)  # fmt: skip
     with pytest.raises(ValueError, match="not a Read core"):
         ReadPredictor(tmp_path / "eval" / "model.pt")
+
+
+def test_the_saved_core_is_the_last_epoch(tmp_path):
+    # Val saturates at 100% from the first epoch while ood still moves, so
+    # val cannot pick an epoch: the run length is the choice, and it is kept.
+    import torch
+
+    report = train(tmp_path, epochs=3)
+    saved = torch.load(tmp_path / "model.pt", weights_only=False)
+    assert saved["metrics"]["epoch"] == report["last"]["epoch"] == 3

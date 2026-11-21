@@ -1,6 +1,8 @@
 """Trains the Read core: `python -m docta_train.fit_read --data data/read`.
 
-Writes OUT/model.pt (best epoch by exact answers on val) and OUT/log.jsonl.
+Writes OUT/model.pt (the last epoch) and OUT/log.jsonl. Val is no guide to
+the epoch: it saturates at 100% from epoch 1 while ood still moves (best at
+epoch 2 over three seeds), so the run length is the choice.
 No resume yet: a run is short enough to restart.
 """
 
@@ -91,7 +93,7 @@ def validate(model: CoreRead, val: Sequence[ReadExample], items: list[Item], bat
 
 def fit_read(train, val, out: Path, config: Config, epochs: int, batch: int, lr: float,
              seed: int, warmup: int = 0, max_minutes: float | None = None) -> dict:  # fmt: skip
-    """Trains from scratch; keeps the epoch with the most exact answers."""
+    """Trains from scratch; keeps the last epoch."""
     out.mkdir(parents=True, exist_ok=True)
     torch.manual_seed(seed)
     vocab = Vocab.build(train)  # from train only: val stays unseen
@@ -102,19 +104,17 @@ def fit_read(train, val, out: Path, config: Config, epochs: int, batch: int, lr:
         encoded(train, vocab, config.max_len),
         encoded(val, vocab, config.max_len),
     )
-    best, start = None, time.monotonic()
+    metrics, start = {}, time.monotonic()
     with (out / "log.jsonl").open("w", encoding="utf-8") as log:
         for epoch in range(1, epochs + 1):
             metrics = {"epoch": epoch, "train_loss": run_epoch(run, train_items, batch)}
             metrics |= validate(model, val, val_items, batch)
-            if best is None or metrics["val_exact"] > best["val_exact"]:
-                best = metrics
-                save(model, vocab, metrics, out / "model.pt")
+            save(model, vocab, metrics, out / "model.pt")
             log.write(json.dumps({**metrics, "minutes": (time.monotonic() - start) / 60}) + "\n")
             log.flush()
             if max_minutes is not None and time.monotonic() - start > max_minutes * 60:
                 break
-    return {"best": best, "parameters": sum(p.numel() for p in model.parameters())}
+    return {"last": metrics, "parameters": sum(p.numel() for p in model.parameters())}
 
 
 def save(model: CoreRead, vocab: Vocab, metrics: dict, path: Path) -> None:
@@ -128,7 +128,7 @@ def main(argv: list[str]) -> int:
     p = argparse.ArgumentParser(prog="python -m docta_train.fit_read")
     p.add_argument("--data", type=Path, default=Path("data/read"))
     p.add_argument("--out", type=Path, default=Path("models/core_read"))
-    p.add_argument("--epochs", type=int, default=10)
+    p.add_argument("--epochs", type=int, default=2)
     p.add_argument("--batch", type=int, default=32)
     p.add_argument("--lr", type=float, default=1e-3)
     p.add_argument("--warmup", type=within(int, 0, float("inf")), default=1000)
