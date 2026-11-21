@@ -42,7 +42,8 @@ lines under a new version, and its GitHub Release carries the reference scores.
   is a member of"): rules that spot a chain by its seen wording no longer
   pass `ood` for free. `dig`, `core_chain` and `core_read` no longer dig on
   `ood` (their Plan cue is that wording), so their `ood` chain scores drop to
-  what one search finds. Train, val and test are unchanged byte for byte;
+  what one search finds (`dig` 77.6% → 54.3% on `ood`, chains 70% → 0%,
+  as `keyword`). Train, val and test are unchanged byte for byte;
   regenerate with `just gen && just load`.
 - `keyword` (and `dig`, `core_chain`) read answers by what a question asks,
   not by its opening words: a question without "which" or "who" asks a number,
