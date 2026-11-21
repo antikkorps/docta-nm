@@ -7,10 +7,12 @@ the Evaluate core's encoder with one score per token instead of one per
 example: same word tokens, same sentence-local heads.
 """
 
+from pathlib import Path
+
 import torch
 
-from docta_train.model import CoreEvaluate
-from docta_train.words import BODY, PAD, SRC, STOP, WORD
+from docta_train.model import Config, CoreEvaluate, pad_batch
+from docta_train.words import BODY, PAD, SRC, STOP, WORD, Vocab
 
 Aligned = list[tuple[str, str | None]]  # (word, source id when in a body)
 
@@ -73,3 +75,28 @@ class CoreRead(CoreEvaluate):
 
     def forward(self, ids: torch.Tensor, pad_mask: torch.Tensor) -> torch.Tensor:
         return self.head(self.encode(ids)).squeeze(-1)
+
+
+class ReadPredictor:
+    """Loads a trained Read core and answers: what does the reading say?"""
+
+    def __init__(self, checkpoint: Path):
+        saved = torch.load(checkpoint, weights_only=True)
+        if saved.get("kind") != "read":
+            raise ValueError(f"{checkpoint} is not a Read core: train one with `just fit-read`")
+        self.config = Config(**saved["config"])
+        self.vocab = Vocab(saved["vocab"])
+        self.model = CoreRead(self.config, len(self.vocab.words))
+        self.model.load_state_dict(saved["state"])
+        self.model.eval()
+
+    @torch.no_grad()
+    def read(self, question: str, excerpts) -> tuple[str, str | None] | None:
+        """The answer copied at the best body word, with its source."""
+        excerpts = list(excerpts)
+        ids, pad = pad_batch([self.vocab.encode(question, excerpts)[: self.config.max_len]])
+        allowed = candidates(ids)
+        if not allowed.any():
+            return None
+        at = self.model(ids, pad).masked_fill(~allowed, float("-inf")).argmax(1).item()
+        return extract(aligned(question, excerpts), at)

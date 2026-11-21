@@ -53,6 +53,14 @@ evaluate-data:
 fit *args:
     uv run python -m docta_train.fit {{args}}
 
+# Build the Read dataset (question + excerpts judged enough → where the answer is) from data/evaluate
+read-data:
+    uv run python -m docta_train.read_data data/train.jsonl data/val.jsonl data/test.jsonl data/ood.jsonl --out data/read
+
+# Train the Read core on data/read (needs `just read-data`)
+fit-read *args:
+    uv run python -m docta_train.fit_read {{args}}
+
 # Run the trained core on a split (alone, and judging chains hop by hop), then score it next to the baselines
 core split="test":
     uv run python -m docta_train.run_core data/{{split}}.jsonl --out predictions/{{split}} --traces data/traces/{{split}}
