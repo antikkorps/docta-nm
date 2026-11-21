@@ -18,7 +18,7 @@ from docta_orchestrator.states import (
 
 # Capitalised only because they open a question or a sentence: never names.
 QUESTION_WORDS = {"In", "What", "Which", "Who", "How", "At", "The", "On"}
-NUMBER_STARTS = ("in what year", "what is the", "how ", "at what")
+NAME = r"[A-Z][a-z]+(?: [A-Z][a-z]+)*"
 Found = tuple[str, tuple[str, ...]]  # (answer, cited source ids)
 
 
@@ -28,6 +28,11 @@ def _words(text: str) -> set[str]:
 
 def capitalised_words(text: str) -> list[str]:
     return [w for w in re.findall(r"\b[A-Z][a-z]+\b", text) if w not in QUESTION_WORDS]
+
+
+def asked_kind(question: str) -> str:
+    """Only "which" and "who" ask for a name; every other question a number."""
+    return "name" if re.search(r"\b(?:which|who)\b", question.lower()) else "number"
 
 
 def _pick(sentence: str, kind: str, known: set[str]) -> str | None:
@@ -77,11 +82,13 @@ class KeywordModel:
 
     def answer(self, framing: Framing, evidence: Evidence) -> Found | None:
         q = framing.question
-        options = re.search(r", (.+) or (.+)\?$", q)
+        # Rules on what a question asks, never on its wording: the ood split
+        # words questions differently, and a rule fitted to train's openings
+        # would hide whatever the judgement gets right there.
+        options = re.search(rf"({NAME}) or ({NAME})", q)
         if options:
             return _choice(q, evidence, options[1], options[2])
-        kind = "number" if q.lower().startswith(NUMBER_STARTS) else "name"
-        return best_sentence(q, evidence, capitalised_words(q), kind)
+        return best_sentence(q, evidence, capitalised_words(q), asked_kind(q))
 
     def frame(self, question: str) -> Framing:
         return Framing(question)

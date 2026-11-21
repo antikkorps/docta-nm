@@ -52,6 +52,20 @@ def test_keyword_model_compares_two_numbers():
     assert set(older.cited) == {"s1", "s3"}  # Varnelle in s1, Brask in s3
 
 
+def test_keyword_model_asks_a_name_only_with_which_or_who():
+    # A rule on what a question asks, not on its opening words: any other
+    # wording of a number question still reads a number.
+    year = ask(KeywordModel(), "When, as a year, was Varnelle founded?")
+    assert (year.answer, year.cited) == ("1432", ("s1",))
+    city = ask(KeywordModel(), "Name the city which Orlan Teste lives in?")
+    assert city.answer == "Varnelle"
+
+
+def test_keyword_model_compares_two_names_joined_by_or_in_any_wording():
+    older = ask(KeywordModel(), "Of Brask or Varnelle, which was founded earlier?")
+    assert older.answer == "Varnelle"
+
+
 def test_keyword_model_abstains_when_nothing_relevant_comes_back():
     assert ask(KeywordModel(), "In what year was Orlan Teste born?").exit == Exit.NOT_FOUND
     assert ask(KeywordModel(), "How tall is Zorvath, in centimetres?").exit == Exit.NOT_FOUND

@@ -15,10 +15,10 @@ template.
 import re
 
 from docta_orchestrator.models.keyword import (
-    NUMBER_STARTS,
     QUESTION_WORDS,
     Found,
     KeywordModel,
+    asked_kind,
     capitalised_words,
     scored_answer,
 )
@@ -62,7 +62,7 @@ def dug_answer(question: str, evidence: Evidence, only: set[str] | None = None) 
     A subject has several links (a city, a guild): the answer whose sentence
     best fits the question wins, not the first link met. `only` keeps the
     names a judge accepted as the bridge, so the answer comes from one of them."""
-    kind = "number" if question.lower().startswith(NUMBER_STARTS) else "name"
+    kind = asked_kind(question)
     found = [(n, s) for n, s in links(question, evidence) if only is None or n in only]
     best: tuple[int, str, tuple[str, ...]] | None = None
     for name in dict.fromkeys(n for n, _ in found):
