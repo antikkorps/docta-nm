@@ -86,11 +86,15 @@ class CoreEvaluate(nn.Module):
         self.norm = nn.LayerNorm(config.d_model)
         self.head = nn.Linear(config.d_model, 1)
 
-    def forward(self, ids: torch.Tensor, pad_mask: torch.Tensor) -> torch.Tensor:
+    def encode(self, ids: torch.Tensor) -> torch.Tensor:
+        """Each token read in context, normalised: (batch, length, d_model)."""
         positions = torch.arange(ids.shape[1], device=ids.device)
         x = self.tokens(ids) + self.positions(positions)
-        # The mask covers padding too: `pad_mask` is ids == PAD, kept in the
-        # signature so callers pass pad_batch's pair unchanged.
+        # The mask covers padding too.
         mask = attention_mask(ids, self.config.heads, self.config.local_heads)
-        x = self.encoder(x, mask=mask)
-        return self.head(self.norm(x[:, 0])).squeeze(-1)
+        return self.norm(self.encoder(x, mask=mask))
+
+    def forward(self, ids: torch.Tensor, pad_mask: torch.Tensor) -> torch.Tensor:
+        # `pad_mask` is ids == PAD, already in the attention mask; it stays in
+        # the signature so callers pass pad_batch's pair unchanged.
+        return self.head(self.encode(ids)[:, 0]).squeeze(-1)

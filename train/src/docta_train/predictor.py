@@ -13,6 +13,8 @@ from docta_train.words import Vocab
 class Predictor:
     def __init__(self, checkpoint: Path):
         saved = torch.load(checkpoint, weights_only=True)
+        if saved.get("kind", "evaluate") != "evaluate":
+            raise ValueError(f"{checkpoint} is not an Evaluate core but a {saved['kind']} one")
         try:
             self.config = Config(**saved["config"])
             self.vocab = Vocab(saved["vocab"])

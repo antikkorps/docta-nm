@@ -75,6 +75,14 @@ def dug_answer(question: str, evidence: Evidence, only: set[str] | None = None) 
     return (best[1], best[2]) if best else None
 
 
+def dig_query(question: str, bridge: str) -> str:
+    """The search for what a chain asks about its bridge. The subject's words
+    are dropped: its sources were read already and would crowd the bridge's
+    out of the top results."""
+    rest = " ".join(w for w in re.findall(r"\w+", question) if w not in capitalised_words(question))
+    return f"{bridge} {rest}"
+
+
 class DigModel(KeywordModel):
     name = "dig"
 
@@ -84,10 +92,7 @@ class DigModel(KeywordModel):
             return [q]
         if round_ > 1 or not can_dig(q, evidence):
             return []
-        # Drop the subject's words: its sources were read already and would
-        # crowd the new name's out of the top results.
-        rest = " ".join(w for w in re.findall(r"\w+", q) if w not in capitalised_words(q))
-        return [f"{name} {rest}" for name in revealed(q, evidence)]
+        return [dig_query(q, name) for name in revealed(q, evidence)]
 
     def answer(self, framing: Framing, evidence: Evidence) -> Found | None:
         q = framing.question
