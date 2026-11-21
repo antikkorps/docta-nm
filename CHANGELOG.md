@@ -33,6 +33,11 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Changed
 
+- `keyword` (and `dig`, `core_chain`) read answers by what a question asks,
+  not by its opening words: a question without "which" or "who" asks a number,
+  and a comparison is two names joined by "or". On `ood` they read no answer
+  before (keyword 0.155 accuracy, dig 0.267); now 0.543 and 0.776, close to
+  test. Scores on `ood` from before are not comparable.
 - The Evaluate core reads sentence by sentence: 2 of its 4 attention heads
   per layer see only their own sentence, and a full stop becomes a fixed
   `<stop>` token. Balanced test goes from about 74% to 84%; two-hop chains
