@@ -13,6 +13,9 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Added
 
+- `core_chain` in `just core`: the orchestrator splits a two-hop question
+  into one-hop questions and the trained core judges each. Chains go from
+  none answered to 57% on test, abstention F1 from 0.71 to 0.77.
 - `just fit --resume --epochs N` adds N epochs to the last run
   (`models/core_evaluate/last.pt`) instead of starting from scratch.
 - **Trap scores**: a `model · trap` table and a `traps` entry in the JSON
