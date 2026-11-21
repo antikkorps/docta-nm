@@ -9,7 +9,7 @@ from docta_train.fit import fit
 from docta_train.model import Config
 from docta_train.predictor import Predictor
 
-TINY = Config(d_model=32, layers=1, heads=2, ff=64, max_len=96)
+TINY = Config(d_model=32, layers=1, heads=2, ff=64, max_len=96, local_heads=1)
 YES = Hit("s1", "T", "Brask was founded in 1610.", 0.9)
 NO = Hit("s2", "T", "Brask keeps its seat in Varnelle.", 0.9)
 

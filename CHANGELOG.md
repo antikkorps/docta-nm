@@ -30,6 +30,10 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Changed
 
+- The Evaluate core reads sentence by sentence: 2 of its 4 attention heads
+  per layer see only their own sentence, and a full stop becomes a fixed
+  `<stop>` token. Balanced test goes from about 74% to 84%; two-hop chains
+  are unchanged. Earlier checkpoints no longer load: rerun `just fit`.
 - Seen phrasings are more varied: 4 or 5 sentence structures per predicate
   instead of 2 or 3 ("The height of X is N centimetres.", "In Y, X has its
   seat."), and 2 questions per predicate instead of 1. With near-identical

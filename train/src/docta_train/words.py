@@ -23,11 +23,13 @@ from docta_orchestrator.search import Hit
 from docta_train.evaluate_data import Example
 from docta_train.shortcut import NAME
 
-SPECIAL = ("<pad>", "<cls>", "<unk>", "<num>", "<name>", "<src>", "<body>")
+SPECIAL = ("<pad>", "<cls>", "<unk>", "<num>", "<name>", "<src>", "<body>", "<stop>")
 MAX_NAMES = 4  # a comparison of two people names four words
 RANKS = tuple(f"<name_{k}>" for k in range(1, MAX_NAMES + 1))
 FIXED = SPECIAL + RANKS
 PAD = 0
+# Fixed ids: the model numbers sentences from them, whatever the vocabulary.
+SRC, BODY, STOP = (SPECIAL.index(t) for t in ("<src>", "<body>", "<stop>"))
 WORD = re.compile(r"[A-Za-z]+|\d+|[^\sA-Za-z\d]")
 
 
@@ -56,7 +58,7 @@ class Vocab:
             for w in WORD.findall(text):
                 worlds[w.lower()].add(e.world_id)
         kept = sorted(w for w, seen in worlds.items() if len(seen) >= min_worlds)
-        return cls(FIXED + tuple(w for w in kept if not w.isdigit()))
+        return cls(FIXED + tuple(w for w in kept if not w.isdigit() and w != "."))
 
     def tokens(self, question: str, excerpts: Iterable[Hit]) -> list[str]:
         ranks: dict[str, str] = {}
@@ -79,6 +81,8 @@ class Vocab:
     def token(self, word: str, ranks: dict[str, str]) -> str:
         if word.isdigit():
             return "<num>"
+        if word == ".":
+            return "<stop>"
         if word in ranks:
             return ranks[word]
         if word.lower() in self.index:

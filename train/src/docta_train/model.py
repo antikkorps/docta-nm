@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
-from docta_train.words import PAD
+from docta_train.words import BODY, PAD, SRC, STOP
 
 
 @dataclass(frozen=True)
@@ -20,9 +20,16 @@ class Config:
     heads: int = 4
     ff: int = 256
     max_len: int = 256  # longest example is 157 words on 20,000 worlds
-    # Any dropout disables PyTorch's memory-efficient CPU attention, which then
-    # keeps each length x length matrix for backward.
+    # Each attention matrix (length x length per head) is kept for backward:
+    # the sentence mask, like any dropout, rules out the memory-efficient kernel.
     dropout: float = 0.0
+    local_heads: int = 2  # heads that read within one sentence; the others read all
+
+    def __post_init__(self):
+        # With every head local, <cls> never sees an excerpt: training would run
+        # fine and learn nothing.
+        if not 0 <= self.local_heads < self.heads:
+            raise ValueError(f"local_heads must be in [0, heads), got {self.local_heads}")
 
 
 def pad_batch(batch: Sequence[list[int]]) -> tuple[torch.Tensor, torch.Tensor]:
@@ -32,6 +39,30 @@ def pad_batch(batch: Sequence[list[int]]) -> tuple[torch.Tensor, torch.Tensor]:
     for row, seq in enumerate(batch):
         ids[row, : len(seq)] = torch.tensor(seq, dtype=torch.long)
     return ids, ids == PAD
+
+
+def sentence_ids(ids: torch.Tensor) -> torch.Tensor:
+    """Which sentence each token is in: 0 for the question, then one number per
+    title and per body sentence, -1 for padding."""
+    starts = (ids == SRC) | (ids == BODY)
+    starts[:, 1:] |= ids[:, :-1] == STOP
+    return starts.cumsum(1).masked_fill(ids == PAD, -1)
+
+
+def attention_mask(ids: torch.Tensor, heads: int, local: int) -> torch.Tensor:
+    """What each head may not attend to, (batch * heads, length, length).
+
+    The core failed to tie a property to the name it is stated for (74% on
+    balanced val): it saw "population" and the name somewhere, not in one
+    sentence. Telling which words share a sentence is counting, so code does
+    it: the first `local` heads read within their sentence only. Each position
+    sees itself, so a padding row is never empty (an empty row gives NaN)."""
+    sentence = sentence_ids(ids)
+    same = sentence[:, :, None] == sentence[:, None, :]
+    real = (sentence >= 0)[:, None, :].expand_as(same)
+    itself = torch.eye(ids.shape[1], dtype=torch.bool, device=ids.device)
+    allowed = torch.stack([same if h < local else real for h in range(heads)], 1) | itself
+    return ~allowed.flatten(0, 1)
 
 
 class CoreEvaluate(nn.Module):
@@ -58,5 +89,8 @@ class CoreEvaluate(nn.Module):
     def forward(self, ids: torch.Tensor, pad_mask: torch.Tensor) -> torch.Tensor:
         positions = torch.arange(ids.shape[1], device=ids.device)
         x = self.tokens(ids) + self.positions(positions)
-        x = self.encoder(x, src_key_padding_mask=pad_mask)
+        # The mask covers padding too: `pad_mask` is ids == PAD, kept in the
+        # signature so callers pass pad_batch's pair unchanged.
+        mask = attention_mask(ids, self.config.heads, self.config.local_heads)
+        x = self.encoder(x, mask=mask)
         return self.head(self.norm(x[:, 0])).squeeze(-1)

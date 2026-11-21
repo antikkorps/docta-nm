@@ -4,7 +4,7 @@ import torch
 from docta_train.model import Config, CoreEvaluate, pad_batch
 from docta_train.training import train_steps
 
-TINY = Config(d_model=32, layers=1, heads=2, ff=64, max_len=16)
+TINY = Config(d_model=32, layers=1, heads=2, ff=64, max_len=16, local_heads=1)
 VOCAB = 12
 
 
