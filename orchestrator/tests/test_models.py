@@ -93,3 +93,25 @@ def test_keyword_model_never_answers_a_sentence_opening_word():
     seat = Hit("s2", "Notes", "Kortha keeps its seat in Varnelle.", 0.9)
     found = KeywordModel().answer(Framing("Which city holds the seat of Kortha?"), (rolls, seat))
     assert found == ("Varnelle", ("s2",))
+
+
+def test_a_frame_word_opening_a_sentence_is_never_a_name():
+    # Any capitalised word of a seen template is a template word, not a name.
+    from docta_orchestrator.models import KeywordModel
+    from docta_orchestrator.search import Hit
+    from docta_orchestrator.states import Framing
+
+    said = Hit("s1", "Notes", "It is said that Orlan Teste belongs to Kortha.", 0.9)
+    records = Hit("s2", "Notes", "Records show that Mira Kol lives in Varnelle.", 0.9)
+    model = KeywordModel()
+    assert model.answer(Framing("Which guild does Orlan Teste belong to?"), (said,)) == (
+        "Kortha",
+        ("s1",),
+    )
+    assert model.answer(Framing("In which city does Mira Kol live?"), (records,))[0] == "Varnelle"
+
+
+def test_an_attribution_word_is_never_a_name():
+    from docta_orchestrator.models.templates import TEMPLATE_WORDS
+
+    assert {"According", "Chronicle", "Notes"} <= TEMPLATE_WORDS

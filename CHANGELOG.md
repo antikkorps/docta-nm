@@ -42,6 +42,12 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Changed
 
+- **Sentences come from a combinatorial grammar**: each relation clause in
+  eight frames, with or without a parenthetical after its subject, 30–48
+  structures per predicate instead of 4–5. `ood` holds out (clause, form)
+  pairs on top of its held-out clause. All data changes: rerun `just gen`,
+  `just load`, then retrain. The rules read the seen phrasings from
+  `templates_seen.json`, which worldgen writes (`just templates`).
 - **`ood` chains word their link in a held-out way** ("the guild Orlan Teste
   is a member of"): rules that spot a chain by its seen wording no longer
   pass `ood` for free. `dig`, `core_chain` and `core_read` no longer dig on

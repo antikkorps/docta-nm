@@ -19,7 +19,9 @@ class Config:
     layers: int = 4
     heads: int = 4
     ff: int = 256
-    max_len: int = 256  # longest example is 157 words on 20,000 worlds
+    # Longest example: 270 words on 20,000 worlds since the sentence grammar
+    # (157 before); a cut-off excerpt would turn its label into noise.
+    max_len: int = 320
     # Each attention matrix (length x length per head) is kept for backward:
     # the sentence mask, like any dropout, rules out the memory-efficient kernel.
     dropout: float = 0.0

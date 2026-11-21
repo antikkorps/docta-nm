@@ -2,6 +2,8 @@
 
 #![allow(dead_code)] // each test crate uses a different subset
 
+pub mod fits;
+
 use docta_worldgen::corpus::{Corpus, Options, Source, build};
 use docta_worldgen::model::{Fact, Obj};
 use docta_worldgen::split::Split;

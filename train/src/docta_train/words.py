@@ -4,14 +4,15 @@ Read byte by byte, the core never learned to tie "population" in a question to
 "inhabitants" in an excerpt: even single-hop questions stayed near chance.
 Words make that tie a matter of a few embeddings. The vocabulary comes from the
 training split only, never from an outside file: a word is kept when it shows
-up in enough worlds, which the templates' words do and invented names never
-do (on 20,000 worlds, 83 words and 3 signs reach 20 worlds, no name does: 97
-tokens with the special ones). Worldgen's name exclusion list must keep names
-apart from those words, or a name such as "Was" would read as `was`. A name of the
-question becomes its rank there, so the core sees where each one recurs without
-ever reading its spelling. Other names share one <name> token: giving each its
-own rank by order of appearance was tried and changed nothing on 20,000 worlds
-(73.1% against 74.2% on balanced val, chains unmoved).
+up in enough worlds, which the templates' words do and invented names never do
+(on 20,000 worlds, 100 words and 3 signs reach 20 worlds, no name does: 114
+tokens with the special ones, 97 before the sentence grammar). Worldgen's name
+exclusion list must keep names apart from those words, or a name such as "Was"
+would read as `was`. A name of the question becomes its rank there, so the core
+sees where each one recurs without ever reading its spelling. Other names share
+one <name> token: giving each its own rank by order of appearance was tried and
+changed nothing on 20,000 worlds (73.1% against 74.2% on balanced val, chains
+unmoved).
 """
 
 import re

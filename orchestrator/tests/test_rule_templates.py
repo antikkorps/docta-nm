@@ -1,5 +1,5 @@
-"""The rule's Python copy of the seen templates must track worldgen's Rust ones:
-generate a small corpus and check the rule reads all of seen, none of ood.
+"""The seen phrasings worldgen exports (templates_seen.json) must be what it
+writes: generate a small corpus and check the rule reads all of seen, none of ood.
 A random corpus may miss a template, so each one also round-trips on its own."""
 
 import shutil

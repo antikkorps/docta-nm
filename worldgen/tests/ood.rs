@@ -3,15 +3,17 @@
 
 mod common;
 
+use common::fits::{fits, fits_loose, holds, skeleton};
 use common::{DEFAULT, corpora_in, fact};
 use docta_worldgen::corpus::{Corpus, Primitive};
+use docta_worldgen::grammar::sentence_phrasings;
 use docta_worldgen::liars::{ATTRIBUTIONS, HELD_OUT_ATTRIBUTION};
 use docta_worldgen::model::Pred;
 use docta_worldgen::questions::HELD_OUT_CHAINS;
 use docta_worldgen::split::Split;
 use docta_worldgen::templates::{
     Phrasings, comparison_phrasings, describe, link_phrasings, question_phrasings,
-    sentence_phrasings, titles,
+    sentence_clauses, titles,
 };
 use std::collections::BTreeSet;
 
@@ -26,24 +28,6 @@ const PREDS: [Pred; 9] = [
     Pred::Members,
     Pred::Height,
 ]; // fmt: skip
-
-/// Whether `text` could have been written from `template`: its literal pieces
-/// appear in order, anchored at both ends.
-fn fits(template: &str, text: &str) -> bool {
-    let pieces: Vec<&str> = template.split(['{', '}']).step_by(2).collect();
-    let (first, last) = (pieces[0], pieces[pieces.len() - 1]);
-    if !text.starts_with(first) || !text.ends_with(last) || text.len() < first.len() + last.len() {
-        return false;
-    }
-    let mut rest = &text[first.len()..text.len() - last.len()];
-    for piece in &pieces[1..pieces.len() - 1] {
-        match rest.find(piece) {
-            Some(at) => rest = &rest[at + piece.len()..],
-            None => return false,
-        }
-    }
-    true
-}
 
 fn templates(of: impl Fn(Pred) -> Option<Phrasings>, held_out: bool) -> Vec<&'static str> {
     PREDS
@@ -73,14 +57,30 @@ fn sentences(c: &Corpus) -> Vec<String> {
         .collect()
 }
 
+/// Every sentence phrasing the grammar writes, seen or held out.
+fn sentence_templates(held_out: bool) -> Vec<String> {
+    PREDS
+        .into_iter()
+        .flat_map(|p| {
+            let s = sentence_phrasings(p);
+            if held_out { s.held_out } else { s.seen }
+        })
+        .collect()
+}
+
 fn any_fits(templates: &[&str], text: &str) -> bool {
     templates.iter().any(|t| fits(t, text))
 }
 
+fn any_fits_loose(templates: &[&str], text: &str) -> bool {
+    templates.iter().any(|t| fits_loose(t, text))
+}
+
 #[test]
 fn ood_sources_use_only_held_out_phrasings_and_others_never_do() {
-    let held = templates(|p| Some(sentence_phrasings(p)), true);
-    let seen = templates(|p| Some(sentence_phrasings(p)), false);
+    let (held, seen) = (sentence_templates(true), sentence_templates(false));
+    let held: Vec<&str> = held.iter().map(String::as_str).collect();
+    let seen: Vec<&str> = seen.iter().map(String::as_str).collect();
     for c in corpora_in(Split::Ood, 100, &DEFAULT) {
         assert!(
             sentences(&c).iter().all(|s| any_fits(&held, s)),
@@ -101,13 +101,13 @@ fn ood_questions_use_only_held_out_phrasings_and_others_never_do() {
     held.extend(templates(comparison_phrasings, true));
     for c in corpora_in(Split::Ood, 100, &DEFAULT) {
         assert!(
-            c.questions.iter().all(|q| any_fits(&held, &q.text)),
+            c.questions.iter().all(|q| any_fits_loose(&held, &q.text)),
             "{}",
             c.world.world_id
         );
     }
     for c in corpora_in(Split::Train, 100, &DEFAULT) {
-        assert!(c.questions.iter().all(|q| !any_fits(&held, &q.text)));
+        assert!(c.questions.iter().all(|q| !any_fits_loose(&held, &q.text)));
     }
 }
 
@@ -173,7 +173,6 @@ fn words<'a>(texts: impl IntoIterator<Item = &'a str>) -> BTreeSet<String> {
 #[test]
 fn held_out_phrasings_use_only_words_the_seen_ones_use() {
     let seen_texts: Vec<String> = [
-        templates(|p| Some(sentence_phrasings(p)), false),
         templates(|p| Some(question_phrasings(p)), false),
         templates(comparison_phrasings, false),
         ATTRIBUTIONS.to_vec(),
@@ -182,6 +181,7 @@ fn held_out_phrasings_use_only_words_the_seen_ones_use() {
     .into_iter()
     .map(String::from)
     .chain(titles("{s}"))
+    .chain(sentence_templates(false))
     // Only chain links reach a model; other descriptions stay in ground truth.
     .chain(
         [Pred::BasedIn, Pred::LivesIn, Pred::MemberOf]
@@ -191,53 +191,21 @@ fn held_out_phrasings_use_only_words_the_seen_ones_use() {
     .collect();
     let seen = words(seen_texts.iter().map(String::as_str));
     let held = [
-        templates(|p| Some(sentence_phrasings(p)), true),
         templates(|p| Some(question_phrasings(p)), true),
         templates(comparison_phrasings, true),
         vec![HELD_OUT_ATTRIBUTION],
         templates(link_phrasings, true),
     ]
     .concat();
+    let held_sentences = sentence_templates(true);
+    let held = held
+        .into_iter()
+        .chain(held_sentences.iter().map(String::as_str));
     let unseen: Vec<_> = words(held).difference(&seen).cloned().collect();
     assert!(
         unseen.is_empty(),
         "held-out words no seen phrasing uses: {unseen:?}"
     );
-}
-
-/// A sentence's structure: placeholders, punctuation and a few function words
-/// kept, prepositions merged, any run of other words one slot.
-fn skeleton(template: &str) -> Vec<String> {
-    const KEPT: [&str; 10] = [
-        "is", "the", "of", "was", "a", "an", "has", "its", "as", "are",
-    ];
-    let mut out: Vec<String> = Vec::new();
-    let mut rest = template;
-    while let Some(c) = rest.chars().next() {
-        let token = if c == '{' {
-            let end = rest.find('}').expect("placeholders are closed");
-            rest[..=end].to_string()
-        } else if c.is_ascii_alphabetic() {
-            rest.split(|c: char| !c.is_ascii_alphabetic())
-                .next()
-                .unwrap_or("")
-                .to_string()
-        } else {
-            c.to_string()
-        };
-        rest = &rest[token.len()..];
-        let lower = token.to_lowercase();
-        let slot = match lower.as_str() {
-            " " => continue,
-            "in" | "to" | "at" | "on" => "P".to_string(),
-            w if w.chars().all(|c| c.is_ascii_alphabetic()) && !KEPT.contains(&w) => "w".into(),
-            _ => lower,
-        };
-        if !(slot == "w" && out.last().is_some_and(|l| l == "w")) {
-            out.push(slot);
-        }
-    }
-    out
 }
 
 /// ood tests new combinations of known pieces: a held-out sentence's structure
@@ -247,11 +215,11 @@ fn skeleton(template: &str) -> Vec<String> {
 #[test]
 fn every_held_out_structure_is_seen_for_another_predicate_of_its_kind() {
     for pred in PREDS {
-        let held = skeleton(sentence_phrasings(pred).held_out);
+        let held = skeleton(sentence_clauses(pred).held_out);
         let found = PREDS.into_iter().any(|other| {
             other != pred
                 && other.target().is_none() == pred.target().is_none()
-                && sentence_phrasings(other)
+                && sentence_clauses(other)
                     .seen
                     .iter()
                     .any(|t| skeleton(t) == held)
@@ -261,23 +229,6 @@ fn every_held_out_structure_is_seen_for_another_predicate_of_its_kind() {
             "{pred:?}: {held:?} is seen for no other predicate of its kind"
         );
     }
-}
-
-/// Whether `template`'s literal pieces appear in order anywhere in `text`:
-/// a chain link sits inside a question.
-fn holds(template: &str, text: &str) -> bool {
-    let mut rest = text;
-    for piece in template
-        .split(['{', '}'])
-        .step_by(2)
-        .filter(|p| !p.is_empty())
-    {
-        match rest.find(piece) {
-            Some(at) => rest = &rest[at + piece.len()..],
-            None => return false,
-        }
-    }
-    true
 }
 
 /// Rules that spot a chain by its seen link wording must not pass ood for

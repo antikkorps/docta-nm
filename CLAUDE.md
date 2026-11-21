@@ -43,6 +43,7 @@ just check-db    # smoke check: vector extension + 5 tables exist
 just reset-db    # drop the volume, re-apply db/schema.sql (needed after any schema change)
 just gen         # cargo run worldgen → data/{train,val,test,ood}.jsonl
 just load        # load data/*.jsonl into Postgres, mirroring it (--prune)
+just templates   # refresh the seen phrasings the rules read, after any template change
 just baseline    # run the 3 fake models + eval on test (`just baseline ood` for ood)
 just human       # human-correction protocol on test (`just human ood`), after training
 just test        # cargo fmt/clippy/test, ruff, pytest (database included)
