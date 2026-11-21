@@ -135,9 +135,10 @@ docs/                # brief and design notes
   ordered collections (no `HashMap` iteration in output paths).
 - Train/val/test/ood split is by world, never by question. It derives from the
   world seed, so adding worlds never moves existing ones.
-- `ood` is sealed: its sentence, question and comparison phrasings
+- `ood` is sealed: its sentence, question, comparison and chain link phrasings
   (`templates.rs` `held_out`) and its chain combinations (`HELD_OUT_CHAINS`)
-  never appear in train/val/test. `worldgen/tests/ood.rs` guards it; report
+  never appear in train/val/test. Rules that spot a structure by its seen
+  wording must not pass ood for free. `worldgen/tests/ood.rs` guards it; report
   scores on `ood` next to `test`, since only `ood` shows generalisation.
 - No shortcut to abstention: every entity has exactly one fact no source
   states (so being under-documented never singles out a subject), and

@@ -246,19 +246,44 @@ pub fn title<R: Rng>(subj: &str, rng: &mut R) -> String {
     titles(subj).choose(rng).expect("non-empty").clone()
 }
 
-/// A noun phrase for the object of `pred` of `subj`: the first hop of a chain,
-/// and what an unanswerable question reports as missing.
+/// How a chain names its first hop, for the predicates whose object is an
+/// entity. One seen wording each (no draw, so the RNG stream stays as it was);
+/// ood holds out its own, so rules that spot a chain by its seen wording do
+/// not pass ood for free. Held-out words are all seen elsewhere.
+pub fn link_phrasings(pred: Pred) -> Option<Phrasings> {
+    match pred {
+        Pred::BasedIn => Some(p(
+            &["the city where {s} is based"],
+            "the city {s} keeps its seat in",
+        )),
+        Pred::LivesIn => Some(p(&["the city where {s} lives"], "the city {s} resides in")),
+        Pred::MemberOf => Some(p(
+            &["the guild that {s} belongs to"],
+            "the guild {s} is a member of",
+        )),
+        _ => None,
+    }
+}
+
+/// The first hop of a chain about `subj`, as its split words it.
+pub fn link(pred: Pred, subj: &str, held_out: bool) -> String {
+    let phrasings = link_phrasings(pred).expect("a chain link points to an entity");
+    fill(one(phrasings, held_out), subj, "")
+}
+
+/// A noun phrase for the object of `pred` of `subj`: what an unanswerable
+/// question reports as missing (ground truth, never shown to a model).
 pub fn describe(pred: Pred, subj: &str) -> String {
     let template = match pred {
         Pred::FoundedIn => "the founding year of {s}",
         Pred::Population => "the population of {s}",
-        Pred::BasedIn => "the city where {s} is based",
         Pred::BornIn => "the birth year of {s}",
-        Pred::LivesIn => "the city where {s} lives",
-        Pred::MemberOf => "the guild that {s} belongs to",
         Pred::Elevation => "the elevation of {s}",
         Pred::Members => "the number of members of {s}",
         Pred::Height => "the height of {s}",
+        Pred::BasedIn | Pred::LivesIn | Pred::MemberOf => {
+            link_phrasings(pred).expect("a link").seen[0]
+        }
     };
     fill(template, subj, "")
 }
@@ -305,7 +330,7 @@ mod tests {
 
     #[test]
     fn chain_questions_read_naturally() {
-        let via = describe(Pred::MemberOf, "Orlan Teste");
+        let via = link(Pred::MemberOf, "Orlan Teste", false);
         let mut rng = rand::rngs::ChaCha8Rng::seed_from_u64(0);
         let seen = question(Pred::FoundedIn, &via, false, &mut rng);
         assert!(
@@ -316,9 +341,10 @@ mod tests {
             .contains(&seen.as_str()),
             "{seen}"
         );
+        let held = link(Pred::MemberOf, "Orlan Teste", true);
         assert_eq!(
-            question(Pred::FoundedIn, &via, true, &mut rng),
-            "What year was the guild that Orlan Teste belongs to founded in?"
+            question(Pred::FoundedIn, &held, true, &mut rng),
+            "What year was the guild Orlan Teste is a member of founded in?"
         );
     }
 }

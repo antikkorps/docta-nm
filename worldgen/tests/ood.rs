@@ -10,7 +10,8 @@ use docta_worldgen::model::Pred;
 use docta_worldgen::questions::HELD_OUT_CHAINS;
 use docta_worldgen::split::Split;
 use docta_worldgen::templates::{
-    Phrasings, comparison_phrasings, describe, question_phrasings, sentence_phrasings, titles,
+    Phrasings, comparison_phrasings, describe, link_phrasings, question_phrasings,
+    sentence_phrasings, titles,
 };
 use std::collections::BTreeSet;
 
@@ -194,6 +195,7 @@ fn held_out_phrasings_use_only_words_the_seen_ones_use() {
         templates(|p| Some(question_phrasings(p)), true),
         templates(comparison_phrasings, true),
         vec![HELD_OUT_ATTRIBUTION],
+        templates(link_phrasings, true),
     ]
     .concat();
     let unseen: Vec<_> = words(held).difference(&seen).cloned().collect();
@@ -258,5 +260,61 @@ fn every_held_out_structure_is_seen_for_another_predicate_of_its_kind() {
             found,
             "{pred:?}: {held:?} is seen for no other predicate of its kind"
         );
+    }
+}
+
+/// Whether `template`'s literal pieces appear in order anywhere in `text`:
+/// a chain link sits inside a question.
+fn holds(template: &str, text: &str) -> bool {
+    let mut rest = text;
+    for piece in template
+        .split(['{', '}'])
+        .step_by(2)
+        .filter(|p| !p.is_empty())
+    {
+        match rest.find(piece) {
+            Some(at) => rest = &rest[at + piece.len()..],
+            None => return false,
+        }
+    }
+    true
+}
+
+/// Rules that spot a chain by its seen link wording must not pass ood for
+/// free: ood words its links in its own way, so a chain gain there shows a
+/// decomposition that generalises, not a regex that matched.
+#[test]
+fn ood_chains_word_their_link_in_a_held_out_way_only() {
+    let held = templates(link_phrasings, true);
+    let seen = templates(link_phrasings, false);
+    let chains = |c: &Corpus| -> Vec<String> {
+        c.questions
+            .iter()
+            .filter(|q| q.shape == Primitive::Chain)
+            .map(|q| q.text.clone())
+            .collect()
+    };
+    let ood: Vec<String> = corpora_in(Split::Ood, 100, &DEFAULT)
+        .iter()
+        .flat_map(chains)
+        .collect();
+    assert!(!ood.is_empty());
+    for q in &ood {
+        assert!(
+            held.iter().any(|t| holds(t, q)) && !seen.iter().any(|t| holds(t, q)),
+            "{q}"
+        );
+    }
+    let others = [Split::Train, Split::Val, Split::Test];
+    for c in others
+        .into_iter()
+        .flat_map(|s| corpora_in(s, 100, &DEFAULT))
+    {
+        for q in chains(&c) {
+            assert!(
+                seen.iter().any(|t| holds(t, &q)) && !held.iter().any(|t| holds(t, &q)),
+                "{q}"
+            );
+        }
     }
 }

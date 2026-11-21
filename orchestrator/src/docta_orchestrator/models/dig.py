@@ -7,9 +7,9 @@ revealed, so the next search goes after Varnelle, and the answer is read there.
 It only digs when the question refers to something indirectly ("the city
 where", "the guild that"). A direct question it cannot answer stays
 unanswered: following whatever names come up would turn a missing fact into
-a confident wrong answer. That cue is the generator's chain wording, which
-every split shares, ood included; sentences and questions are read with no
-template.
+a confident wrong answer. That cue is the seen chain wording, which ood
+holds out: on ood it never digs, so its chain score there shows what a rule
+on wording cannot reach. Sentences and questions are read with no template.
 """
 
 import re
