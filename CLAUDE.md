@@ -109,8 +109,12 @@ docs/                # brief and design notes
 - Never introduce an LLM, external API or pretrained model anywhere in the chain,
   including data generation. Names, source texts and questions come from
   syllable assembly and templates only.
-- Ground truth (`facts`, `fact_ids`, `required_*`, `answer`) is never exposed to
-  a model. `search()` returns only `source_id`, `title`, `body`, `reliability`.
+- Ground truth (`facts`, `fact_ids`, `required_*`, `answer`) is never a model
+  input. `search()` returns only `source_id`, `title`, `body`, `reliability`.
+  It may serve as a training target or for scoring (Evaluate's label, Read's
+  answer position, which sentence carries a hop): a target teaches the method;
+  what a model reads at inference holds no ground truth, and its weights hold
+  no facts.
 - The loop lives in the orchestrator (explicit state machine); a model only
   fills each state. Anything computable (arithmetic, comparison) goes through
   deterministic code, not the model.
@@ -125,7 +129,7 @@ docs/                # brief and design notes
   docs/design-challenge.md). Changing the format means a new schema version,
   not a silent edit; the reader accepts the current version only.
 - Trap ground truth (`false_claims`, `copy_of`, `trap`, `expected_exit`) is
-  never exposed to a model, like `facts`.
+  never a model input, like `facts`.
 - Determinism: same seed + same options ⇒ byte-identical output. Per-world seeds
   derive from the global seed; use `ChaCha8Rng` (rand `chacha` feature; OS RNG features are off), never thread/OS RNG; iterate
   ordered collections (no `HashMap` iteration in output paths).
