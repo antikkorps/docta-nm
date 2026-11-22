@@ -5,9 +5,14 @@ there. Its examples are the Evaluate examples labelled enough, joined to the
 answer and the sources that state it (ground truth: training and scoring
 only, never an input). Comparisons become one example per option, the option
 named again after the question: the core reads each value, code compares.
-Chains are left out: the orchestrator splits them into one-hop questions,
-which retrieve examples already teach. Trap questions are left out too:
-weighing contradicting sources is Confront's step, not Read's.
+A chain teaches its bridge: on what the first search read, the core points
+at the name to search next (the city, the guild), in the source stating the
+link; once the bridge's search read the second hop, at the answer.
+Searching the bridge is code's job; no rule splits the question, so the
+held-out link wordings of ood test whether the core reads which name the
+chain needs.
+Trap questions are left out: weighing contradicting sources is Confront's
+step, not Read's.
 
 `python -m docta_train.read_data data/train.jsonl data/val.jsonl --out data/read`
 """
@@ -23,6 +28,8 @@ from docta_orchestrator.jsonl import read_records
 from docta_orchestrator.search import Hit
 
 from docta_train.evaluate_data import Example, read_examples
+
+Taught = tuple[str, str, tuple[str, ...]]  # (question as read, answer, sources stating it)
 
 
 @dataclass(frozen=True)
@@ -46,6 +53,34 @@ def asked(question: dict, world: dict) -> list[tuple[str, str]]:
     return [(f"{question['text']} {names[f['subj']]}", str(f["obj"])) for f in compared]
 
 
+def bridge(question: dict, world: dict) -> tuple[str, str]:
+    """(bridge name, source stating the link): the first hop's object."""
+    names = {e["id"]: e["name"] for e in world["entities"]}
+    link = next(f for f in world["facts"] if f["id"] == question["required_facts"][0])
+    return names[link["obj"]], question["required_sources"][0]
+
+
+def chain_target(question: dict, world: dict, read: set[str]) -> list[Taught]:
+    """The answer once both hops were read, the bridge while only the link
+    was: whatever the core should look at next."""
+    name, link = bridge(question, world)
+    if set(question["required_sources"]) <= read:
+        return [(question["text"], question["answer"], (question["required_sources"][1],))]
+    return [(question["text"], name, (link,))] if link in read else []
+
+
+def taught(question: dict, world: dict, e: Example) -> list[Taught]:
+    """(question as read, answer, sources stating it) the example teaches."""
+    if question["trap"] or not question["answerable"]:
+        return []
+    if question["primitive"] == "chain":
+        return chain_target(question, world, {h.source_id for h in e.excerpts})
+    if not e.label or question["primitive"] not in ("retrieve", "compare"):
+        return []
+    sources = tuple(question["required_sources"])
+    return [(text, answer, sources) for text, answer in asked(question, world)]
+
+
 def build_read_examples(
     records: Iterable[dict], evaluated: Iterable[Example]
 ) -> Iterator[ReadExample]:
@@ -57,10 +92,7 @@ def build_read_examples(
             questions[(r["world_id"], r["question_id"])] = r
     for e in evaluated:
         q = questions[(e.world_id, e.question_id)]
-        if not e.label or q["trap"] or q["primitive"] not in ("retrieve", "compare"):
-            continue
-        sources = tuple(q["required_sources"])
-        for text, answer in asked(q, worlds[e.world_id]):
+        for text, answer, sources in taught(q, worlds[e.world_id], e):
             yield ReadExample(e.world_id, e.question_id, e.split, text, e.excerpts, answer, sources)
 
 

@@ -10,14 +10,18 @@ WORLD = {
     "entities": [
         {"id": "e1", "kind": "city", "name": "Varnelle"},
         {"id": "e2", "kind": "city", "name": "Brask"},
+        {"id": "e3", "kind": "person", "name": "Orlan Teste"},
     ],
     "facts": [
         {"id": "f1", "subj": "e1", "pred": "founded_in", "obj": 1432},
         {"id": "f2", "subj": "e2", "pred": "founded_in", "obj": 1610},
+        {"id": "f9", "subj": "e3", "pred": "lives_in", "obj": "e1"},
     ],
 }  # fmt: skip
 S1 = Hit("s1", "Annals", "Varnelle was founded in 1432.", 0.9)
 S2 = Hit("s2", "Annals", "Brask was founded in 1610.", 0.9)
+S9 = Hit("s9", "Notes", "Orlan Teste resides in Varnelle.", 0.9)
+CHAIN = "In what year was the city where Orlan Teste lives founded?"
 
 
 def question(qid, text, primitive, answer, facts, sources, trap=None):
@@ -56,9 +60,28 @@ def test_only_what_was_judged_enough_and_holds_no_trap_is_read():
     assert read({**q, "trap": "contradiction"}) == []
 
 
-def test_chains_are_read_hop_by_hop_so_none_is_kept_whole():
-    text = "In what year was the city where Orlan Teste lives founded?"
-    assert read(question("q4", text, "chain", "1432", ["f9", "f1"], ["s9", "s1"])) == []
+def test_a_chain_teaches_the_bridge_on_what_the_first_search_read():
+    # The first search rarely reads the second hop: judged not enough, the
+    # excerpts still show which name to search next, the core's pointer.
+    q = question("q4", CHAIN, "chain", "1432", ["f9", "f1"], ["s9", "s1"])
+    assert read(q, label=False, hits=(S2, S9)) == [
+        ReadExample("w1", "q4", "val", CHAIN, (S2, S9), "Varnelle", ("s9",)),
+    ]
+
+
+def test_once_the_bridge_was_searched_a_chain_teaches_its_answer():
+    # Same question, more read: the core points at what answers it once it
+    # is there, at the name to search while it is not.
+    q = question("q4", CHAIN, "chain", "1432", ["f9", "f1"], ["s9", "s1"])
+    assert read(q, label=True, hits=(S9, S1)) == [
+        ReadExample("w1", "q4", "val", CHAIN, (S9, S1), "1432", ("s1",)),
+    ]
+
+
+def test_no_bridge_is_taught_where_its_link_was_not_read():
+    q = question("q4", CHAIN, "chain", "1432", ["f9", "f1"], ["s9", "s1"])
+    assert read(q, hits=(S1, S2)) == []
+    assert read({**q, "trap": "contradiction"}, hits=(S9,)) == []
 
 
 def test_reads_round_trip(tmp_path):
