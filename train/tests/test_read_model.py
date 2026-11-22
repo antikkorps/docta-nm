@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from docta_orchestrator.loop import run
 from docta_orchestrator.search import Hit
-from docta_orchestrator.states import Exit
+from docta_orchestrator.states import Exit, Framing
 from docta_train.read_model import CoreReadModel
 
 LIVES = Hit("s1", "Notes on Orlan Teste", "Orlan Teste lives in Varnelle.", 0.9)
@@ -105,3 +105,8 @@ def test_the_first_hop_is_judged_on_the_sentence_naming_the_bridge():
 
 def test_a_one_hop_answer_is_a_number_or_a_name():
     assert ask(SECOND, reader=Reader({SECOND: ("founded", "s2")})).exit == Exit.NOT_FOUND
+
+
+def test_the_second_search_is_the_bridge_by_its_name():
+    model = CoreReadModel(Core(), READER)
+    assert model.plan(Framing(CHAIN), (LIVES,), round_=1) == ["Varnelle"]

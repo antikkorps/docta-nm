@@ -10,7 +10,6 @@ Only Plan's first query and Confront stay rules.
 from typing import Protocol
 
 from docta_orchestrator.models.decompose import Chain, bridges, split_chain
-from docta_orchestrator.models.dig import dig_query
 from docta_orchestrator.models.keyword import Found, compared, winner
 from docta_orchestrator.search import Hit
 from docta_orchestrator.states import Evidence, Framing
@@ -93,4 +92,4 @@ class CoreReadModel(CoreChainModel):
             return super().plan(framing, evidence, round_)  # the question, then nothing
         chain = split_chain(framing.question)
         bridge = self.bridge(chain, list(evidence)) if chain else None
-        return [dig_query(framing.question, bridge[0])] if bridge else []
+        return [bridge[0]] if bridge else []  # searched by its name, as dig does

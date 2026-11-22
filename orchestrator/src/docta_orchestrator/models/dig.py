@@ -2,7 +2,7 @@
 
 "In what year was the city where Orlan Teste lives founded?": the first search
 reads "Orlan Teste lives in Varnelle." Varnelle is the unknown that reading
-revealed, so the next search goes after Varnelle, and the answer is read there.
+revealed, so the next search is "Varnelle", and the answer is read there.
 
 It only digs when the question refers to something indirectly ("the city
 where", "the guild that"). A direct question it cannot answer stays
@@ -75,14 +75,6 @@ def dug_answer(question: str, evidence: Evidence, only: set[str] | None = None) 
     return (best[1], best[2]) if best else None
 
 
-def dig_query(question: str, bridge: str) -> str:
-    """The search for what a chain asks about its bridge. The subject's words
-    are dropped: its sources were read already and would crowd the bridge's
-    out of the top results."""
-    rest = " ".join(w for w in re.findall(r"\w+", question) if w not in capitalised_words(question))
-    return f"{bridge} {rest}"
-
-
 class DigModel(KeywordModel):
     name = "dig"
 
@@ -92,7 +84,10 @@ class DigModel(KeywordModel):
             return [q]
         if round_ > 1 or not can_dig(q, evidence):
             return []
-        return [dig_query(q, name) for name in revealed(q, evidence)]
+        # The bridge by its name alone: the question's other words ("where",
+        # "city", "lives") match sources about anything near the bridge and
+        # crowd out the one stating its value, the more so as phrasings vary.
+        return revealed(q, evidence)
 
     def answer(self, framing: Framing, evidence: Evidence) -> Found | None:
         q = framing.question
