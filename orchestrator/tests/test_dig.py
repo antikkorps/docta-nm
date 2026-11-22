@@ -15,11 +15,12 @@ CHAIN = "In what year was the city where Orlan Teste lives founded?"
 
 
 def top_hit(query):
-    """Like the real tool but with k=1: the single source sharing most words."""
+    """Like the real tool with a tiny k: the sources sharing most words, ties
+    all kept (a bridge's name is once in its link and once in its value)."""
     words = set(re.findall(r"\w+", query.lower()))
     scored = [(len(words & set(re.findall(r"\w+", h.body.lower()))), h) for h in HITS]
-    best = max(scored, key=lambda x: x[0])
-    return [best[1]] if best[0] else []
+    best = max(n for n, _ in scored)
+    return [h for n, h in scored if n == best] if best else []
 
 
 def ask(question):
@@ -31,9 +32,10 @@ def test_reveals_the_names_a_sentence_about_the_subject_brings():
     assert revealed("In what year was Brask founded?", (GUILD,)) == ["Kel Dorn"]
 
 
-def test_digs_into_what_the_first_round_revealed():
-    plan = DigModel().plan(Framing(CHAIN), (LINK,), round_=1)
-    assert len(plan) == 1 and "Varnelle" in plan[0] and "Orlan" not in plan[0]
+def test_digs_into_what_the_first_round_revealed_by_its_name():
+    # The question's other words ("where", "city", "lives") match sources
+    # about anything near the bridge and crowd out the one stating its value.
+    assert DigModel().plan(Framing(CHAIN), (LINK,), round_=1) == ["Varnelle"]
 
 
 def test_answers_a_chain_citing_every_link():

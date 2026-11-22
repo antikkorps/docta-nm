@@ -42,6 +42,11 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Changed
 
+- Digging searches for the bridge by its name alone, not with the question's
+  other words, which brought back sources about anything near it. On test
+  (grammar data, one Evaluate seed), `core_read` goes from 77.9% to 83.0%
+  (chains 71.3% to 86.8%), `dig` from 67.4% to 68.3%; the right human hint
+  now recovers 60% of `core_read`'s failed chains (was under 1%), `fooled` 0.
 - **Sentences come from a combinatorial grammar**: each relation clause in
   eight frames, with or without a parenthetical after its subject, 30–48
   structures per predicate instead of 4–5. `ood` holds out (clause, form)
