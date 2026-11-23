@@ -14,7 +14,7 @@ which steers the search, but the answer and its citations stand on sources.
 
 import re
 
-from docta_orchestrator.models.dig import links
+from docta_orchestrator.models.dig import links, revealed
 from docta_orchestrator.models.keyword import Found, capitalised_words, compared
 from docta_orchestrator.models.templates import TEMPLATE_WORDS
 from docta_orchestrator.search import Hit
@@ -64,7 +64,10 @@ class CoreBridgeModel(CoreReadModel):
         # names nothing: searched, it would match half the sources.
         if not found[0][:1].isupper() or set(found[0].split()) & TEMPLATE_WORDS:
             return None
-        return found[0], found[1]
+        # The bridge pointer always lands somewhere: only a name a sentence
+        # about the subject brings in leads where the question asked (and is
+        # what the Evaluate core was taught to judge after a dig).
+        return found if found[0] in revealed(question, read) else None
 
     def evaluate(self, framing: Framing, evidence: Evidence) -> Verdict:
         q, read = framing.question, list(evidence)

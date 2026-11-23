@@ -97,3 +97,14 @@ def test_the_bridge_head_and_the_answer_head_point_apart_on_the_same_reading(tmp
     reader = ReadPredictor(tmp_path / "model.pt")
     assert reader.read(asked, [BRASK]) == ("1610", "s1")
     assert reader.bridge(asked, [BRASK]) == ("Brask", "s1")
+
+
+def test_a_single_pointer_checkpoint_is_refused(tmp_path):
+    import torch
+
+    train(tmp_path, epochs=1)
+    saved = torch.load(tmp_path / "model.pt", weights_only=True)
+    saved["state"] = {k: v for k, v in saved["state"].items() if not k.startswith("bridge.")}
+    torch.save(saved, tmp_path / "model.pt")
+    with pytest.raises(ValueError, match="predates the bridge pointer"):
+        ReadPredictor(tmp_path / "model.pt")

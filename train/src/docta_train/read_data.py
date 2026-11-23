@@ -74,7 +74,7 @@ def chain_target(question: dict, world: dict, read: set[str]) -> list[Taught]:
 
 
 def taught(question: dict, world: dict, e: Example) -> list[Taught]:
-    """(question as read, answer, sources stating it) the example teaches."""
+    """(question as read, answer, sources stating it, head) the example teaches."""
     if question["trap"] or not question["answerable"]:
         return []
     if question["primitive"] == "chain":
@@ -116,6 +116,9 @@ def read_reads(path: Path) -> Iterator[ReadExample]:
     with path.open(encoding="utf-8") as lines:
         for line in lines:
             r = json.loads(line)
+            if "head" not in r:
+                # Read back as answer targets, its bridges would mix the two pointers.
+                raise ValueError(f"{path} predates the two pointers: rerun `just read-data`")
             hits = tuple(Hit(**h) for h in r.pop("excerpts"))
             yield ReadExample(**{**r, "excerpts": hits, "sources": tuple(r["sources"])})
 

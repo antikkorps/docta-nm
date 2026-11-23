@@ -90,3 +90,18 @@ def test_reads_round_trip(tmp_path):
     examples = read(q) + read(chain, label=False, hits=(S2, S9))
     write_reads(examples, tmp_path / "val.jsonl")
     assert list(read_reads(tmp_path / "val.jsonl")) == examples
+
+
+def test_reads_written_before_the_two_pointers_are_refused(tmp_path):
+    # Read back as answer targets, its bridges would mix the pointers again.
+    import json
+
+    import pytest
+
+    q = question("q1", "In what year was Varnelle founded?", "retrieve", "1432", ["f1"], ["s1"])
+    write_reads(read(q), tmp_path / "val.jsonl")
+    old = json.loads((tmp_path / "val.jsonl").read_text())
+    del old["head"]
+    (tmp_path / "val.jsonl").write_text(json.dumps(old) + "\n")
+    with pytest.raises(ValueError, match="just read-data"):
+        list(read_reads(tmp_path / "val.jsonl"))

@@ -147,3 +147,15 @@ def test_the_link_cited_is_the_source_tying_the_subject_to_the_bridge():
     people = Hit("s3", "Census", "Varnelle has 300 inhabitants.", 0.9)
     found = CoreBridgeModel(Core(), Reader()).answer(Framing(CHAIN), (FOUNDED, people, LIVES))
     assert found == ("1432", ("s1", "s2"))
+
+
+def test_a_name_no_sentence_about_the_subject_brings_in_is_never_dug():
+    # The bridge pointer always lands somewhere; a name met only in a sentence
+    # about something else leads nowhere the question asked.
+    @dataclass
+    class Stray:
+        def bridge(self, question, excerpts):
+            return "Brask", "s3"
+
+    stray = Hit("s3", "Annals", "Brask was founded in 1100.", 0.9)
+    assert CoreBridgeModel(Core(), Stray()).plan(Framing(CHAIN), (LIVES, stray), round_=1) == []

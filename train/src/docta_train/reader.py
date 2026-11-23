@@ -101,11 +101,10 @@ class ReadPredictor:
         self.config = Config(**saved["config"])
         self.vocab = Vocab(saved["vocab"])
         self.model = CoreRead(self.config, len(self.vocab.words))
-        try:
-            self.model.load_state_dict(saved["state"])
-        except RuntimeError as e:
-            stale = f"{checkpoint} predates the bridge pointer: rerun `just fit-read`"
-            raise ValueError(stale) from e
+        if "bridge.weight" not in saved["state"]:
+            stale = "predates the bridge pointer: rerun `just read-data && just fit-read`"
+            raise ValueError(f"{checkpoint} {stale}")
+        self.model.load_state_dict(saved["state"])
         self.model.eval()
 
     def read(self, question: str, excerpts) -> tuple[str, str | None] | None:
