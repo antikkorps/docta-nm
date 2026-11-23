@@ -28,7 +28,7 @@ impl Split {
 
     /// Whether this split uses the held-out phrasings and chain combinations.
     pub fn held_out(self) -> bool {
-        self == Split::Ood
+        self.wording() == Wording::OodHeld
     }
 
     /// Which phrasings this split's texts are written in.

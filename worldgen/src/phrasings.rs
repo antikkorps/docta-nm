@@ -13,10 +13,10 @@ use crate::model::Pred;
 #[derive(Debug, Clone, Copy)]
 pub struct Phrasings {
     pub seen: &'static [&'static str],
+    pub held_out: &'static str,
     /// val's own: never in train, test or ood, so val measures generalisation
     /// and settings can be chosen there without opening the sealed ood.
     pub val_held: &'static str,
-    pub held_out: &'static str,
 }
 
 const fn p(
@@ -26,8 +26,8 @@ const fn p(
 ) -> Phrasings {
     Phrasings {
         seen,
-        val_held,
         held_out,
+        val_held,
     }
 }
 
@@ -95,7 +95,7 @@ pub fn sentence_clauses(pred: Pred) -> Phrasings {
                 "{o} has {s} as a member.",
             ],
             "{o} is the guild of {s}.",
-            "In {o}, {s} has a seat.",
+            "{o} is guild to {s}.",
         ),
         Pred::Elevation => p(
             &[

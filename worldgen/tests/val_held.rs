@@ -179,3 +179,34 @@ fn no_val_held_phrasing_is_exported() {
         assert!(!json.contains(v), "{v}");
     }
 }
+
+/// A val sentence must say which relation it states: a clause with no word of
+/// its own predicate reads as another's ("has a seat" reads as a seat, not as
+/// guild membership), and the fact would be misread.
+#[test]
+fn a_val_membership_clause_names_the_guild() {
+    let clause = sentence_clauses(docta_worldgen::model::Pred::MemberOf).val_held;
+    assert!(
+        clause.contains("guild") || clause.contains("member"),
+        "{clause}"
+    );
+}
+
+/// No val sentence can be read as a seen or ood one: under the matcher, not
+/// only as a string.
+#[test]
+fn no_val_sentence_fits_a_seen_or_ood_template() {
+    for pred in PREDS {
+        let s = sentence_phrasings(pred);
+        let others: Vec<&str> = s
+            .seen
+            .iter()
+            .chain(&s.held_out)
+            .map(String::as_str)
+            .collect();
+        for v in &s.val_held {
+            let text = v.replace("{s}", "Varnelle").replace("{o}", "Brask");
+            assert!(!any_fits(&others, &text), "{v}");
+        }
+    }
+}

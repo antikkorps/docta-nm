@@ -1,8 +1,8 @@
 //! The seen phrasings as one JSON file, for the orchestrator's rules.
 //!
-//! The rules must know exactly what a core trained on train/val sees, never
-//! the held-out phrasings. A hand copy could not follow the combinatorial
-//! grammar, so worldgen writes the file and a test keeps the committed copy
+//! The rules must know exactly what a core trained on train sees, never the
+//! phrasings held out for val or ood. A hand copy could not follow the
+//! combinatorial grammar, so worldgen writes the file and a test keeps the committed copy
 //! (orchestrator/src/docta_orchestrator/models/templates_seen.json) in step.
 
 use crate::grammar::sentence_phrasings;

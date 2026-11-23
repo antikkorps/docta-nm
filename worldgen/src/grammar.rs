@@ -10,8 +10,8 @@
 //!
 //! ood is sealed by held-out combinations: the held-out clause in every form,
 //! and one (clause, form) pair in four of the seen clauses. val has its own
-//! clause in every form. Every
-//! clause and every form is seen in train, never all their pairings.
+//! clause in every form. Every clause and every form is seen in train, never
+//! all their pairings.
 
 use crate::model::Pred;
 use crate::templates::sentence_clauses;

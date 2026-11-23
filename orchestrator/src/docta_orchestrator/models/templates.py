@@ -1,7 +1,7 @@
 """The seen phrasings of worldgen's templates and grammar, for the rules.
 
 Only the seen ones: the rule must know exactly what a core trained on
-train/val sees, never the held-out ood phrasings. worldgen writes them to
+train sees, never the phrasings held out for val or ood. worldgen writes them to
 templates_seen.json (`just templates`); a worldgen test keeps that file in
 step, and tests/test_rule_templates.py checks it against a generated corpus.
 """
