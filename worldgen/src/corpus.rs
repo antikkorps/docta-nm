@@ -169,16 +169,15 @@ pub fn build(world: World, split: Split, opts: &Options) -> Corpus {
     rng.set_stream(1);
     let n_missing = unanswerable_count(opts.unanswerable_ratio);
     let withheld = sources::withhold(&world, &mut rng);
-    let held_out = split.held_out();
-    let mut srcs = sources::write(&world, &withheld, held_out, &mut rng);
-    let mut questions = questions::generate(
-        &world, &srcs, &withheld, n_missing, opts, held_out, &mut rng,
-    );
+    let wording = split.wording();
+    let mut srcs = sources::write(&world, &withheld, wording, &mut rng);
+    let mut questions =
+        questions::generate(&world, &srcs, &withheld, n_missing, opts, wording, &mut rng);
     // Drawn last: without traps, every earlier draw and byte stays as it was.
     let ground = traps::Ground {
         world: &world,
         withheld: &withheld,
-        held_out,
+        wording,
     };
     traps::apply(
         &ground,

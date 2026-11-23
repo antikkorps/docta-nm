@@ -13,6 +13,11 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Added
 
+- **`val` held out from train**: `val` is written in phrasings of its own
+  (one sentence clause, question, comparison and chain link per predicate),
+  never in train, test or `ood`, so settings are chosen for generalisation
+  without opening `ood`. Train, test and `ood` are byte-identical; `val`
+  changes, so rerun `just gen && just load`.
 - `core_bridge` (experimental, in `just core` once the Read core exists):
   no rule splits a chain; the Read core points at the bridge, code searches
   it, Evaluate judges the whole question. Evaluate and Read data now teach

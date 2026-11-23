@@ -1,10 +1,11 @@
 //! English text templates. No LLM: every phrasing is written here by hand.
 //!
-//! Each kind of text has phrasings every split sees, and one held out for the
-//! ood split only. A held-out phrasing is a new structure built from words the
-//! seen ones already use ("In {o}, {s} was founded."): a core trained from
-//! scratch learns its words from train only, so a word it never met would test
-//! vocabulary, not the method. tests/ood.rs guards both.
+//! Each kind of text has phrasings train and test see, one held out for val
+//! only and one held out for the ood split only. A held-out phrasing is a new
+//! structure built from words the seen ones already use ("In {o}, {s} was
+//! founded."): a core trained from scratch learns its words from train only,
+//! so a word it never met would test vocabulary, not the method.
+//! tests/ood.rs and tests/val_held.rs guard them.
 
 use crate::model::Pred;
 
@@ -13,10 +14,21 @@ use crate::model::Pred;
 pub struct Phrasings {
     pub seen: &'static [&'static str],
     pub held_out: &'static str,
+    /// val's own: never in train, test or ood, so val measures generalisation
+    /// and settings can be chosen there without opening the sealed ood.
+    pub val_held: &'static str,
 }
 
-const fn p(seen: &'static [&'static str], held_out: &'static str) -> Phrasings {
-    Phrasings { seen, held_out }
+const fn p(
+    seen: &'static [&'static str],
+    held_out: &'static str,
+    val_held: &'static str,
+) -> Phrasings {
+    Phrasings {
+        seen,
+        held_out,
+        val_held,
+    }
 }
 
 /// The relation clauses of `pred`, before the grammar gives each its forms
@@ -32,6 +44,7 @@ pub fn sentence_clauses(pred: Pred) -> Phrasings {
                 "{o} is the year {s} was founded.",
             ],
             "In {o}, {s} was founded.",
+            "{s} has a founding year of {o}.",
         ),
         Pred::Population => p(
             &[
@@ -41,6 +54,7 @@ pub fn sentence_clauses(pred: Pred) -> Phrasings {
                 "At the last census, {s} had {o} inhabitants.",
             ],
             "The population of {s} is {o}.",
+            "{s} has {o} inhabitants.",
         ),
         Pred::BasedIn => p(
             &[
@@ -51,6 +65,7 @@ pub fn sentence_clauses(pred: Pred) -> Phrasings {
                 "In {o}, {s} has its seat.",
             ],
             "The seat of {s} is {o}.",
+            "{s} sits in {o}.",
         ),
         Pred::BornIn => p(
             &[
@@ -60,6 +75,7 @@ pub fn sentence_clauses(pred: Pred) -> Phrasings {
                 "In {o}, {s} was born.",
             ],
             "{o} is the year {s} was born.",
+            "The birth of {s} dates back to {o}.",
         ),
         Pred::LivesIn => p(
             &[
@@ -69,6 +85,7 @@ pub fn sentence_clauses(pred: Pred) -> Phrasings {
                 "In {o}, {s} has a home.",
             ],
             "The home of {s} is {o}.",
+            "{o} is the home of {s}.",
         ),
         Pred::MemberOf => p(
             &[
@@ -78,6 +95,7 @@ pub fn sentence_clauses(pred: Pred) -> Phrasings {
                 "{o} has {s} as a member.",
             ],
             "{o} is the guild of {s}.",
+            "{o} is guild to {s}.",
         ),
         Pred::Elevation => p(
             &[
@@ -88,6 +106,7 @@ pub fn sentence_clauses(pred: Pred) -> Phrasings {
                 "{s} lies at {o} metres above sea level.",
             ],
             "The elevation of {s} is {o} metres.",
+            "{s} stands {o} metres above sea level.",
         ),
         Pred::Members => p(
             &[
@@ -97,6 +116,7 @@ pub fn sentence_clauses(pred: Pred) -> Phrasings {
                 "On the rolls of {s} are {o} members.",
             ],
             "{o} members belong to {s}.",
+            "At the last census, {s} had {o} members.",
         ),
         Pred::Height => p(
             &[
@@ -106,6 +126,7 @@ pub fn sentence_clauses(pred: Pred) -> Phrasings {
                 "{o} centimetres is the height of {s}.",
             ],
             "{s} stands at {o} centimetres.",
+            "At {o} centimetres stands {s}.",
         ),
     }
 }
@@ -120,6 +141,7 @@ pub fn question_phrasings(pred: Pred) -> Phrasings {
                 "What is the founding year of {s}?",
             ],
             "What year was {s} founded in?",
+            "What was the founding year of {s}?",
         ),
         Pred::Population => p(
             &[
@@ -127,6 +149,7 @@ pub fn question_phrasings(pred: Pred) -> Phrasings {
                 "How many people live in {s}?",
             ],
             "What population does {s} have?",
+            "How many inhabitants does {s} have?",
         ),
         Pred::BasedIn => p(
             &[
@@ -134,6 +157,7 @@ pub fn question_phrasings(pred: Pred) -> Phrasings {
                 "Which city holds the seat of {s}?",
             ],
             "Which city is {s} based in?",
+            "Which city is the seat of {s}?",
         ),
         Pred::BornIn => p(
             &[
@@ -141,10 +165,12 @@ pub fn question_phrasings(pred: Pred) -> Phrasings {
                 "What is the birth year of {s}?",
             ],
             "What year was {s} born in?",
+            "What was the birth year of {s}?",
         ),
         Pred::LivesIn => p(
             &["In which city does {s} live?", "Which city is home to {s}?"],
             "Which city does {s} live in?",
+            "Which city is the home of {s}?",
         ),
         Pred::MemberOf => p(
             &[
@@ -152,6 +178,7 @@ pub fn question_phrasings(pred: Pred) -> Phrasings {
                 "Which guild has {s} as a member?",
             ],
             "Which guild is {s} a member of?",
+            "What is the guild of {s}?",
         ),
         Pred::Elevation => p(
             &[
@@ -159,6 +186,7 @@ pub fn question_phrasings(pred: Pred) -> Phrasings {
                 "How high above sea level does {s} lie, in metres?",
             ],
             "What is the elevation of {s}, in metres?",
+            "At what elevation does {s} lie, in metres?",
         ),
         Pred::Members => p(
             &[
@@ -166,6 +194,7 @@ pub fn question_phrasings(pred: Pred) -> Phrasings {
                 "What is the number of members of {s}?",
             ],
             "How many members belong to {s}?",
+            "How many members are on the rolls of {s}?",
         ),
         Pred::Height => p(
             &[
@@ -173,6 +202,7 @@ pub fn question_phrasings(pred: Pred) -> Phrasings {
                 "What is the height of {s}, in centimetres?",
             ],
             "How tall, in centimetres, is {s}?",
+            "How many centimetres tall is {s}?",
         ),
     }
 }
@@ -183,26 +213,32 @@ pub fn comparison_phrasings(pred: Pred) -> Option<Phrasings> {
         Pred::FoundedIn => p(
             &["Which was founded earlier, {s} or {o}?"],
             "Which of {s} or {o} was founded earlier?",
+            "Of {s} or {o}, which was founded earlier?",
         ),
         Pred::Population => p(
             &["Which has the larger population, {s} or {o}?"],
             "Which of {s} or {o} has the larger population?",
+            "Of {s} or {o}, which has the larger population?",
         ),
         Pred::BornIn => p(
             &["Who was born earlier, {s} or {o}?"],
             "Which of {s} or {o} was born earlier?",
+            "Of {s} or {o}, who was born earlier?",
         ),
         Pred::Elevation => p(
             &["Which lies higher, {s} or {o}?"],
             "Which of {s} or {o} lies higher?",
+            "Of {s} or {o}, which lies higher?",
         ),
         Pred::Members => p(
             &["Which has more members, {s} or {o}?"],
             "Which of {s} or {o} has more members?",
+            "Of {s} or {o}, which has more members?",
         ),
         Pred::Height => p(
             &["Who is taller, {s} or {o}?"],
             "Which of {s} or {o} is taller?",
+            "Of {s} or {o}, who is taller?",
         ),
         Pred::BasedIn | Pred::LivesIn | Pred::MemberOf => return None,
     })
@@ -217,11 +253,17 @@ pub fn link_phrasings(pred: Pred) -> Option<Phrasings> {
         Pred::BasedIn => Some(p(
             &["the city where {s} is based"],
             "the city {s} keeps its seat in",
+            "the city that holds the seat of {s}",
         )),
-        Pred::LivesIn => Some(p(&["the city where {s} lives"], "the city {s} resides in")),
+        Pred::LivesIn => Some(p(
+            &["the city where {s} lives"],
+            "the city {s} resides in",
+            "the city that is home to {s}",
+        )),
         Pred::MemberOf => Some(p(
             &["the guild that {s} belongs to"],
             "the guild {s} is a member of",
+            "the guild that has {s} as a member",
         )),
         _ => None,
     }

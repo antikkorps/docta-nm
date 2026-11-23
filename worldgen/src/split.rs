@@ -3,6 +3,8 @@
 //! `ood` (out of distribution) worlds are written with sentence and question
 //! phrasings, and chain combinations, that no other split ever sees: success
 //! there means the method generalises, not that templates were memorised.
+//! `val` worlds are written in phrasings of their own, held out of train and
+//! test too, so settings can be chosen for generalisation without ood.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Split {
@@ -26,8 +28,27 @@ impl Split {
 
     /// Whether this split uses the held-out phrasings and chain combinations.
     pub fn held_out(self) -> bool {
-        self == Split::Ood
+        self.wording() == Wording::OodHeld
     }
+
+    /// Which phrasings this split's texts are written in.
+    pub fn wording(self) -> Wording {
+        match self {
+            Split::Train | Split::Test => Wording::Seen,
+            Split::Val => Wording::ValHeld,
+            Split::Ood => Wording::OodHeld,
+        }
+    }
+}
+
+/// The phrasings a text draws from: train's, val's own, or ood's own. val is
+/// written in phrasings train never sees, so settings chosen on val are chosen
+/// for generalisation, while ood stays sealed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Wording {
+    Seen,
+    ValHeld,
+    OodHeld,
 }
 
 /// Share of worlds per split; `ood` takes the rest.

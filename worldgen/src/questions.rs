@@ -5,6 +5,7 @@
 use crate::corpus::{Options, Primitive, QUESTIONS_PER_WORLD, Question, Source};
 use crate::model::{Fact, Obj, Pred, World};
 use crate::sources::{name, render};
+use crate::split::Wording;
 use crate::templates;
 use rand::seq::{IndexedRandom, SliceRandom};
 use rand::{Rng, RngExt};
@@ -34,10 +35,10 @@ pub fn generate<R: Rng>(
     hidden: &BTreeSet<String>,
     n_missing: usize,
     opts: &Options,
-    held_out: bool,
+    wording: Wording,
     rng: &mut R,
 ) -> Vec<Question> {
-    let ctx = Ctx::new(world, sources, hidden, held_out);
+    let ctx = Ctx::new(world, sources, hidden, wording);
     let mut shapes = vec![Primitive::Retrieve, Primitive::Compare];
     if opts.max_hops >= 2 {
         shapes.push(Primitive::Chain);
@@ -67,11 +68,11 @@ pub fn fresh_retrieve<R: Rng>(
     world: &World,
     sources: &[Source],
     hidden: &BTreeSet<String>,
-    held_out: bool,
+    wording: Wording,
     (asked, avoid): (&[Question], &BTreeSet<String>),
     rng: &mut R,
 ) -> Option<Question> {
-    let ctx = Ctx::new(world, sources, hidden, held_out);
+    let ctx = Ctx::new(world, sources, hidden, wording);
     (0..MAX_ATTEMPTS).find_map(|_| {
         let d = ctx.retrieve(true, rng)?;
         let fact = &d.facts[0].id;
@@ -90,7 +91,7 @@ fn key(d: &Draft) -> (&'static str, Vec<String>) {
 struct Ctx<'a> {
     world: &'a World,
     hidden: &'a BTreeSet<String>,
-    held_out: bool,
+    wording: Wording,
     source_of: BTreeMap<&'a str, &'a str>,
 }
 
@@ -99,7 +100,7 @@ impl<'a> Ctx<'a> {
         world: &'a World,
         sources: &'a [Source],
         hidden: &'a BTreeSet<String>,
-        held_out: bool,
+        wording: Wording,
     ) -> Self {
         let source_of = sources
             .iter()
@@ -108,7 +109,7 @@ impl<'a> Ctx<'a> {
         Self {
             world,
             hidden,
-            held_out,
+            wording,
             source_of,
         }
     }
@@ -139,7 +140,7 @@ impl<'a> Ctx<'a> {
             .filter(|f| f.subj == subject.id && self.stated(f) == answerable)
             .collect();
         let f = *own.choose(rng)?;
-        let text = templates::question(f.pred, &subject.name, self.held_out, rng);
+        let text = templates::question(f.pred, &subject.name, self.wording, rng);
         Some(Draft {
             shape: Primitive::Retrieve,
             text,
@@ -153,10 +154,11 @@ impl<'a> Ctx<'a> {
         let (a, b) = self.pair(answerable, rng, |a, b| {
             // ood may ask any combination; the others never ask a held-out one.
             a.obj == Obj::Entity(b.subj.clone())
-                && (self.held_out || !HELD_OUT_CHAINS.contains(&(a.pred, b.pred)))
+                && (self.wording == Wording::OodHeld
+                    || !HELD_OUT_CHAINS.contains(&(a.pred, b.pred)))
         })?;
-        let via = templates::link(a.pred, name(self.world, &a.subj), self.held_out);
-        let text = templates::question(b.pred, &via, self.held_out, rng);
+        let via = templates::link(a.pred, name(self.world, &a.subj), self.wording);
+        let text = templates::question(b.pred, &via, self.wording, rng);
         Some(Draft {
             shape: Primitive::Chain,
             text,
@@ -175,7 +177,7 @@ impl<'a> Ctx<'a> {
         }
         let (na, nb) = (name(self.world, &a.subj), name(self.world, &b.subj));
         let winner = if first_wins(a, b) { na } else { nb };
-        let text = templates::comparison(a.pred, na, nb, self.held_out);
+        let text = templates::comparison(a.pred, na, nb, self.wording);
         Some(Draft {
             shape: Primitive::Compare,
             text,

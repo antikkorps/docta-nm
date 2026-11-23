@@ -3,7 +3,8 @@
 
 mod common;
 
-use common::fits::{fits, fits_loose, holds, skeleton};
+use common::fits::{holds, skeleton};
+use common::seal::{PREDS, any_fits, any_fits_loose, sentences, words};
 use common::{DEFAULT, corpora_in, fact};
 use docta_worldgen::corpus::{Corpus, Primitive};
 use docta_worldgen::grammar::sentence_phrasings;
@@ -15,19 +16,6 @@ use docta_worldgen::templates::{
     Phrasings, comparison_phrasings, describe, link_phrasings, question_phrasings,
     sentence_clauses, titles,
 };
-use std::collections::BTreeSet;
-
-const PREDS: [Pred; 9] = [
-    Pred::FoundedIn,
-    Pred::Population,
-    Pred::BasedIn,
-    Pred::BornIn,
-    Pred::LivesIn,
-    Pred::MemberOf,
-    Pred::Elevation,
-    Pred::Members,
-    Pred::Height,
-]; // fmt: skip
 
 fn templates(of: impl Fn(Pred) -> Option<Phrasings>, held_out: bool) -> Vec<&'static str> {
     PREDS
@@ -43,20 +31,6 @@ fn templates(of: impl Fn(Pred) -> Option<Phrasings>, held_out: bool) -> Vec<&'st
         .collect()
 }
 
-/// Every sentence a source writes itself. A copy repeats its origin's
-/// sentence behind an attribution; tests/traps.rs seals the attributions.
-fn sentences(c: &Corpus) -> Vec<String> {
-    c.sources
-        .iter()
-        .filter(|s| s.copy_of.is_none())
-        .flat_map(|s| {
-            s.text
-                .split(". ")
-                .map(|x| x.trim_end_matches('.').to_string() + ".")
-        })
-        .collect()
-}
-
 /// Every sentence phrasing the grammar writes, seen or held out.
 fn sentence_templates(held_out: bool) -> Vec<String> {
     PREDS
@@ -66,14 +40,6 @@ fn sentence_templates(held_out: bool) -> Vec<String> {
             if held_out { s.held_out } else { s.seen }
         })
         .collect()
-}
-
-fn any_fits(templates: &[&str], text: &str) -> bool {
-    templates.iter().any(|t| fits(t, text))
-}
-
-fn any_fits_loose(templates: &[&str], text: &str) -> bool {
-    templates.iter().any(|t| fits_loose(t, text))
 }
 
 #[test]
@@ -155,16 +121,6 @@ fn ood_keeps_every_shape_and_its_share_of_unanswerables() {
     }
     let missing = questions.iter().filter(|q| !q.answerable()).count();
     assert_eq!(missing * 9, questions.len() * 3);
-}
-
-/// Lowercased words of templates, placeholders left out.
-fn words<'a>(texts: impl IntoIterator<Item = &'a str>) -> BTreeSet<String> {
-    texts
-        .into_iter()
-        .flat_map(|t| t.split(|c: char| !c.is_ascii_alphabetic()))
-        .filter(|w| !w.is_empty() && *w != "s" && *w != "o" && *w != "t" && *w != "x")
-        .map(str::to_lowercase)
-        .collect()
 }
 
 /// A core learns words from train only: an ood word it never met cannot be
@@ -256,7 +212,11 @@ fn ood_chains_word_their_link_in_a_held_out_way_only() {
             "{q}"
         );
     }
-    let others = [Split::Train, Split::Val, Split::Test];
+    // val words its links its own way too (tests/val_held.rs), never ood's.
+    for c in corpora_in(Split::Val, 100, &DEFAULT) {
+        assert!(chains(&c).iter().all(|q| !held.iter().any(|t| holds(t, q))));
+    }
+    let others = [Split::Train, Split::Test];
     for c in others
         .into_iter()
         .flat_map(|s| corpora_in(s, 100, &DEFAULT))
