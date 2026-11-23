@@ -14,7 +14,8 @@ which steers the search, but the answer and its citations stand on sources.
 
 import re
 
-from docta_orchestrator.models.keyword import Found, compared
+from docta_orchestrator.models.dig import links
+from docta_orchestrator.models.keyword import Found, capitalised_words, compared
 from docta_orchestrator.models.templates import TEMPLATE_WORDS
 from docta_orchestrator.search import Hit
 from docta_orchestrator.states import Evidence, Exit, Framing, Verdict
@@ -33,18 +34,25 @@ class CoreBridgeModel(CoreReadModel):
         found = self.reader.read(q, read)
         if not found or not stated(found[0]):
             return None
-        return found[0], (*self.via(q, read, found), found[1])
+        via = self.via(q, read, found)
+        if via is None and not about_subject(q, read, found):
+            # Read after a dig no source ties to the subject (a wrong hint's
+            # name, say): it answers nothing that was asked.
+            return None
+        return found[0], (*(via or ()), found[1])
 
-    def via(self, question: str, read: list[Hit], found: tuple[str, str | None]) -> tuple[str, ...]:
-        """The source that led to the answer's: what the core points at with
-        the answer's source set aside, if that name is what the answer's
-        source is about. A chain cites its link; a one-hop answer, nothing more."""
-        rest = [h for h in read if h.source_id != found[1]]
-        bridge = self.next_name(question, rest)
-        if bridge is None or bridge[0] == found[0]:
-            return ()  # the answer met again elsewhere is no bridge to it
-        about = next((h.body for h in read if h.source_id == found[1]), "")
-        return (bridge[1],) if re.search(rf"\b{re.escape(bridge[0])}\b", about) else ()
+    def via(
+        self, question: str, read: list[Hit], found: tuple[str, str | None]
+    ) -> tuple[str, ...] | None:
+        """The source tying the subject to what the answer is about: a name a
+        sentence about the subject brings in, named again where the answer is
+        said. A chain cites its link; a one-hop answer, or a link in the
+        answer's own source, nothing more."""
+        said = answer_sentences(read, found)
+        for name, source in links(question, read):
+            if name != found[0] and any(re.search(rf"\b{re.escape(name)}\b", s) for s in said):
+                return () if source == found[1] else (source,)
+        return None
 
     def next_name(self, question: str, read: list[Hit]) -> tuple[str, str] | None:
         """A name the core points at that the question does not hold: one to
@@ -75,3 +83,16 @@ class CoreBridgeModel(CoreReadModel):
         # One dig, never for a comparison: its options are read one by one.
         found = self.next_name(q, list(evidence)) if round_ == 1 and not compared(q) else None
         return [found[0]] if found else []
+
+
+def answer_sentences(read: list[Hit], found: tuple[str, str | None]) -> list[str]:
+    """The sentences of the answer's source that state it."""
+    body = next((h.body for h in read if h.source_id == found[1]), "")
+    word = rf"\b{re.escape(found[0])}\b"
+    return [s for s in re.split(r"(?<=\.)\s+", body) if re.search(word, s)]
+
+
+def about_subject(question: str, read: list[Hit], found: tuple[str, str | None]) -> bool:
+    """The answer stated next to a name the question asks about: a one-hop answer."""
+    asked = set(capitalised_words(question))
+    return any(asked & set(capitalised_words(s)) for s in answer_sentences(read, found))
