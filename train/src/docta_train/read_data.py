@@ -29,7 +29,7 @@ from docta_orchestrator.search import Hit
 
 from docta_train.evaluate_data import Example, read_examples
 
-Taught = tuple[str, str, tuple[str, ...]]  # (question as read, answer, sources stating it)
+Taught = tuple[str, str, tuple[str, ...], str]  # (question as read, answer, its sources, head)
 
 
 @dataclass(frozen=True)
@@ -41,6 +41,9 @@ class ReadExample:
     excerpts: tuple[Hit, ...]
     answer: str
     sources: tuple[str, ...]  # where the answer is stated
+    # Which pointer learns it: "answer" (what answers the question) or
+    # "bridge" (the name to search next). One pointer for both mixed them up.
+    head: str = "answer"
 
 
 def asked(question: dict, world: dict) -> list[tuple[str, str]]:
@@ -65,8 +68,9 @@ def chain_target(question: dict, world: dict, read: set[str]) -> list[Taught]:
     was: whatever the core should look at next."""
     name, link = bridge(question, world)
     if set(question["required_sources"]) <= read:
-        return [(question["text"], question["answer"], (question["required_sources"][1],))]
-    return [(question["text"], name, (link,))] if link in read else []
+        second = (question["required_sources"][1],)
+        return [(question["text"], question["answer"], second, "answer")]
+    return [(question["text"], name, (link,), "bridge")] if link in read else []
 
 
 def taught(question: dict, world: dict, e: Example) -> list[Taught]:
@@ -78,7 +82,7 @@ def taught(question: dict, world: dict, e: Example) -> list[Taught]:
     if not e.label or question["primitive"] not in ("retrieve", "compare"):
         return []
     sources = tuple(question["required_sources"])
-    return [(text, answer, sources) for text, answer in asked(question, world)]
+    return [(text, answer, sources, "answer") for text, answer in asked(question, world)]
 
 
 def build_read_examples(
@@ -92,8 +96,10 @@ def build_read_examples(
             questions[(r["world_id"], r["question_id"])] = r
     for e in evaluated:
         q = questions[(e.world_id, e.question_id)]
-        for text, answer, sources in taught(q, worlds[e.world_id], e):
-            yield ReadExample(e.world_id, e.question_id, e.split, text, e.excerpts, answer, sources)
+        for text, answer, sources, head in taught(q, worlds[e.world_id], e):
+            yield ReadExample(
+                e.world_id, e.question_id, e.split, text, e.excerpts, answer, sources, head
+            )
 
 
 def write_reads(examples: Iterable[ReadExample], path: Path) -> int:

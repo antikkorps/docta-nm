@@ -23,13 +23,13 @@ class Core:
 
 @dataclass
 class Reader:
-    """Points at the answer once read, else at the bridge, wherever it is said."""
+    """Two pointers: the answer once read; the bridge, wherever it is said."""
 
     def read(self, question, excerpts):
-        bodies = {h.source_id: h.body for h in excerpts}
-        if "s2" in bodies:
-            return "1432", "s2"
-        said = [s for s, body in bodies.items() if "Varnelle" in body]
+        return ("1432", "s2") if any(h.source_id == "s2" for h in excerpts) else None
+
+    def bridge(self, question, excerpts):
+        said = [h.source_id for h in excerpts if "Varnelle" in h.body]
         return ("Varnelle", said[0]) if said else None
 
 
@@ -91,7 +91,7 @@ def test_a_one_hop_answer_cites_its_own_source_only():
 def test_a_template_word_is_never_a_name_to_search():
     @dataclass
     class Opening:
-        def read(self, question, excerpts):
+        def bridge(self, question, excerpts):
             return "The", "s1"
 
     assert CoreBridgeModel(Core(), Opening()).plan(Framing(CHAIN), (LIVES,), round_=1) == []
@@ -108,10 +108,10 @@ def test_a_wrong_hint_never_carries_an_answer_no_source_ties_to_the_subject():
     @dataclass
     class Hinted:
         def read(self, question, excerpts):
-            bodies = {h.source_id: h.body for h in excerpts}
-            if "s4" in bodies:
-                return "1100", "s4"
-            said = [s for s, body in bodies.items() if "Brask" in body]
+            return ("1100", "s4") if any(h.source_id == "s4" for h in excerpts) else None
+
+        def bridge(self, question, excerpts):
+            said = [h.source_id for h in excerpts if "Brask" in h.body]
             return ("Brask", said[0]) if said else None
 
     brask = Hit("s4", "Annals of Brask", "Brask was founded in 1100.", 0.9)

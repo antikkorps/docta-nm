@@ -1,12 +1,12 @@
 """CoreBridgeModel: core_read with no rule on a chain's wording.
 
 "In what year was the city Orlan Teste resides in founded?" is read whole.
-The Read core points at what the question needs next: the answer once its
-source was read, otherwise the name to search (Varnelle, from "Orlan Teste
-resides in Varnelle."). Code searches that name, as dig does, and the core
-points again. The Evaluate core judges the whole question on all that was
-read. No regex recognises a chain, so a held-out link wording is no wall:
-whether the core finds the bridge is what ood measures.
+The Read core has two pointers on one reading: the answer, and the name to
+search next (Varnelle, from "Orlan Teste resides in Varnelle."). Code
+searches that name, as dig does, and the core reads again. The Evaluate
+core judges the whole question on all that was read. No regex recognises
+a chain, so a held-out link wording is no wall: whether the core finds the
+bridge is what ood measures.
 
 A human hint reaches Plan only: the core may point at a name the hint says,
 which steers the search, but the answer and its citations stand on sources.
@@ -57,7 +57,7 @@ class CoreBridgeModel(CoreReadModel):
     def next_name(self, question: str, read: list[Hit]) -> tuple[str, str] | None:
         """A name the core points at that the question does not hold: one to
         search. A number, or a name already asked about, leads nowhere."""
-        found = self.reader.read(question, read)
+        found = self.reader.bridge(question, read)  # the Read core's second pointer
         if not found or found[1] is None or found[0] in question:
             return None
         # A capitalised template word ("The", "Records") opens a sentence, it

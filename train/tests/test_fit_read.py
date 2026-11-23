@@ -78,3 +78,22 @@ def test_a_val_answer_out_of_reach_does_not_wreck_the_loss(tmp_path):
     report = fit_read(examples("train", 16), [*examples("val", 4), lost, lost], tmp_path, TINY,
                       epochs=1, batch=16, lr=3e-3, seed=0)  # fmt: skip
     assert math.isfinite(report["last"]["val_loss"])
+
+
+def test_the_bridge_head_and_the_answer_head_point_apart_on_the_same_reading(tmp_path):
+    # One encoder, two pointers: what answers, and what to search next. The
+    # same excerpts teach "1610" to one and "Brask" to the other.
+    asked = "In what year was the city where Orlan Teste lives founded?"
+    both = [
+        ReadExample(f"w{i}", f"q{i}", split, asked, (BRASK,), *target)
+        for split, n in (("train", 64), ("val", 8))
+        for i in range(n)
+        for target in ((("1610", ("s1",))), ("Brask", ("s1",), "bridge"))
+    ]  # fmt: skip
+    train_set = [e for e in both if e.split == "train"]
+    report = fit_read(train_set, [e for e in both if e.split == "val"], tmp_path, TINY,
+                      epochs=12, batch=16, lr=3e-3, seed=0)  # fmt: skip
+    assert report["last"]["val_exact_bridge"] == report["last"]["val_exact_answer"] == 1.0
+    reader = ReadPredictor(tmp_path / "model.pt")
+    assert reader.read(asked, [BRASK]) == ("1610", "s1")
+    assert reader.bridge(asked, [BRASK]) == ("Brask", "s1")
