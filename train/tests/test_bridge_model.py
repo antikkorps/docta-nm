@@ -100,3 +100,50 @@ def test_a_template_word_is_never_a_name_to_search():
 def test_a_comparison_never_digs():
     asked = "Which was founded earlier, Brask or Kel Dorn?"
     assert CoreBridgeModel(Core(), Reader()).plan(Framing(asked), (LIVES,), round_=1) == []
+
+
+def test_a_wrong_hint_never_carries_an_answer_no_source_ties_to_the_subject():
+    # The hint sends the dig to Brask; Brask's founding is read, but no source
+    # says Orlan Teste lives there, so that year answers nothing asked.
+    @dataclass
+    class Hinted:
+        def read(self, question, excerpts):
+            bodies = {h.source_id: h.body for h in excerpts}
+            if "s4" in bodies:
+                return "1100", "s4"
+            said = [s for s, body in bodies.items() if "Brask" in body]
+            return ("Brask", said[0]) if said else None
+
+    brask = Hit("s4", "Annals of Brask", "Brask was founded in 1100.", 0.9)
+    search, _ = search_by({CHAIN: [LIVES], "Brask": [brask]})
+    hint = human_hint("Orlan Teste resides in Brask.")
+    outcome, _ = run(CHAIN, CoreBridgeModel(AnyFounding(), Hinted()), search, hint=hint)
+    assert outcome.answer is None
+
+
+@dataclass
+class AnyFounding:
+    """Enough once any founding was read."""
+
+    def prob_enough(self, question, excerpts):
+        return 0.9 if any("founded" in h.body for h in excerpts) else 0.1
+
+
+def test_a_link_and_answer_in_one_source_cite_it_once():
+    both = Hit("s1", "Notes", "Orlan Teste resides in Varnelle. Varnelle was founded in 1432.", 0.9)
+
+    @dataclass
+    class Year:
+        def read(self, question, excerpts):
+            return ("1432", "s1") if excerpts else None
+
+    found = CoreBridgeModel(Core(), Year()).answer(Framing(CHAIN), (both,))
+    assert found == ("1432", ("s1",))
+
+
+def test_the_link_cited_is_the_source_tying_the_subject_to_the_bridge():
+    # The core may point at Varnelle where its population is said: the link
+    # cited is still the sentence saying Orlan Teste resides there.
+    people = Hit("s3", "Census", "Varnelle has 300 inhabitants.", 0.9)
+    found = CoreBridgeModel(Core(), Reader()).answer(Framing(CHAIN), (FOUNDED, people, LIVES))
+    assert found == ("1432", ("s1", "s2"))
