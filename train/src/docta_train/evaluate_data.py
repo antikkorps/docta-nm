@@ -13,14 +13,18 @@ import argparse
 import json
 import os
 import sys
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import psycopg
 from docta_orchestrator.jsonl import read_records
 from docta_orchestrator.loop import Search
+from docta_orchestrator.models.dig import revealed
+from docta_orchestrator.models.keyword import compared
 from docta_orchestrator.search import Hit, search
+
+from docta_train.chain_truth import Bridge, Key, chain_bridges
 
 
 @dataclass(frozen=True)
@@ -39,13 +43,39 @@ def enough(question: dict, hits: Iterable[Hit]) -> bool:
 
 
 def build_examples(
-    questions: Iterable[dict], search_for: Callable[[str], Search], split: str
+    questions: Iterable[dict],
+    search_for: Callable[[str], Search],
+    split: str,
+    bridges: Mapping[Key, Bridge] | None = None,
 ) -> Iterator[Example]:
-    """One example per question, searched the way the hybrid model plans:
-    a single query made of the question itself."""
+    """One example per question, searched the way the models plan: a single
+    query made of the question itself. A question not yet enough gets a
+    second one, as core_bridge sees it in round 2: what it holds once a name
+    it brought in was searched (see dug_name)."""
     for q in questions:
-        hits = tuple(search_for(q["world_id"])(q["text"]))
+        search = search_for(q["world_id"])
+        hits = tuple(search(q["text"]))
         yield Example(q["world_id"], q["question_id"], split, q["text"], hits, enough(q, hits))
+        name = None if enough(q, hits) else dug_name(q, hits, bridges or {})
+        if name:
+            read = {h.source_id for h in hits}
+            dug = hits + tuple(h for h in search(name) if h.source_id not in read)
+            yield Example(q["world_id"], q["question_id"], split, q["text"], dug, enough(q, dug))
+
+
+def dug_name(question: dict, hits: tuple[Hit, ...], bridges: Mapping[Key, Bridge]) -> str | None:
+    """The name core_bridge would search next: a chain's bridge once its link
+    was read (where the Read core learns to point); otherwise, as a stand-in
+    for wherever the core points, the first name a sentence about the
+    subject brings in. Comparisons never dig. Evaluate thus sees more read
+    than needed on every shape, not only on chains that have an answer."""
+    if compared(question["text"]):
+        return None
+    bridge = bridges.get((question["world_id"], question["question_id"]))
+    if bridge and bridge[1] in {h.source_id for h in hits}:
+        return bridge[0]
+    names = revealed(question["text"], hits)
+    return names[0] if names else None
 
 
 def write_examples(examples: Iterable[Example], path: Path) -> int:
@@ -82,9 +112,10 @@ def main(argv: list[str]) -> int:
     try:
         with psycopg.connect(url, autocommit=True) as conn:
             for path in args.splits:
+                bridges = chain_bridges(r for _, r in read_records(path))
                 questions = (r for _, r in read_records(path) if r["type"] == "question")
                 examples = build_examples(
-                    questions, lambda wid: lambda q: search(conn, wid, q), path.stem
+                    questions, lambda wid: lambda q: search(conn, wid, q), path.stem, bridges
                 )
                 n = write_examples(examples, args.out / f"{path.stem}.jsonl")
                 print(f"{path.stem}: {n} examples", file=sys.stderr)

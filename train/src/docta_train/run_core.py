@@ -14,6 +14,7 @@ from docta_orchestrator.jsonl import read_records
 from docta_orchestrator.protocol import VARIANTS, run_on_split
 from docta_orchestrator.search import search
 
+from docta_train.bridge_model import CoreBridgeModel
 from docta_train.core_model import CoreChainModel, CoreEvaluateModel
 from docta_train.predictor import Predictor
 from docta_train.read_model import CoreReadModel
@@ -28,24 +29,29 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--traces", type=Path, default=Path("data/traces"))
     p.add_argument("--threshold", type=float, default=0.5)
     p.add_argument("--reader", type=Path, default=Path("models/core_read/model.pt"),
-                   help="a trained Read core; when it exists, core_read runs too")  # fmt: skip
+                   help="a Read core; when it exists, core_read and core_bridge run")  # fmt: skip
     p.add_argument("--human", type=Path,
                    help="run the human-correction protocol into this directory")  # fmt: skip
     return p.parse_args(argv)
+
+
+READ_MODELS = ("core_read", "core_bridge")  # the models that need a Read core
 
 
 def build_models(args: argparse.Namespace) -> list:
     core = Predictor(args.checkpoint)
     models = [CoreEvaluateModel(core, args.threshold), CoreChainModel(core, args.threshold)]
     if args.reader.exists():
-        models.append(CoreReadModel(core, ReadPredictor(args.reader), args.threshold))
+        reader = ReadPredictor(args.reader)
+        models += [CoreReadModel(core, reader, args.threshold),
+                   CoreBridgeModel(core, reader, args.threshold)]  # fmt: skip
     else:
         # Every core_*.jsonl (or protocol file) is scored: an old run must not
         # pass for this one.
         stale = (
-            [args.human / f"core_read.{v}.jsonl" for v in VARIANTS]
+            [args.human / f"{m}.{v}.jsonl" for m in READ_MODELS for v in VARIANTS]
             if args.human
-            else [args.out / "core_read.jsonl"]
+            else [args.out / f"{m}.jsonl" for m in READ_MODELS]
         )
         for path in stale:
             path.unlink(missing_ok=True)
