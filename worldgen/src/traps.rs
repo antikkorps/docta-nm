@@ -10,6 +10,7 @@ use crate::corpus::{Primitive, Question, Source, Trap};
 use crate::liars::{Claim, Titles, cents};
 use crate::model::{Fact, World};
 use crate::sources::name;
+use crate::split::Wording;
 use crate::{questions as ask, templates};
 use rand::seq::{IndexedRandom, SliceRandom};
 use rand::{Rng, RngExt};
@@ -22,7 +23,7 @@ pub struct Ground<'a> {
     pub world: &'a World,
     /// The facts no source states (one per entity).
     pub withheld: &'a BTreeSet<String>,
-    pub held_out: bool,
+    pub wording: Wording,
 }
 
 /// Sets a trap on `round(ratio × answerable retrieve questions)` questions.
@@ -43,7 +44,7 @@ pub fn apply<R: Rng>(
         contested.insert(questions[i].required_facts[0].clone());
         let kind = choose_kind(ground, sources, questions, &contested, rng);
         let q = &mut questions[i];
-        let how = (ground.held_out, &mut titles);
+        let how = (ground.wording, &mut titles);
         added.extend(set(ground.world, sources, q, kind, how, rng));
     }
     insert_and_renumber(sources, added, questions, rng);
@@ -82,7 +83,7 @@ fn swap_slot<R: Rng>(
     let Some(k) = slot else { return false };
     let (world, hidden) = (ground.world, ground.withheld);
     let asked = (&*questions, contested);
-    let Some(mut fresh) = ask::fresh_retrieve(world, sources, hidden, ground.held_out, asked, rng)
+    let Some(mut fresh) = ask::fresh_retrieve(world, sources, hidden, ground.wording, asked, rng)
     else {
         return false;
     };
@@ -126,14 +127,14 @@ fn set<R: Rng>(
     sources: &mut [Source],
     q: &mut Question,
     kind: Trap,
-    (held_out, titles): (bool, &mut Titles),
+    (wording, titles): (Wording, &mut Titles),
     rng: &mut R,
 ) -> Vec<Source> {
     let fact = world.fact(&q.required_facts[0]).expect("fact");
     let truth = sources.iter_mut().find(|s| s.id == q.required_sources[0]);
     let truth = truth.expect("source");
     let tag = format!("{}:{}", q.text, kind.as_str());
-    let mut claim = Claim::new(world, fact, tag, held_out, titles, rng);
+    let mut claim = Claim::new(world, fact, tag, wording, titles, rng);
     q.trap = Some(kind);
     match kind {
         Trap::Contradiction => contradiction(&mut claim, truth, rng),

@@ -5,17 +5,24 @@ use crate::model::Pred;
 pub use crate::phrasings::{
     Phrasings, comparison_phrasings, link_phrasings, question_phrasings, sentence_clauses,
 };
+use crate::split::Wording;
 use rand::Rng;
 use rand::seq::IndexedRandom;
 
 /// A sentence stating `subj pred obj`. Seen phrasings vary at random so a model
 /// cannot rely on a single surface form.
-pub fn sentence<R: Rng>(pred: Pred, subj: &str, obj: &str, held_out: bool, rng: &mut R) -> String {
+pub fn sentence<R: Rng>(
+    pred: Pred,
+    subj: &str,
+    obj: &str,
+    wording: Wording,
+    rng: &mut R,
+) -> String {
     let phrasings = crate::grammar::sentence_phrasings(pred);
-    let pool = if held_out {
-        &phrasings.held_out
-    } else {
-        &phrasings.seen
+    let pool = match wording {
+        Wording::Seen => &phrasings.seen,
+        Wording::ValHeld => &phrasings.val_held,
+        Wording::OodHeld => &phrasings.held_out,
     };
     fill(
         pool.choose(rng).expect("templates are non-empty"),
@@ -24,13 +31,13 @@ pub fn sentence<R: Rng>(pred: Pred, subj: &str, obj: &str, held_out: bool, rng: 
     )
 }
 
-pub fn question<R: Rng>(pred: Pred, subj: &str, held_out: bool, rng: &mut R) -> String {
-    fill(pick(question_phrasings(pred), held_out, rng), subj, "")
+pub fn question<R: Rng>(pred: Pred, subj: &str, wording: Wording, rng: &mut R) -> String {
+    fill(pick(question_phrasings(pred), wording, rng), subj, "")
 }
 
-pub fn comparison(pred: Pred, a: &str, b: &str, held_out: bool) -> String {
+pub fn comparison(pred: Pred, a: &str, b: &str, wording: Wording) -> String {
     let phrasings = comparison_phrasings(pred).expect("only numeric predicates are compared");
-    fill(one(phrasings, held_out), a, b)
+    fill(one(phrasings, wording), a, b)
 }
 
 /// Every title a source about `subj` can take. Eight forms, so a source a
@@ -57,9 +64,9 @@ pub fn title<R: Rng>(subj: &str, rng: &mut R) -> String {
 }
 
 /// The first hop of a chain about `subj`, as its split words it.
-pub fn link(pred: Pred, subj: &str, held_out: bool) -> String {
+pub fn link(pred: Pred, subj: &str, wording: Wording) -> String {
     let phrasings = link_phrasings(pred).expect("a chain link points to an entity");
-    fill(one(phrasings, held_out), subj, "")
+    fill(one(phrasings, wording), subj, "")
 }
 
 /// A noun phrase for the object of `pred` of `subj`: what an unanswerable
@@ -79,23 +86,22 @@ pub fn describe(pred: Pred, subj: &str) -> String {
     fill(template, subj, "")
 }
 
-/// A seen phrasing at random, or the held-out one. The held-out branch draws
-/// nothing, so ood never shifts the RNG stream of the other splits.
-fn pick<R: Rng>(phrasings: Phrasings, held_out: bool, rng: &mut R) -> &'static str {
-    if held_out {
-        phrasings.held_out
-    } else {
-        phrasings.seen.choose(rng).expect("templates are non-empty")
+/// A seen phrasing at random, or a held-out one. The held-out branches draw
+/// nothing, so val and ood never shift the RNG stream of train and test.
+fn pick<R: Rng>(phrasings: Phrasings, wording: Wording, rng: &mut R) -> &'static str {
+    match wording {
+        Wording::Seen => phrasings.seen.choose(rng).expect("templates are non-empty"),
+        held => one(phrasings, held),
     }
 }
 
 /// Comparisons have one seen phrasing: no draw, so the RNG stream stays as it
 /// was. The keyword baseline finds the two names joined by "or", in any wording.
-fn one(phrasings: Phrasings, held_out: bool) -> &'static str {
-    if held_out {
-        phrasings.held_out
-    } else {
-        phrasings.seen[0]
+fn one(phrasings: Phrasings, wording: Wording) -> &'static str {
+    match wording {
+        Wording::Seen => phrasings.seen[0],
+        Wording::ValHeld => phrasings.val_held,
+        Wording::OodHeld => phrasings.held_out,
     }
 }
 
@@ -121,9 +127,9 @@ mod tests {
 
     #[test]
     fn chain_questions_read_naturally() {
-        let via = link(Pred::MemberOf, "Orlan Teste", false);
+        let via = link(Pred::MemberOf, "Orlan Teste", Wording::Seen);
         let mut rng = rand::rngs::ChaCha8Rng::seed_from_u64(0);
-        let seen = question(Pred::FoundedIn, &via, false, &mut rng);
+        let seen = question(Pred::FoundedIn, &via, Wording::Seen, &mut rng);
         assert!(
             [
                 "In what year was the guild that Orlan Teste belongs to founded?",
@@ -132,9 +138,9 @@ mod tests {
             .contains(&seen.as_str()),
             "{seen}"
         );
-        let held = link(Pred::MemberOf, "Orlan Teste", true);
+        let held = link(Pred::MemberOf, "Orlan Teste", Wording::OodHeld);
         assert_eq!(
-            question(Pred::FoundedIn, &held, true, &mut rng),
+            question(Pred::FoundedIn, &held, Wording::OodHeld, &mut rng),
             "What year was the guild Orlan Teste is a member of founded in?"
         );
     }

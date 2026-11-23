@@ -9,8 +9,9 @@
 //! never sit at fixed places.
 //!
 //! ood is sealed by held-out combinations: the held-out clause in every form,
-//! and one (clause, form) pair in four of the seen clauses. Every clause and
-//! every form is seen in train, never all their pairings.
+//! and one (clause, form) pair in four of the seen clauses. val has its own
+//! clause in every form. Every
+//! clause and every form is seen in train, never all their pairings.
 
 use crate::model::Pred;
 use crate::templates::sentence_clauses;
@@ -38,6 +39,7 @@ const HELD_OUT_EVERY: usize = 4;
 #[derive(Debug, Clone)]
 pub struct Sentences {
     pub seen: Vec<String>,
+    pub val_held: Vec<String>,
     pub held_out: Vec<String>,
 }
 
@@ -54,7 +56,13 @@ pub fn sentence_phrasings(pred: Pred) -> Sentences {
         }
     }
     held_out.extend(forms(clauses.held_out));
-    Sentences { seen, held_out }
+    // val's clause in every form; no seen pairing is taken from train, so
+    // train and test are written exactly as before val had its own.
+    Sentences {
+        seen,
+        val_held: forms(clauses.val_held),
+        held_out,
+    }
 }
 
 /// The capitalised words a sentence can open with that are template words,
@@ -62,7 +70,7 @@ pub fn sentence_phrasings(pred: Pred) -> Sentences {
 pub fn opening_words() -> BTreeSet<&'static str> {
     let clauses = Pred::ALL.into_iter().flat_map(|p| {
         let c = sentence_clauses(p);
-        c.seen.iter().copied().chain([c.held_out])
+        c.seen.iter().copied().chain([c.val_held, c.held_out])
     });
     FRAMES
         .into_iter()
