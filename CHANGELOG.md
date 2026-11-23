@@ -17,8 +17,9 @@ lines under a new version, and its GitHub Release carries the reference scores.
   no rule splits a chain; the Read core points at the bridge, code searches
   it, Evaluate judges the whole question. Evaluate and Read data now teach
   the step after the dig. Evaluate `ood` AUC 0.818 (was 0.635–0.753), but
-  `core_bridge` chains 28.8% on test (`core_read` 69.3%), 7.1% on `ood`, and
-  a wrong hint fools it on 41% of test chains: a measured negative result.
+  `core_bridge` chains 27.9% on test (`core_read` 69.3%), 6.9% on `ood`
+  (0.2% justified for `core_read`); a subject check keeps a wrong hint from
+  fooling it (41% → 0). A measured negative result.
 - **Human-correction protocol** (`just human`): each answerable chain runs
   with no hint, the right bridge and a wrong one said mid-way, through a
   human channel only Plan hears. Scores: accuracy per variant, `heard`,
