@@ -1,8 +1,9 @@
 """Trains the Read core: `python -m docta_train.fit_read --data data/read`.
 
-Writes OUT/model.pt (the last epoch) and OUT/log.jsonl. Val is no guide to
-the epoch: it saturates at 100% from epoch 1 while ood still moves (best at
-epoch 2 over three seeds), so the run length is the choice.
+Writes OUT/model.pt (the last epoch) and OUT/log.jsonl, with val exactness
+per pointer (`val_exact_answer`, `val_exact_bridge`). Taught retrieve and
+compare only, val saturated at 100% from epoch 1; with chains it no longer
+does, so each pointer's val score is the guide to the run length.
 No resume yet: a run is short enough to restart.
 """
 
@@ -32,16 +33,15 @@ from docta_train.shortcut import shape
 from docta_train.training import Warmup, by_shape
 from docta_train.words import Vocab
 
-Item = tuple[list[int], list[int]]  # token ids, positions of the answer
+Item = tuple[list[int], list[int], bool]  # token ids, positions of the answer, bridge head
 
 
 def encoded(examples: Sequence[ReadExample], vocab: Vocab, max_len: int) -> list[Item]:
     items = []
     for e in examples:
         ids = vocab.encode(e.question, e.excerpts)[:max_len]
-        items.append(
-            (ids, answer_positions(aligned(e.question, e.excerpts), e.answer, e.sources, max_len))
-        )
+        at = answer_positions(aligned(e.question, e.excerpts), e.answer, e.sources, max_len)
+        items.append((ids, at, e.head == "bridge"))
     return items
 
 
@@ -50,11 +50,12 @@ def scored(
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Scores, answer positions and candidate positions for one batch, in
     pointer_loss's order."""
-    ids, pad = pad_batch([i for i, _ in items])
+    ids, pad = pad_batch([i for i, _, _ in items])
     target = torch.zeros_like(ids, dtype=torch.bool)
-    for row, (_, at) in enumerate(items):
+    for row, (_, at, _) in enumerate(items):
         target[row, at] = True
-    return model(ids, pad), target, candidates(ids)
+    bridge = torch.tensor([b for _, _, b in items])
+    return model(ids, pad, bridge), target, candidates(ids)
 
 
 def run_epoch(run: dict, items: list[Item], batch: int) -> float:
@@ -93,8 +94,15 @@ def validate(model: CoreRead, val: Sequence[ReadExample], items: list[Item], bat
     return {
         "val_loss": loss / max(reachable, 1),
         "val_exact": sum(right) / len(right),
+        **{f"val_exact_{head}": exact(right, val, head) for head in ("answer", "bridge")},
         "val_by_shape": by_shape(right, [shape(e.question) for e in val]),
     }
+
+
+def exact(right: list[bool], val: Sequence[ReadExample], head: str) -> float | None:
+    """Exact answers among one pointer's examples: each head is judged on its own job."""
+    mine = [r for r, e in zip(right, val, strict=True) if e.head == head]
+    return sum(mine) / len(mine) if mine else None
 
 
 def fit_read(train, val, out: Path, config: Config, epochs: int, batch: int, lr: float,

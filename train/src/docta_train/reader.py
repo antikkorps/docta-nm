@@ -10,6 +10,7 @@ example: same word tokens, same sentence-local heads.
 from pathlib import Path
 
 import torch
+from torch import nn
 
 from docta_train.model import Config, CoreEvaluate, pad_batch
 from docta_train.words import BODY, PAD, SRC, STOP, WORD, Vocab
@@ -71,10 +72,23 @@ def pointer_loss(scores: torch.Tensor, target: torch.Tensor, allowed: torch.Tens
 
 
 class CoreRead(CoreEvaluate):
-    """Reads question + excerpts, returns one score per token."""
+    """Reads question + excerpts, returns one score per token, from one of two
+    pointers on the same encoding: what answers the question, or the name to
+    search next. Taught to one pointer, the two pulled against each other."""
 
-    def forward(self, ids: torch.Tensor, pad_mask: torch.Tensor) -> torch.Tensor:
-        return self.head(self.encode(ids)).squeeze(-1)
+    def __init__(self, config: Config, vocab_size: int):
+        super().__init__(config, vocab_size)
+        self.bridge = nn.Linear(config.d_model, 1)
+
+    def forward(
+        self, ids: torch.Tensor, pad_mask: torch.Tensor, bridge: torch.Tensor | None = None
+    ) -> torch.Tensor:
+        """`bridge` marks the rows read for the next name; the others, for the answer."""
+        encoded = self.encode(ids)
+        answer = self.head(encoded).squeeze(-1)
+        if bridge is None:
+            return answer
+        return torch.where(bridge[:, None], self.bridge(encoded).squeeze(-1), answer)
 
 
 class ReadPredictor:
@@ -87,16 +101,27 @@ class ReadPredictor:
         self.config = Config(**saved["config"])
         self.vocab = Vocab(saved["vocab"])
         self.model = CoreRead(self.config, len(self.vocab.words))
+        if "bridge.weight" not in saved["state"]:
+            stale = "predates the bridge pointer: rerun `just read-data && just fit-read`"
+            raise ValueError(f"{checkpoint} {stale}")
         self.model.load_state_dict(saved["state"])
         self.model.eval()
 
-    @torch.no_grad()
     def read(self, question: str, excerpts) -> tuple[str, str | None] | None:
         """The answer copied at the best body word, with its source."""
+        return self.point(question, excerpts, bridge=False)
+
+    def bridge(self, question: str, excerpts) -> tuple[str, str | None] | None:
+        """The name to search next, copied where it is said, with its source."""
+        return self.point(question, excerpts, bridge=True)
+
+    @torch.no_grad()
+    def point(self, question: str, excerpts, bridge: bool) -> tuple[str, str | None] | None:
         excerpts = list(excerpts)
         ids, pad = pad_batch([self.vocab.encode(question, excerpts)[: self.config.max_len]])
         allowed = candidates(ids)
         if not allowed.any():
             return None
-        at = self.model(ids, pad).masked_fill(~allowed, float("-inf")).argmax(1).item()
+        scores = self.model(ids, pad, torch.tensor([bridge]))
+        at = scores.masked_fill(~allowed, float("-inf")).argmax(1).item()
         return extract(aligned(question, excerpts), at)

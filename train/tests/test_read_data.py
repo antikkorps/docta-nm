@@ -65,7 +65,7 @@ def test_a_chain_teaches_the_bridge_on_what_the_first_search_read():
     # excerpts still show which name to search next, the core's pointer.
     q = question("q4", CHAIN, "chain", "1432", ["f9", "f1"], ["s9", "s1"])
     assert read(q, label=False, hits=(S2, S9)) == [
-        ReadExample("w1", "q4", "val", CHAIN, (S2, S9), "Varnelle", ("s9",)),
+        ReadExample("w1", "q4", "val", CHAIN, (S2, S9), "Varnelle", ("s9",), head="bridge"),
     ]
 
 
@@ -86,6 +86,37 @@ def test_no_bridge_is_taught_where_its_link_was_not_read():
 
 def test_reads_round_trip(tmp_path):
     q = question("q1", "In what year was Varnelle founded?", "retrieve", "1432", ["f1"], ["s1"])
-    examples = read(q)
+    chain = question("q4", CHAIN, "chain", "1432", ["f9", "f1"], ["s9", "s1"])
+    examples = read(q) + read(chain, label=False, hits=(S2, S9))
     write_reads(examples, tmp_path / "val.jsonl")
     assert list(read_reads(tmp_path / "val.jsonl")) == examples
+
+
+def test_reads_written_before_the_two_pointers_are_refused(tmp_path):
+    # Read back as answer targets, its bridges would mix the pointers again.
+    import json
+
+    import pytest
+
+    q = question("q1", "In what year was Varnelle founded?", "retrieve", "1432", ["f1"], ["s1"])
+    write_reads(read(q), tmp_path / "val.jsonl")
+    old = json.loads((tmp_path / "val.jsonl").read_text())
+    del old["head"]
+    (tmp_path / "val.jsonl").write_text(json.dumps(old) + "\n")
+    with pytest.raises(ValueError, match="just read-data"):
+        list(read_reads(tmp_path / "val.jsonl"))
+
+
+def test_a_head_neither_answer_nor_bridge_is_refused(tmp_path):
+    # A stray value would train silently as an answer target.
+    import json
+
+    import pytest
+
+    q = question("q1", "In what year was Varnelle founded?", "retrieve", "1432", ["f1"], ["s1"])
+    write_reads(read(q), tmp_path / "val.jsonl")
+    odd = json.loads((tmp_path / "val.jsonl").read_text())
+    odd["head"] = "bridges"
+    (tmp_path / "val.jsonl").write_text(json.dumps(odd) + "\n")
+    with pytest.raises(ValueError, match="bridges"):
+        list(read_reads(tmp_path / "val.jsonl"))
