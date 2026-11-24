@@ -105,3 +105,18 @@ def test_reads_written_before_the_two_pointers_are_refused(tmp_path):
     (tmp_path / "val.jsonl").write_text(json.dumps(old) + "\n")
     with pytest.raises(ValueError, match="just read-data"):
         list(read_reads(tmp_path / "val.jsonl"))
+
+
+def test_a_head_neither_answer_nor_bridge_is_refused(tmp_path):
+    # A stray value would train silently as an answer target.
+    import json
+
+    import pytest
+
+    q = question("q1", "In what year was Varnelle founded?", "retrieve", "1432", ["f1"], ["s1"])
+    write_reads(read(q), tmp_path / "val.jsonl")
+    odd = json.loads((tmp_path / "val.jsonl").read_text())
+    odd["head"] = "bridges"
+    (tmp_path / "val.jsonl").write_text(json.dumps(odd) + "\n")
+    with pytest.raises(ValueError, match="bridges"):
+        list(read_reads(tmp_path / "val.jsonl"))

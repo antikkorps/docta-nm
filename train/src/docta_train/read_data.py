@@ -119,6 +119,9 @@ def read_reads(path: Path) -> Iterator[ReadExample]:
             if "head" not in r:
                 # Read back as answer targets, its bridges would mix the two pointers.
                 raise ValueError(f"{path} predates the two pointers: rerun `just read-data`")
+            if r["head"] not in ("answer", "bridge"):
+                # Anything but "bridge" would train silently as an answer target.
+                raise ValueError(f"{path}: unknown pointer head {r['head']!r}")
             hits = tuple(Hit(**h) for h in r.pop("excerpts"))
             yield ReadExample(**{**r, "excerpts": hits, "sources": tuple(r["sources"])})
 
