@@ -10,6 +10,17 @@ design notes live in [`docs/`](docs/).
 By taking part you agree to follow the [code of conduct](CODE_OF_CONDUCT.md).
 Security problems go through [SECURITY.md](SECURITY.md), never a public issue.
 
+## Licence and contributor agreement
+
+Docta-nm is dual-licensed: AGPL-3.0 for everyone, and a commercial licence
+for use the AGPL does not allow (see the [README](README.md#license)). To
+keep both possible, every contribution comes under the
+[Contributor License Agreement](CLA.md): you keep your copyright and grant
+the maintainer the right to distribute your work under any terms, the AGPL
+and proprietary licences included. You accept it once, by ticking its box in
+a pull request, and it covers your later contributions; the maintainer checks
+the box before merging.
+
 ## Set up
 
 You need [Docker](https://docs.docker.com/get-docker/),
