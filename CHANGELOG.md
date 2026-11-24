@@ -25,6 +25,11 @@ lines under a new version, and its GitHub Release carries the reference scores.
   `core_bridge` chains 27.9% on test (`core_read` 69.3%), 6.9% on `ood`
   (0.2% justified for `core_read`); a subject check keeps a wrong hint from
   fooling it (41% → 0). A measured negative result.
+- **Read core with two pointers** (experimental): one for the answer, one
+  for the name to search next, on one encoding. Single seed: `core_bridge`
+  chains 47.7% on test (27.9% with one pointer), 9.9% on `ood` (6.9%),
+  `fooled` still 0. Read data and checkpoints from before are refused:
+  rerun `just read-data && just fit-read`.
 - **Human-correction protocol** (`just human`): each answerable chain runs
   with no hint, the right bridge and a wrong one said mid-way, through a
   human channel only Plan hears. Scores: accuracy per variant, `heard`,
