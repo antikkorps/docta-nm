@@ -2,7 +2,7 @@
 name = "docta-orchestrator"
 version = "0.0.1"
 description = "Loader, loop state machine, search tool and fake models for Docta-nm"
-license = "Apache-2.0"
+license = "AGPL-3.0-only"
 requires-python = ">=3.12"
 dependencies = [
     "psycopg[binary]>=3.3.9",

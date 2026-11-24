@@ -156,4 +156,18 @@ for what changed in each version.
 
 ## License
 
-[Apache-2.0](LICENSE)
+Docta-nm is dual-licensed:
+
+- under the [GNU Affero General Public License v3.0](LICENSE) (`AGPL-3.0-only`):
+  anyone may use, study, modify and share it; whoever distributes it, or lets
+  users interact with a modified version over a network, must offer them its
+  source under the same licence;
+- under a commercial licence, for use that cannot follow the AGPL (a closed
+  product or service). To ask for one, contact the maintainer through
+  [GitHub](https://github.com/antikkorps).
+
+Everything published before the switch to the AGPL (v0.0.1, and the `dev`
+branch up to that change) was under Apache-2.0 and stays available under it.
+Contributions are accepted under the
+[Contributor License Agreement](CLA.md), which lets the project offer both
+licences.

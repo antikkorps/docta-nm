@@ -2,7 +2,7 @@
 name = "docta-eval"
 version = "0.0.1"
 description = "Scores Docta-nm predictions: accuracy, citations, abstention"
-license = "Apache-2.0"
+license = "AGPL-3.0-only"
 requires-python = ">=3.12"
 dependencies = ["docta-orchestrator"]
 
