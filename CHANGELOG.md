@@ -59,6 +59,11 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Changed
 
+- **Dual licence**: Docta-nm moves from Apache-2.0 to the GNU AGPL v3.0
+  (`AGPL-3.0-only`), with a commercial licence for use the AGPL does not
+  allow. Contributions now come under a Contributor License Agreement
+  (`CLA.md`), accepted once by ticking its box in a pull request. What was
+  published before stays available under Apache-2.0.
 - Digging searches for the bridge by its name alone, not with the question's
   other words, which brought back sources about anything near it. On test
   (grammar data, one Evaluate seed), `core_read` goes from 77.9% to 83.0%
