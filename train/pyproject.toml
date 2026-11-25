@@ -1,6 +1,6 @@
 [project]
 name = "docta-train"
-version = "0.0.1"
+version = "0.0.2"
 description = "Trains the Docta-nm core from scratch, one loop state at a time"
 license = "AGPL-3.0-only"
 requires-python = ">=3.12"
