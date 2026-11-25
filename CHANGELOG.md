@@ -11,6 +11,14 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ## [Unreleased]
 
+### Added
+
+- **The method, step by step** (`just steps`): one row per step (search,
+  judge, read, dig, confront, conclude, human) and per measure, on test, `val`
+  and `ood` side by side, with the change since the last release's snapshot
+  in `scores/`, kept in the repository. `just human` now also saves its scores
+  (`predictions/<split>/human/scores.json`).
+
 ## [0.0.2] - 2026-11-25
 
 Trained cores take over steps of the method: the Evaluate core judges whether
