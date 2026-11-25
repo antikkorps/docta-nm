@@ -39,6 +39,15 @@ lines under a new version, and its GitHub Release carries the reference scores.
   last: on `val`'s held phrasings the Read core peaks before the end (65.6% at
   epoch 3, 61.5% at epoch 4 on one seed).
 
+### Fixed
+
+- Training no longer cuts an example longer than the core reads: a cut
+  excerpt could lose the sentence its label or answer rests on. `just fit`
+  and `just fit-read` now refuse such data, and the cores read up to 576
+  tokens (was 320, which cut 1.7% of Evaluate examples on 0.0.2's data and
+  13% on the richer language's). A checkpoint keeps the length it was
+  trained with, and `--resume` keeps it too (#13).
+
 ## [0.0.2] - 2026-11-25
 
 Trained cores take over steps of the method: the Evaluate core judges whether

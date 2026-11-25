@@ -112,3 +112,28 @@ def test_a_single_pointer_checkpoint_is_refused(tmp_path):
     torch.save(saved, tmp_path / "model.pt")
     with pytest.raises(ValueError, match="predates the bridge pointer"):
         ReadPredictor(tmp_path / "model.pt")
+
+
+def test_fit_read_refuses_an_example_longer_than_the_core_reads(tmp_path):
+    # A cut excerpt can lose the answer the pointer is taught to find.
+    long = Hit("s1", "T", " ".join(["Brask was founded in 1610."] * 40), 0.9)
+    lost = ReadExample("w", "q", "train", "When was Brask founded?", (long,), "1610", ("s1",))
+    with pytest.raises(ValueError, match="1 of 17 examples.*max_len 96"):
+        fit_read([*examples("train", 16), lost], examples("val", 4), tmp_path, TINY,
+                 epochs=1, batch=16, lr=3e-3, seed=0)  # fmt: skip
+
+
+def test_fit_read_cli_says_how_to_fix_examples_too_long(tmp_path, monkeypatch, capsys):
+    from docta_train import fit_read as module
+    from docta_train.read_data import write_reads
+
+    write_reads(examples("train", 4), tmp_path / "train.jsonl")
+    write_reads(examples("val", 2), tmp_path / "val.jsonl")
+    monkeypatch.setattr(module, "protect_machine", lambda **kw: None)
+    monkeypatch.setattr(module, "fit_read", raise_too_long)
+    assert module.main(["--data", str(tmp_path)]) == 1
+    assert "max_len 96" in capsys.readouterr().err
+
+
+def raise_too_long(*args, **kwargs):
+    raise ValueError("1 of 8 examples are longer than max_len 96")

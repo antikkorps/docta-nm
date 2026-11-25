@@ -1,6 +1,7 @@
 """The command line of `docta_train.fit`: its options and what they default to."""
 
 import argparse
+from dataclasses import replace
 from pathlib import Path
 
 from docta_train import checkpoint
@@ -27,15 +28,18 @@ def within(kind: type, low: float, high: float):
 
 
 def config_of(args: argparse.Namespace) -> Config:
-    """The run's own dropout on a resume that names none, like its learning rate."""
-    if args.dropout is not None:
-        return Config(dropout=args.dropout)
+    """On a resume, the run's own core: its length is in its weights. A
+    named dropout other than the run's own is refused by the resume."""
     if not args.resume:
-        return Config(dropout=DEFAULT_DROPOUT)
-    if not (args.out / "last.pt").exists():
-        return Config()  # without last.pt, fit says there is nothing to resume
-    saved = checkpoint.load_last(args.out / "last.pt").get("config") or {}
-    return Config(dropout=saved.get("dropout", Config.dropout))
+        return Config(dropout=DEFAULT_DROPOUT if args.dropout is None else args.dropout)
+    last = args.out / "last.pt"
+    # Without last.pt, fit says there is nothing to resume.
+    saved = (checkpoint.load_last(last).get("config") or {}) if last.exists() else {}
+    try:
+        config = Config(**saved)
+    except TypeError as e:  # a setting this code no longer has
+        raise checkpoint.ResumeError(f"{last}: {e}: {checkpoint.RERUN}") from e
+    return config if args.dropout is None else replace(config, dropout=args.dropout)
 
 
 def build_parser() -> argparse.ArgumentParser:

@@ -18,7 +18,7 @@ from docta_train import checkpoint
 from docta_train.evaluate_data import Example, read_examples
 from docta_train.fit_args import DEFAULT_LR, build_parser, config_of
 from docta_train.guard import protect_machine
-from docta_train.model import Config
+from docta_train.model import Config, whole
 from docta_train.shortcut import balance, shape, shape_accuracy
 from docta_train.training import Batch, run_epoch, validate
 from docta_train.words import Vocab
@@ -27,7 +27,8 @@ Data = list[tuple[list[int], float]]
 
 
 def encoded(examples: Sequence[Example], vocab: Vocab, max_len: int) -> Data:
-    return [(vocab.encode(e.question, e.excerpts)[:max_len], float(e.label)) for e in examples]
+    ids = whole([vocab.encode(e.question, e.excerpts) for e in examples], max_len)
+    return [(i, float(e.label)) for i, e in zip(ids, examples, strict=True)]
 
 
 def batches(data: Data, size: int, rng: random.Random | None = None) -> list[Batch]:
@@ -138,7 +139,7 @@ def main(argv: list[str]) -> int:
             args.lr, args.seed, args.max_minutes,
             resume=args.resume, vocab=vocab, warmup=args.warmup,
         )  # fmt: skip
-    except checkpoint.ResumeError as e:
+    except ValueError as e:  # a ResumeError, or examples too long to read
         print(f"error: {e}", file=sys.stderr)
         return 1
     print(json.dumps(report | {"shape_accuracy": shortcut}, indent=2), file=sys.stderr)
