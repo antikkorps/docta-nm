@@ -15,7 +15,7 @@ def write(path, rows):
     path.write_text("".join(json.dumps(r) + "\n" for r in rows))
 
 
-def test_the_cli_prints_one_row_per_model(tmp_path, capsys):
+def protocol_run(tmp_path):
     write(tmp_path / "test.jsonl", [QUESTION])
     run = tmp_path / "human"
     (run / "traces").mkdir(parents=True)
@@ -32,6 +32,19 @@ def test_the_cli_prints_one_row_per_model(tmp_path, capsys):
         write(run / "traces" / f"dig.{variant}.jsonl",
               [{"world_id": "w1", "question_id": "q1", "model": "dig", "question": "q",
                 "states": states, "decision": pred}])  # fmt: skip
+    return run
+
+
+def test_the_cli_prints_one_row_per_model(tmp_path, capsys):
+    run = protocol_run(tmp_path)
     assert main([str(tmp_path / "test.jsonl"), str(run)]) == 0
     out = capsys.readouterr().out
     assert "dig" in out and "recovered" in out
+
+
+def test_the_cli_saves_the_scores_for_the_step_view(tmp_path):
+    # `just steps` reads them to show how a model takes a human's hint.
+    run = protocol_run(tmp_path)
+    assert main([str(tmp_path / "test.jsonl"), str(run)]) == 0
+    saved = json.loads((run / "scores.json").read_text())
+    assert saved["models"]["dig"]["recovered"] == 1.0
