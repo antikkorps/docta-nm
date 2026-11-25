@@ -45,6 +45,16 @@ def test_rejects_a_source_without_its_trap_ground_truth(tmp_path):
         list(read_records(path))
 
 
+@pytest.mark.parametrize(("kind", "field"), [("source", "phrasings"), ("question", "template")])
+def test_rejects_a_v2_record_without_the_template_that_wrote_it(tmp_path, kind, field):
+    # v2 is v1 plus these: a v1 line relabelled v2 must not pass.
+    record = SOURCES[0] if kind == "source" else QUESTIONS[0]
+    stripped = {k: v for k, v in record.items() if k != field}
+    path = write_lines(tmp_path / "a.jsonl", [WORLD, stripped])
+    with pytest.raises(ValueError, match=rf"a\.jsonl:2.*{field}"):
+        list(read_records(path))
+
+
 def test_rejects_a_missing_field_inside_a_world(tmp_path):
     world = {**WORLD, "facts": [{"id": "f1", "subj": "e1", "pred": "founded_in"}]}
     path = write_lines(tmp_path / "a.jsonl", [world])

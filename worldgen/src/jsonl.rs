@@ -1,4 +1,5 @@
-//! Serialises worlds, sources and questions as JSONL v1, one record per line.
+//! Serialises worlds, sources and questions as JSONL v2, one record per line:
+//! v1 plus the template that wrote each sentence and question.
 //! Field order is fixed by the record structs, so output is byte-stable.
 
 use crate::corpus::{Corpus, Question, Source};
@@ -6,7 +7,7 @@ use crate::model::{Entity, Fact, Obj};
 use crate::split::Split;
 use serde::Serialize;
 
-pub const SCHEMA: &str = "v1";
+pub const SCHEMA: &str = "v2";
 
 #[derive(Serialize)]
 struct WorldRecord<'a> {
@@ -51,9 +52,17 @@ struct SourceRecord<'a> {
     title: &'a str,
     reliability: f64,
     text: &'a str,
+    phrasings: Vec<PhrasingRecord<'a>>,
     facts: &'a [String],
     false_claims: Vec<ClaimRecord<'a>>,
     copy_of: Option<&'a str>,
+}
+
+/// The template a sentence was written from: ground truth, never exposed.
+#[derive(Serialize)]
+struct PhrasingRecord<'a> {
+    fact: &'a str,
+    template: &'a str,
 }
 
 /// A fact a source states with a wrong object: ground truth, never exposed.
@@ -70,6 +79,7 @@ struct QuestionRecord<'a> {
     world_id: &'a str,
     question_id: &'a str,
     text: &'a str,
+    template: &'a str,
     primitive: &'static str,
     hops: u8,
     answerable: bool,
@@ -140,6 +150,14 @@ fn source<'a>(world_id: &'a str, s: &'a Source) -> SourceRecord<'a> {
         title: &s.title,
         reliability: s.reliability,
         text: &s.text,
+        phrasings: s
+            .phrasings
+            .iter()
+            .map(|p| PhrasingRecord {
+                fact: &p.fact,
+                template: &p.template,
+            })
+            .collect(),
         facts: &s.facts,
         false_claims: s
             .false_claims
@@ -160,6 +178,7 @@ fn question<'a>(world_id: &'a str, q: &'a Question) -> QuestionRecord<'a> {
         world_id,
         question_id: &q.id,
         text: &q.text,
+        template: &q.template,
         primitive: q.primitive.as_str(),
         hops: q.hops,
         answerable: q.answerable(),

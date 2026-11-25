@@ -19,7 +19,7 @@ pub struct Phrasings {
     pub val_held: &'static str,
 }
 
-const fn p(
+pub(crate) const fn p(
     seen: &'static [&'static str],
     held_out: &'static str,
     val_held: &'static str,
@@ -31,106 +31,6 @@ const fn p(
     }
 }
 
-/// The relation clauses of `pred`, before the grammar gives each its forms
-/// (crate::grammar).
-pub fn sentence_clauses(pred: Pred) -> Phrasings {
-    match pred {
-        Pred::FoundedIn => p(
-            &[
-                "{s} was founded in {o}.",
-                "The founding of {s} dates back to {o}.",
-                "{s} has existed since {o}.",
-                "The founding year of {s} is {o}.",
-                "{o} is the year {s} was founded.",
-            ],
-            "In {o}, {s} was founded.",
-            "{s} has a founding year of {o}.",
-        ),
-        Pred::Population => p(
-            &[
-                "{s} has a population of {o}.",
-                "The last census counted {o} inhabitants in {s}.",
-                "{o} inhabitants live in {s}.",
-                "At the last census, {s} had {o} inhabitants.",
-            ],
-            "The population of {s} is {o}.",
-            "{s} has {o} inhabitants.",
-        ),
-        Pred::BasedIn => p(
-            &[
-                "{s} is based in {o}.",
-                "{s} keeps its seat in {o}.",
-                "The halls of {s} stand in {o}.",
-                "{o} is the seat of {s}.",
-                "In {o}, {s} has its seat.",
-            ],
-            "The seat of {s} is {o}.",
-            "{s} sits in {o}.",
-        ),
-        Pred::BornIn => p(
-            &[
-                "{s} was born in {o}.",
-                "{s} came into the world in {o}.",
-                "The birth year of {s} is {o}.",
-                "In {o}, {s} was born.",
-            ],
-            "{o} is the year {s} was born.",
-            "The birth of {s} dates back to {o}.",
-        ),
-        Pred::LivesIn => p(
-            &[
-                "{s} lives in {o}.",
-                "{s} resides in {o}.",
-                "{o} is home to {s}.",
-                "In {o}, {s} has a home.",
-            ],
-            "The home of {s} is {o}.",
-            "{o} is the home of {s}.",
-        ),
-        Pred::MemberOf => p(
-            &[
-                "{s} is a member of {o}.",
-                "{s} belongs to {o}.",
-                "The guild of {s} is {o}.",
-                "{o} has {s} as a member.",
-            ],
-            "{o} is the guild of {s}.",
-            "{o} is guild to {s}.",
-        ),
-        Pred::Elevation => p(
-            &[
-                "{s} lies at an elevation of {o} metres.",
-                "{s} sits {o} metres above sea level.",
-                "{o} metres is the elevation of {s}.",
-                "At {o} metres above sea level lies {s}.",
-                "{s} lies at {o} metres above sea level.",
-            ],
-            "The elevation of {s} is {o} metres.",
-            "{s} stands {o} metres above sea level.",
-        ),
-        Pred::Members => p(
-            &[
-                "{s} has {o} members.",
-                "The rolls of {s} list {o} members.",
-                "The number of members of {s} is {o}.",
-                "On the rolls of {s} are {o} members.",
-            ],
-            "{o} members belong to {s}.",
-            "At the last census, {s} had {o} members.",
-        ),
-        Pred::Height => p(
-            &[
-                "{s} is {o} centimetres tall.",
-                "{s} stands {o} cm tall.",
-                "The height of {s} is {o} centimetres.",
-                "{o} centimetres is the height of {s}.",
-            ],
-            "{s} stands at {o} centimetres.",
-            "At {o} centimetres stands {s}.",
-        ),
-    }
-}
-
 /// Questions asking for `pred`; `{s}` may itself be a description ("the city
 /// where X lives"), which is how 2-hop questions are built.
 pub fn question_phrasings(pred: Pred) -> Phrasings {
@@ -139,6 +39,7 @@ pub fn question_phrasings(pred: Pred) -> Phrasings {
             &[
                 "In what year was {s} founded?",
                 "What is the founding year of {s}?",
+                "In what year was {s} established?",
             ],
             "What year was {s} founded in?",
             "What was the founding year of {s}?",
@@ -147,6 +48,7 @@ pub fn question_phrasings(pred: Pred) -> Phrasings {
             &[
                 "What is the population of {s}?",
                 "How many people live in {s}?",
+                "How many souls does {s} count?",
             ],
             "What population does {s} have?",
             "How many inhabitants does {s} have?",
@@ -155,6 +57,7 @@ pub fn question_phrasings(pred: Pred) -> Phrasings {
             &[
                 "In which city is {s} based?",
                 "Which city holds the seat of {s}?",
+                "In which city does {s} have its headquarters?",
             ],
             "Which city is {s} based in?",
             "Which city is the seat of {s}?",
@@ -163,12 +66,17 @@ pub fn question_phrasings(pred: Pred) -> Phrasings {
             &[
                 "In what year was {s} born?",
                 "What is the birth year of {s}?",
+                "In what year did {s} enter the world?",
             ],
             "What year was {s} born in?",
             "What was the birth year of {s}?",
         ),
         Pred::LivesIn => p(
-            &["In which city does {s} live?", "Which city is home to {s}?"],
+            &[
+                "In which city does {s} live?",
+                "Which city is home to {s}?",
+                "In which city does {s} dwell?",
+            ],
             "Which city does {s} live in?",
             "Which city is the home of {s}?",
         ),
@@ -176,6 +84,7 @@ pub fn question_phrasings(pred: Pred) -> Phrasings {
             &[
                 "Which guild does {s} belong to?",
                 "Which guild has {s} as a member?",
+                "Which guild has {s} joined?",
             ],
             "Which guild is {s} a member of?",
             "What is the guild of {s}?",
@@ -184,6 +93,7 @@ pub fn question_phrasings(pred: Pred) -> Phrasings {
             &[
                 "At what elevation, in metres, does {s} lie?",
                 "How high above sea level does {s} lie, in metres?",
+                "How many metres above the sea does {s} rise?",
             ],
             "What is the elevation of {s}, in metres?",
             "At what elevation does {s} lie, in metres?",
@@ -192,6 +102,7 @@ pub fn question_phrasings(pred: Pred) -> Phrasings {
             &[
                 "How many members does {s} have?",
                 "What is the number of members of {s}?",
+                "How many fellows does {s} count?",
             ],
             "How many members belong to {s}?",
             "How many members are on the rolls of {s}?",
@@ -200,6 +111,7 @@ pub fn question_phrasings(pred: Pred) -> Phrasings {
             &[
                 "How tall is {s}, in centimetres?",
                 "What is the height of {s}, in centimetres?",
+                "How many centimetres does {s} measure?",
             ],
             "How tall, in centimetres, is {s}?",
             "How many centimetres tall is {s}?",

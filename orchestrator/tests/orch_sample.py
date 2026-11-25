@@ -1,7 +1,7 @@
-"""A tiny v1 world, shaped like the brief's example, shared by the tests."""
+"""A tiny v2 world, shaped like the brief's example, shared by the tests."""
 
 WORLD = {
-    "schema": "v1",
+    "schema": "v2",
     "type": "world",
     "world_id": "w_test01",
     "seed": 123,
@@ -17,25 +17,27 @@ WORLD = {
 }
 SOURCES = [
     {
-        "schema": "v1",
+        "schema": "v2",
         "type": "source",
         "world_id": "w_test01",
         "source_id": "s1",
         "title": "Chronicle of Varnelle",
         "reliability": 0.9,
         "text": "Varnelle was founded in 1432.",
+        "phrasings": [{"fact": "f1", "template": "{s} was founded in {o}."}],
         "facts": ["f1"],
         "false_claims": [],
         "copy_of": None,
     },
     {
-        "schema": "v1",
+        "schema": "v2",
         "type": "source",
         "world_id": "w_test01",
         "source_id": "s2",
         "title": "Notes on Orlan Teste",
         "reliability": 0.7,
         "text": "Orlan Teste lives in Varnelle.",
+        "phrasings": [{"fact": "f2", "template": "{s} lives in {o}."}],
         "facts": ["f2"],
         "false_claims": [],
         "copy_of": None,
@@ -43,11 +45,12 @@ SOURCES = [
 ]
 QUESTIONS = [
     {
-        "schema": "v1",
+        "schema": "v2",
         "type": "question",
         "world_id": "w_test01",
         "question_id": "q1",
         "text": "In what year was the city where Orlan Teste lives founded?",
+        "template": "In what year was the city where {s} lives founded?",
         "primitive": "chain",
         "hops": 2,
         "answerable": True,
@@ -58,11 +61,12 @@ QUESTIONS = [
         "expected_exit": None,
     },
     {
-        "schema": "v1",
+        "schema": "v2",
         "type": "question",
         "world_id": "w_test01",
         "question_id": "q2",
         "text": "In what year was Orlan Teste born?",
+        "template": "In what year was {s} born?",
         "primitive": "spot_missing",
         "hops": 1,
         "answerable": False,

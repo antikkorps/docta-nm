@@ -61,7 +61,7 @@ def test_traces_add_a_reflection_table(tmp_path, capsys):
     from eval_traces import TRACES
 
     world = {
-        "schema": "v1", "type": "world", "world_id": "w1", "seed": 1, "split": "test",
+        "schema": "v2", "type": "world", "world_id": "w1", "seed": 1, "split": "test",
         "entities": [{"id": f"e{i}", "kind": "city", "name": n} for i, n in enumerate(NAMES)],
         "facts": [],
     }  # fmt: skip

@@ -1,4 +1,4 @@
-"""Scores on trap questions (JSONL v1): the challenge step of the method.
+"""Scores on trap questions (traps came with JSONL v1): the challenge step of the method.
 
 A trap surrounds a question's fact with sources that disagree. Answering is
 not enough: the model must not be fooled by the false side, and when the

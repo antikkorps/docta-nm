@@ -1,7 +1,7 @@
 //! The sources a trap adds: a false claim about one fact, written like any
 //! other source, and copies that repeat it while crediting their origin.
 
-use crate::corpus::Source;
+use crate::corpus::{Phrasing, Source};
 use crate::model::{Fact, Obj, World};
 use crate::sources::{name, render};
 use crate::split::Wording;
@@ -44,7 +44,7 @@ impl Titles {
     /// A title no source uses yet, reserved for an origin a copy will cite.
     fn for_origin<R: Rng>(&mut self, subj: &str, rng: &mut R) -> String {
         let free = self.pick(subj, |t| !self.used.contains(t), rng);
-        let title = free.expect("eight title forms outnumber one subject's sources");
+        let title = free.expect("sixteen title forms outnumber one subject's sources");
         self.used.insert(title.clone());
         self.cited.insert(title.clone());
         title
@@ -94,11 +94,16 @@ impl<'a> Claim<'a> {
     pub fn origin<R: Rng>(&mut self, reliability: f64, rng: &mut R) -> Source {
         let subj = name(self.world, &self.fact.subj);
         let wrong = render(self.world, &self.wrong);
+        let written = templates::sentence(self.fact.pred, subj, &wrong, self.wording, rng);
         Source {
             id: format!("{}:origin", self.tag),
             title: self.titles.for_origin(subj, rng),
             reliability,
-            text: templates::sentence(self.fact.pred, subj, &wrong, self.wording, rng),
+            text: written.text,
+            phrasings: vec![Phrasing {
+                fact: self.fact.id.clone(),
+                template: written.template,
+            }],
             facts: Vec::new(),
             false_claims: vec![(self.fact.id.clone(), self.wrong.clone())],
             copy_of: None,
@@ -121,6 +126,7 @@ impl<'a> Claim<'a> {
             text: phrasing
                 .replace("{t}", &origin.title)
                 .replace("{x}", &claim),
+            phrasings: Vec::new(),
             facts: Vec::new(),
             false_claims: origin.false_claims.clone(),
             copy_of: Some(origin.id.clone()),

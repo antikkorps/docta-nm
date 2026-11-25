@@ -1,7 +1,7 @@
 //! Source documents: the world's facts, minus the withheld ones, spread over
 //! short template-written texts.
 
-use crate::corpus::Source;
+use crate::corpus::{Phrasing, Source};
 use crate::model::{Fact, Obj, World};
 use crate::split::Wording;
 use crate::templates;
@@ -55,7 +55,7 @@ fn source<R: Rng>(
     wording: Wording,
     rng: &mut R,
 ) -> Source {
-    let text: Vec<String> = facts
+    let written: Vec<templates::Written> = facts
         .iter()
         .map(|f| {
             templates::sentence(
@@ -67,12 +67,22 @@ fn source<R: Rng>(
             )
         })
         .collect();
+    let text: Vec<&str> = written.iter().map(|w| w.text.as_str()).collect();
+    let phrasings = facts
+        .iter()
+        .zip(&written)
+        .map(|(f, w)| Phrasing {
+            fact: f.id.clone(),
+            template: w.template.clone(),
+        })
+        .collect();
     Source {
         id: format!("s{n}"),
         title: templates::title(name(world, &facts[0].subj), rng),
         // Hundredths keep the JSON value short and exact ("0.85").
         reliability: f64::from(rng.random_range(60..=100_u8)) / 100.0,
         text: text.join(" "),
+        phrasings,
         facts: facts.iter().map(|f| f.id.clone()).collect(),
         false_claims: Vec::new(),
         copy_of: None,

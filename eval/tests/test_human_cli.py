@@ -4,8 +4,9 @@ import json
 
 from docta_eval.human import main
 
-QUESTION = {"schema": "v1", "type": "question", "world_id": "w1", "question_id": "q1",
+QUESTION = {"schema": "v2", "type": "question", "world_id": "w1", "question_id": "q1",
             "text": "In what year was the city where Orlan Teste lives founded?",
+            "template": "In what year was the city where {s} lives founded?",
             "primitive": "chain", "hops": 2, "answerable": True, "answer": "1432",
             "missing": None, "required_facts": ["f1", "f2"], "required_sources": ["s1", "s2"],
             "trap": None, "expected_exit": None}  # fmt: skip
