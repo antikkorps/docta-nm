@@ -114,7 +114,11 @@ assistants working on the repository follow.
    `pyproject.toml` is a virtual workspace with no version;
    `tests/test_versions.py` checks the four agree). Then run `uv lock` and
    `cargo check` so `uv.lock` and `Cargo.lock` follow, and commit them too:
-   CI installs with `--locked`.
+   CI installs with `--locked`. After `just core` and `just human` on test,
+   `val` and `ood`, save the step snapshot of each trained model,
+   `just steps --save X.Y.Z --note "<which checkpoints>"` (then
+   `--model core_bridge`, which keeps the note), and commit
+   `scores/steps-X.Y.Z.json` on the same branch.
 2. Pull request into `dev`, then a pull request from `dev` into `main`.
 3. Tag `main` (`vX.Y.Z`) and publish a GitHub Release with the changelog
    section and the `just baseline` scores on `test` and `ood`.

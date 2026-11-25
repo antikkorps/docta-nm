@@ -121,6 +121,9 @@ def main(argv: list[str]) -> int:
         results = {
             m: human_scores(golds, load_runs(directory, m, set(hints)), hints) for m in models
         }
+        # Kept beside the runs so the step view can follow this step over versions.
+        scores = json.dumps({"gold": str(gold_path), "models": results}, indent=1)
+        (directory / "scores.json").write_text(scores + "\n", encoding="utf-8")
     except (OSError, ValueError, KeyError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1

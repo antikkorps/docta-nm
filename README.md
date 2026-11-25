@@ -138,7 +138,23 @@ The point of the method is a human–machine pair: a person can step into the re
 - Columns: accuracy with no hint, the right hint and the wrong one; `heard` (the hint reached the model) and `reoriented` (its next search went after the hinted name); `recovered` (chains failed alone that the right hint turned right); `fooled` (wrong-hint runs that answered what the wrong bridge would give).
 - The simulated human knows the bridge from ground truth: the one exception to "ground truth is never a model input", at evaluation only.
 
-On test, with the grammar's data and one Evaluate seed, `core_read` answers 86.8% of chains alone, 94.8% with the right hint and 72.7% with a wrong one: the right hint turns 60% of its failed chains right, and a wrong hint never makes it give the wrong bridge's answer (`fooled` 0); it costs abstentions instead. On `ood` the chain split never fires (held-out link wording), so no model has a second hop for a hint to steer.
+On test, with the grammar's data and one Evaluate seed (before 0.0.2's retraining; [`scores/`](scores/) holds the current figures), `core_read` answers 86.8% of chains alone, 94.8% with the right hint and 72.7% with a wrong one: the right hint turns 60% of its failed chains right, and a wrong hint never makes it give the wrong bridge's answer (`fooled` 0); it costs abstentions instead. On `ood` the chain split never fires (held-out link wording), so no model has a second hop for a hint to steer.
+
+### The method, step by step
+
+Each step of the method is measured on its own, so a blockage shows at the step where it happens and that step can be tuned without touching the rest. `just steps` gathers one model's scores (`core_read` by default, `--model` for another) into one row per step and per measure, on test, `val` and `ood` side by side:
+
+| Step | Main measure | Supporting measure |
+|---|---|---|
+| search | sources it needed that it read (`reading_recall`) | `reading_precision` |
+| judge | abstention F1 | answerable questions it gave up on |
+| read | accuracy on retrieve questions (comparisons are code's arithmetic) | citation precision |
+| dig | justified accuracy on chains | answerable questions a later search recovered after the first missed a source |
+| confront | accuracy on traps | traps that fooled it |
+| conclude | justified accuracy | conclusions before reading what was needed |
+| human | failed chains the right hint recovers | wrong hints it repeated |
+
+Run `just core` (and `just human`) on each split first; a split not run is left blank. Each release saves a snapshot in [`scores/`](scores/) (`just steps --save X.Y.Z`), kept in the repository, and `just steps` prints the change since the latest one, so anyone can follow every step from one version to the next.
 
 ## How it works
 
