@@ -5,7 +5,7 @@ use docta_worldgen::split::Ratios;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-/// Generates fictional worlds, their sources and questions as JSONL v1.
+/// Generates fictional worlds, their sources and questions as JSONL v2.
 #[derive(Parser)]
 #[command(version)]
 struct Args {

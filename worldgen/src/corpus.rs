@@ -3,6 +3,7 @@
 use crate::model::Obj;
 use crate::model::World;
 use crate::split::Split;
+use crate::templates::Written;
 use crate::{questions, sources, traps};
 use rand::SeedableRng;
 use rand::rngs::ChaCha8Rng;
@@ -20,7 +21,7 @@ pub struct Options {
     pub trap_ratio: f64,
 }
 
-/// Disagreeing sources around the fact a question asks about (JSONL v1).
+/// Disagreeing sources around the fact a question asks about (since JSONL v1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Trap {
     /// One independent false source, clearly less reliable than the true one.
@@ -60,12 +61,24 @@ impl Primitive {
     }
 }
 
+/// The template a sentence of a source was written from, and the fact it
+/// states. Ground truth for diagnosis (which wording a core fails on), never
+/// exposed to a model.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Phrasing {
+    pub fact: String,
+    pub template: String,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Source {
     pub id: String,
     pub title: String,
     pub reliability: f64,
     pub text: String,
+    /// Ground truth: one per stated sentence; a copy, which wraps its origin's
+    /// text in an attribution, carries none.
+    pub phrasings: Vec<Phrasing>,
     /// Ground truth, never exposed to a model.
     pub facts: Vec<String>,
     /// Ground truth: facts this source states with a wrong object.
@@ -78,6 +91,8 @@ pub struct Source {
 pub struct Question {
     pub id: String,
     pub text: String,
+    /// Ground truth: the template that wrote `text`, names as `{s}` (`{o}`).
+    pub template: String,
     /// `SpotMissing` for every unanswerable question, whatever its shape.
     pub primitive: Primitive,
     /// Retrieve, Chain or Compare. Internal: unanswerable questions take every
@@ -105,7 +120,7 @@ impl Question {
     }
 
     pub(crate) fn answerable_with(
-        text: String,
+        written: Written,
         shape: Primitive,
         hops: u8,
         answer: String,
@@ -115,7 +130,8 @@ impl Question {
         Self {
             support: required_facts.clone(),
             id: String::new(),
-            text,
+            text: written.text,
+            template: written.template,
             primitive: shape,
             shape,
             hops,
@@ -130,7 +146,7 @@ impl Question {
     }
 
     pub(crate) fn unanswerable(
-        text: String,
+        written: Written,
         shape: Primitive,
         hops: u8,
         missing: String,
@@ -140,7 +156,8 @@ impl Question {
         Self {
             support,
             id: String::new(),
-            text,
+            text: written.text,
+            template: written.template,
             primitive: Primitive::SpotMissing,
             shape,
             hops,

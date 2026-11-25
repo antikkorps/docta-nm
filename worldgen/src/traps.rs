@@ -1,4 +1,4 @@
-//! Traps (JSONL v1): disagreeing sources around the fact a question asks about.
+//! Traps (since JSONL v1): disagreeing sources around the fact a question asks about.
 //!
 //! The challenge step of the method needs something to challenge: a false
 //! source to outweigh, copies of one false origin to count as one, or two

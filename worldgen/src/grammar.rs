@@ -17,20 +17,7 @@ use crate::model::Pred;
 use crate::templates::sentence_clauses;
 use std::collections::BTreeSet;
 
-/// Structural frames any clause takes; `{c}` is the clause without its stop.
-pub const FRAMES: [&str; 8] = [
-    "{c}.",
-    "Records show that {c}.",
-    "{c}, the records say.",
-    "It is said that {c}.",
-    "As far as anyone knows, {c}.",
-    "The records say that {c}.",
-    "{c}, as far as anyone knows.",
-    "It is known that {c}.",
-];
-
-/// Set after a clause's opening subject, so a word never directly follows it.
-pub const PARENTHETICAL: &str = ", it is recorded,";
+pub use crate::frames::{FRAMES, PARENTHETICALS};
 
 /// One in `HELD_OUT_EVERY` (clause, form) pairs of the seen clauses is ood's.
 const HELD_OUT_EVERY: usize = 4;
@@ -92,12 +79,29 @@ pub fn lower_opening(sentence: &str) -> String {
 
 /// Every form of a clause: each frame, without and with the parenthetical.
 fn forms(clause: &str) -> Vec<String> {
-    let mut variants = vec![clause.to_string()];
-    variants.extend(with_parenthetical(clause));
+    let mut variants = vec![(clause.to_string(), None)];
+    variants.extend(with_parentheticals(clause));
     variants
         .iter()
-        .flat_map(|v| (0..FRAMES.len()).map(move |f| framed(v, f)))
+        .flat_map(|(v, aside)| {
+            (0..FRAMES.len())
+                .filter(move |&f| !echoes(FRAMES[f], *aside))
+                .map(move |f| framed(v, f))
+        })
         .collect()
+}
+
+/// An aside sharing a word with its frame ("By all accounts, X, by all
+/// accounts, is…", "X, so the elders tell, …, so the elders say.") reads as
+/// a stutter: that pairing is never written. Short words ("the", "is") and
+/// "that" are everywhere and count for nothing.
+pub fn echoes(frame: &str, aside: Option<&str>) -> bool {
+    let frame = frame.to_ascii_lowercase();
+    aside.is_some_and(|a| {
+        a.split(|c: char| !c.is_ascii_alphabetic())
+            .filter(|w| w.len() > 3 && *w != "that")
+            .any(|w| frame.contains(w))
+    })
 }
 
 fn framed(clause: &str, frame: usize) -> String {
@@ -112,11 +116,17 @@ fn framed(clause: &str, frame: usize) -> String {
     template.replace("{c}", &body)
 }
 
-fn with_parenthetical(clause: &str) -> Option<String> {
-    clause
+fn with_parentheticals(clause: &str) -> Vec<(String, Option<&'static str>)> {
+    match clause
         .strip_prefix("{s}")
         .filter(|rest| rest.starts_with(' '))
-        .map(|rest| format!("{{s}}{PARENTHETICAL}{rest}"))
+    {
+        Some(rest) => PARENTHETICALS
+            .iter()
+            .map(|aside| (format!("{{s}}{aside}{rest}"), Some(*aside)))
+            .collect(),
+        None => Vec::new(),
+    }
 }
 
 /// A name placeholder keeps its capital; an opening word loses it.
@@ -182,7 +192,9 @@ mod tests {
                     "{pred:?}: {frame}"
                 );
             }
-            assert!(seen.iter().any(|s| s.contains(PARENTHETICAL)), "{pred:?}");
+            for aside in PARENTHETICALS {
+                assert!(seen.iter().any(|s| s.contains(aside)), "{pred:?}: {aside}");
+            }
         }
     }
 
@@ -197,9 +209,9 @@ mod tests {
             "Records show that the seat of {s} is {o}."
         );
         assert_eq!(
-            with_parenthetical("{s} was founded in {o}."),
-            Some("{s}, it is recorded, was founded in {o}.".to_string())
+            with_parentheticals("{s} was founded in {o}.")[0].0,
+            "{s}, it is recorded, was founded in {o}."
         );
-        assert_eq!(with_parenthetical("The seat of {s} is {o}."), None);
+        assert!(with_parentheticals("The seat of {s} is {o}.").is_empty());
     }
 }

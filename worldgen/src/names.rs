@@ -17,11 +17,13 @@ const CODAS: &[&str] = &["", "", "", "n", "r", "l", "s", "th"];
 /// also holds the template words the syllables can spell: the core would read
 /// a name such as "Live" as the word `live` (tests check the templates).
 const EXCLUDED: &[&str] = &[
-    "baku", "bali", "baron", "bern", "boston", "dakar", "dallas", "data", "dates", "delhi", "doha",
-    "java", "kiev", "laos", "larger", "lemon", "level", "lima", "linen", "live", "lives", "lyon",
-    "malta", "mars", "melon", "milan", "minsk", "more", "nepal", "nice", "notes", "oslo", "paris",
-    "pasta", "peru", "register", "resides", "riga", "robin", "roma", "rome", "salad", "salon",
-    "satin", "sofia", "sudan", "taller", "talon", "togo", "venus",
+    "baker", "baku", "bali", "baron", "base", "bern", "boston", "dakar", "dallas", "data", "dates",
+    "delhi", "dispute", "doha", "figure", "java", "kiev", "laos", "larger", "lemon", "level",
+    "lima", "linen", "live", "lives", "lyon", "makes", "malta", "mars", "mason", "master", "melon",
+    "milan", "minsk", "more", "name", "nepal", "nice", "note", "notes", "oslo", "paris", "pasta",
+    "person", "peru", "register", "resides", "riga", "rise", "rises", "robin", "roma", "rome",
+    "salad", "salon", "satin", "serves", "sofia", "some", "state", "stones", "sudan", "tales",
+    "taller", "talon", "togo", "venus", "village",
 ];
 
 /// Draws names for one world. Every name token is unique within the world, so a
@@ -144,13 +146,14 @@ mod tests {
         let mut texts: Vec<&str> = crate::liars::ATTRIBUTIONS.to_vec();
         texts.push(crate::liars::HELD_OUT_ATTRIBUTION);
         texts.extend(crate::grammar::FRAMES);
-        texts.push(crate::grammar::PARENTHETICAL);
+        texts.extend(crate::grammar::PARENTHETICALS);
         for pred in Pred::ALL {
             let mut kinds = vec![sentence_clauses(pred), question_phrasings(pred)];
             kinds.extend(comparison_phrasings(pred));
             for p in kinds {
                 texts.extend(p.seen);
                 texts.push(p.held_out);
+                texts.push(p.val_held);
             }
         }
         let titles = crate::templates::titles("");

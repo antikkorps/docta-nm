@@ -7,6 +7,7 @@ use crate::model::{Fact, Obj, Pred, World};
 use crate::sources::{name, render};
 use crate::split::Wording;
 use crate::templates;
+use crate::templates::Written;
 use rand::seq::{IndexedRandom, SliceRandom};
 use rand::{Rng, RngExt};
 use std::collections::{BTreeMap, BTreeSet};
@@ -24,7 +25,7 @@ const MAX_ATTEMPTS: usize = 1000;
 /// A drawn question before numbering: its text, answer and the facts it rests on.
 struct Draft<'a> {
     shape: Primitive,
-    text: String,
+    text: Written,
     answer: String,
     facts: Vec<&'a Fact>,
 }
@@ -140,7 +141,7 @@ impl<'a> Ctx<'a> {
             .filter(|f| f.subj == subject.id && self.stated(f) == answerable)
             .collect();
         let f = *own.choose(rng)?;
-        let text = templates::question(f.pred, &subject.name, self.wording, rng);
+        let text = templates::question(f.pred, &templates::named(&subject.name), self.wording, rng);
         Some(Draft {
             shape: Primitive::Retrieve,
             text,

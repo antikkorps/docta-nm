@@ -1,13 +1,27 @@
 //! English text from templates: fills the phrasings (crate::phrasings, and
 //! the sentence grammar in crate::grammar) with names and values. No LLM.
 
+pub use crate::clauses::sentence_clauses;
 use crate::model::Pred;
-pub use crate::phrasings::{
-    Phrasings, comparison_phrasings, link_phrasings, question_phrasings, sentence_clauses,
-};
+pub use crate::phrasings::{Phrasings, comparison_phrasings, link_phrasings, question_phrasings};
 use crate::split::Wording;
 use rand::Rng;
 use rand::seq::IndexedRandom;
+
+/// A text and the template it was filled from (names as `{s}`, `{o}`): the
+/// template is ground truth for diagnosis, never shown to a model.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Written {
+    pub text: String,
+    pub template: String,
+}
+
+fn written(template: &str, s: &str, o: &str) -> Written {
+    Written {
+        text: fill(template, s, o),
+        template: template.to_string(),
+    }
+}
 
 /// A sentence stating `subj pred obj`. Seen phrasings vary at random so a model
 /// cannot rely on a single surface form.
@@ -17,31 +31,43 @@ pub fn sentence<R: Rng>(
     obj: &str,
     wording: Wording,
     rng: &mut R,
-) -> String {
+) -> Written {
     let phrasings = crate::grammar::sentence_phrasings(pred);
     let pool = match wording {
         Wording::Seen => &phrasings.seen,
         Wording::ValHeld => &phrasings.val_held,
         Wording::OodHeld => &phrasings.held_out,
     };
-    fill(
+    written(
         pool.choose(rng).expect("templates are non-empty"),
         subj,
         obj,
     )
 }
 
-pub fn question<R: Rng>(pred: Pred, subj: &str, wording: Wording, rng: &mut R) -> String {
-    fill(pick(question_phrasings(pred), wording, rng), subj, "")
+/// A question about `subj`, which may be a chain's link: its template then
+/// holds the link's template, the link's subject as `{s}`.
+pub fn question<R: Rng>(pred: Pred, subj: &Written, wording: Wording, rng: &mut R) -> Written {
+    let template = pick(question_phrasings(pred), wording, rng);
+    Written {
+        text: fill(template, &subj.text, ""),
+        template: fill(template, &subj.template, ""),
+    }
 }
 
-pub fn comparison(pred: Pred, a: &str, b: &str, wording: Wording) -> String {
+pub fn comparison(pred: Pred, a: &str, b: &str, wording: Wording) -> Written {
     let phrasings = comparison_phrasings(pred).expect("only numeric predicates are compared");
-    fill(one(phrasings, wording), a, b)
+    written(one(phrasings, wording), a, b)
 }
 
-/// Every title a source about `subj` can take. Eight forms, so a source a
-/// copy cites can always get a title no other source of its world uses.
+/// A name as the subject of a question: the template is just `{s}`.
+pub fn named(name: &str) -> Written {
+    written("{s}", name, "")
+}
+
+/// Every title a source about `subj` can take. Sixteen forms: enough that a
+/// source a copy cites can always get a title no other source of its world
+/// uses, and words of their own ("Ledger", "Almanac").
 pub fn titles(subj: &str) -> Vec<String> {
     [
         "Chronicle of {s}",
@@ -52,6 +78,14 @@ pub fn titles(subj: &str) -> Vec<String> {
         "Letters on {s}",
         "Survey of {s}",
         "Memoirs of {s}",
+        "Ledger of {s}",
+        "History of {s}",
+        "Atlas of {s}",
+        "Digest of {s}",
+        "Gazette of {s}",
+        "Almanac of {s}",
+        "Tales of {s}",
+        "Portrait of {s}",
     ]
     .iter()
     .map(|t| fill(t, subj, ""))
@@ -64,9 +98,9 @@ pub fn title<R: Rng>(subj: &str, rng: &mut R) -> String {
 }
 
 /// The first hop of a chain about `subj`, as its split words it.
-pub fn link(pred: Pred, subj: &str, wording: Wording) -> String {
+pub fn link(pred: Pred, subj: &str, wording: Wording) -> Written {
     let phrasings = link_phrasings(pred).expect("a chain link points to an entity");
-    fill(one(phrasings, wording), subj, "")
+    written(one(phrasings, wording), subj, "")
 }
 
 /// A noun phrase for the object of `pred` of `subj`: what an unanswerable
@@ -129,7 +163,7 @@ mod tests {
     fn chain_questions_read_naturally() {
         let via = link(Pred::MemberOf, "Orlan Teste", Wording::Seen);
         let mut rng = rand::rngs::ChaCha8Rng::seed_from_u64(0);
-        let seen = question(Pred::FoundedIn, &via, Wording::Seen, &mut rng);
+        let seen = question(Pred::FoundedIn, &via, Wording::Seen, &mut rng).text;
         assert!(
             [
                 "In what year was the guild that Orlan Teste belongs to founded?",
@@ -140,7 +174,7 @@ mod tests {
         );
         let held = link(Pred::MemberOf, "Orlan Teste", Wording::OodHeld);
         assert_eq!(
-            question(Pred::FoundedIn, &held, Wording::OodHeld, &mut rng),
+            question(Pred::FoundedIn, &held, Wording::OodHeld, &mut rng).text,
             "What year was the guild Orlan Teste is a member of founded in?"
         );
     }
