@@ -1,9 +1,10 @@
 """Trains the Read core: `python -m docta_train.fit_read --data data/read`.
 
-Writes OUT/model.pt (the last epoch) and OUT/log.jsonl, with val exactness
-per pointer (`val_exact_answer`, `val_exact_bridge`). Taught retrieve and
-compare only, val saturated at 100% from epoch 1; with chains it no longer
-does, so each pointer's val score is the guide to the run length.
+Writes OUT/model.pt (the epoch with the best val exactness) and
+OUT/log.jsonl, with val exactness per pointer (`val_exact_answer`,
+`val_exact_bridge`). Taught retrieve and compare only, val saturated at 100%
+from epoch 1; with chains and phrasings of its own it no longer does, and
+peaks before the last epoch, so it picks the core kept.
 No resume yet: a run is short enough to restart.
 """
 
@@ -107,7 +108,7 @@ def exact(right: list[bool], val: Sequence[ReadExample], head: str) -> float | N
 
 def fit_read(train, val, out: Path, config: Config, epochs: int, batch: int, lr: float,
              seed: int, warmup: int = 0, max_minutes: float | None = None) -> dict:  # fmt: skip
-    """Trains from scratch; keeps the last epoch."""
+    """Trains from scratch; keeps the epoch with the best val exactness."""
     out.mkdir(parents=True, exist_ok=True)
     torch.manual_seed(seed)
     vocab = Vocab.build(train)  # from train only: val stays unseen
@@ -118,17 +119,21 @@ def fit_read(train, val, out: Path, config: Config, epochs: int, batch: int, lr:
         encoded(train, vocab, config.max_len),
         encoded(val, vocab, config.max_len),
     )
-    metrics, start = {}, time.monotonic()
+    metrics, best, start = {}, {}, time.monotonic()
     with (out / "log.jsonl").open("w", encoding="utf-8") as log:
         for epoch in range(1, epochs + 1):
             metrics = {"epoch": epoch, "train_loss": run_epoch(run, train_items, batch)}
             metrics |= validate(model, val, val_items, batch)
-            save(model, vocab, metrics, out / "model.pt")
+            # val holds phrasings of its own and peaks before the last epoch
+            # (the core memorises train's): it picks the core kept.
+            if metrics["val_exact"] > best.get("val_exact", -1.0):
+                best = metrics
+                save(model, vocab, metrics, out / "model.pt")
             log.write(json.dumps({**metrics, "minutes": (time.monotonic() - start) / 60}) + "\n")
             log.flush()
             if max_minutes is not None and time.monotonic() - start > max_minutes * 60:
                 break
-    return {"last": metrics, "parameters": sum(p.numel() for p in model.parameters())}
+    return {"last": metrics, "best": best, "parameters": sum(p.numel() for p in model.parameters())}
 
 
 def save(model: CoreRead, vocab: Vocab, metrics: dict, path: Path) -> None:

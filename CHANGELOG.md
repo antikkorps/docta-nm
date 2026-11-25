@@ -19,6 +19,12 @@ lines under a new version, and its GitHub Release carries the reference scores.
   in `scores/`, kept in the repository. `just human` now also saves its scores
   (`predictions/<split>/human/scores.json`).
 
+### Changed
+
+- `just fit-read` keeps the epoch with the best `val_exact` instead of the
+  last: on `val`'s held phrasings the Read core peaks before the end (65.6% at
+  epoch 3, 61.5% at epoch 4 on one seed).
+
 ## [0.0.2] - 2026-11-25
 
 Trained cores take over steps of the method: the Evaluate core judges whether

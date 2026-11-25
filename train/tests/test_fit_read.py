@@ -61,14 +61,18 @@ def test_each_core_refuses_the_other_ones_checkpoint(tmp_path):
         ReadPredictor(tmp_path / "eval" / "model.pt")
 
 
-def test_the_saved_core_is_the_last_epoch(tmp_path):
-    # Val saturates at 100% from the first epoch while ood still moves, so
-    # val cannot pick an epoch: the run length is the choice, and it is kept.
+def test_the_saved_core_is_the_best_epoch_on_val(tmp_path, monkeypatch):
+    # With chains taught and val in phrasings of its own, val no longer
+    # saturates and peaks before the last epoch: it picks the core kept.
     import torch
+    from docta_train import fit_read as module
 
+    scores = iter([0.5, 0.7, 0.6])
+    monkeypatch.setattr(module, "validate", lambda *a: {"val_exact": next(scores)})
     report = train(tmp_path, epochs=3)
     saved = torch.load(tmp_path / "model.pt", weights_only=False)
-    assert saved["metrics"]["epoch"] == report["last"]["epoch"] == 3
+    assert saved["metrics"]["epoch"] == report["best"]["epoch"] == 2
+    assert report["last"]["epoch"] == 3
 
 
 def test_a_val_answer_out_of_reach_does_not_wreck_the_loss(tmp_path):
