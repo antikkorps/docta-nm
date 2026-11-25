@@ -11,6 +11,23 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ## [Unreleased]
 
+## [0.0.2] - 2026-11-25
+
+Trained cores take over steps of the method: the Evaluate core judges whether
+what was read is enough, the Read core points at the answer and at the next
+name to search, and `core_read` beats every baseline on test. `ood` is made
+honest (held-out grammar, chain link wording and combinations) and `val` holds
+phrasings of its own, so settings are chosen without opening `ood`; on `ood`
+the cores remain far from test. A human-correction protocol measures how the
+loop takes a hint mid-way. From this version Docta-nm is dual-licensed (AGPL
+v3.0 or a commercial licence).
+
+Training note, measured on `val` over three seeds: with `--warmup 1000 --lr
+1e-3`, two of four Evaluate seeds stalled on the shape-alone plateau (val
+about 0.60). `--warmup 4000 --lr 1e-3 --dropout 0.1` got all three seeds
+tried off it (val accuracy 68.8%, 73.5%, 76.7% after 6 epochs); `--lr 3e-4`
+did too, but with a rising val loss on two seeds (67.1–76.8%).
+
 ### Added
 
 - **`val` held out from train**: `val` is written in phrasings of its own
@@ -170,5 +187,6 @@ sources disagree, ready for the challenge step.
   2.1), security policy, issue and pull request templates, and a test that
   keeps every package on the released version.
 
-[Unreleased]: https://github.com/antikkorps/docta-nm/compare/v0.0.1...HEAD
+[Unreleased]: https://github.com/antikkorps/docta-nm/compare/v0.0.2...HEAD
+[0.0.2]: https://github.com/antikkorps/docta-nm/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/antikkorps/docta-nm/releases/tag/v0.0.1
