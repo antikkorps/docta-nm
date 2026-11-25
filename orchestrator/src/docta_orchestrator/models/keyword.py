@@ -7,6 +7,7 @@ with the question, then takes a number or a new proper name from it.
 
 import re
 
+from docta_orchestrator.models.templates import TEMPLATE_WORDS
 from docta_orchestrator.states import (
     Conclusion,
     Confrontation,
@@ -16,8 +17,10 @@ from docta_orchestrator.states import (
     Verdict,
 )
 
-QUESTION_WORDS = {"In", "What", "Which", "Who", "How", "At", "The"}
-NUMBER_STARTS = ("in what year", "what is the", "how ", "at what")
+# Capitalised only because they open a question or a sentence, never names:
+# every capitalised word a seen template writes ("Records", "It", "Which").
+QUESTION_WORDS = TEMPLATE_WORDS
+NAME = r"\b[A-Z][a-z]+(?: [A-Z][a-z]+)*\b"
 Found = tuple[str, tuple[str, ...]]  # (answer, cited source ids)
 
 
@@ -27,6 +30,11 @@ def _words(text: str) -> set[str]:
 
 def capitalised_words(text: str) -> list[str]:
     return [w for w in re.findall(r"\b[A-Z][a-z]+\b", text) if w not in QUESTION_WORDS]
+
+
+def asked_kind(question: str) -> str:
+    """Only "which" and "who" ask for a name; every other question a number."""
+    return "name" if re.search(r"\b(?:which|who)\b", question.lower()) else "number"
 
 
 def _pick(sentence: str, kind: str, known: set[str]) -> str | None:
@@ -61,14 +69,26 @@ def best_sentence(question: str, evidence: Evidence, subject: list[str], kind: s
     return (best[1], (best[2],)) if best else None
 
 
+def compared(question: str) -> tuple[str, str] | None:
+    """The two names a comparison weighs, in any wording. The opening word is
+    skipped: capitalised, it would join the first name."""
+    opening = re.match(r"\W*\w+", question)
+    options = re.search(rf"({NAME}) or ({NAME})", question[opening.end() if opening else 0 :])
+    return (options[1], options[2]) if options else None
+
+
+def winner(question: str, a: tuple[str, int], b: tuple[str, int]) -> str:
+    """The option a comparison asks for, from each option's value: code, not
+    a model, compares. "earlier" asks for the smaller value, all others the larger."""
+    return a[0] if (a[1] < b[1]) == ("earlier" in question) else b[0]
+
+
 def _choice(question: str, evidence: Evidence, a: str, b: str) -> Found | None:
     found = [best_sentence(question, evidence, capitalised_words(x), "number") for x in (a, b)]
     if None in found:
         return None
     (va, sa), (vb, sb) = found
-    # "earlier" asks for the smaller value; every other comparison the larger.
-    a_wins = (int(va) < int(vb)) == ("earlier" in question)
-    return (a if a_wins else b), tuple(dict.fromkeys(sa + sb))
+    return winner(question, (a, int(va)), (b, int(vb))), tuple(dict.fromkeys(sa + sb))
 
 
 class KeywordModel:
@@ -76,11 +96,13 @@ class KeywordModel:
 
     def answer(self, framing: Framing, evidence: Evidence) -> Found | None:
         q = framing.question
-        options = re.search(r", (.+) or (.+)\?$", q)
+        # Rules on what a question asks, never on its wording: the ood split
+        # words questions differently, and a rule fitted to train's openings
+        # would hide whatever the judgement gets right there.
+        options = compared(q)
         if options:
-            return _choice(q, evidence, options[1], options[2])
-        kind = "number" if q.lower().startswith(NUMBER_STARTS) else "name"
-        return best_sentence(q, evidence, capitalised_words(q), kind)
+            return _choice(q, evidence, *options)
+        return best_sentence(q, evidence, capitalised_words(q), asked_kind(q))
 
     def frame(self, question: str) -> Framing:
         return Framing(question)

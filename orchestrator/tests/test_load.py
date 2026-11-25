@@ -106,3 +106,12 @@ def test_keeps_the_ground_truth_of_traps(conn):
         " WHERE world_id = 'w_test01' AND question_id = 'q1'"
     ).fetchone()
     assert question == ("undecidable", "unresolved_contradiction")
+
+
+def test_pruning_against_no_world_is_refused(conn, tmp_path):
+    load_files(conn, [jsonl(tmp_path / "one.jsonl", WORLD)])
+    empty = tmp_path / "empty.jsonl"
+    empty.write_text("")
+    with pytest.raises(ValueError, match="no world"):
+        load_files(conn, [empty], prune=True)
+    assert counts(conn, "w_test01")["worlds"] == 1, "the database is left as it was"

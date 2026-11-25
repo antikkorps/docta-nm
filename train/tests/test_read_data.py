@@ -1,0 +1,122 @@
+"""The Read dataset: what the core reads once it judged it enough, and where
+the answer sits in it (ground truth, for training and scoring only)."""
+
+from docta_orchestrator.search import Hit
+from docta_train.evaluate_data import Example
+from docta_train.read_data import ReadExample, build_read_examples, read_reads, write_reads
+
+WORLD = {
+    "type": "world", "world_id": "w1",
+    "entities": [
+        {"id": "e1", "kind": "city", "name": "Varnelle"},
+        {"id": "e2", "kind": "city", "name": "Brask"},
+        {"id": "e3", "kind": "person", "name": "Orlan Teste"},
+    ],
+    "facts": [
+        {"id": "f1", "subj": "e1", "pred": "founded_in", "obj": 1432},
+        {"id": "f2", "subj": "e2", "pred": "founded_in", "obj": 1610},
+        {"id": "f9", "subj": "e3", "pred": "lives_in", "obj": "e1"},
+    ],
+}  # fmt: skip
+S1 = Hit("s1", "Annals", "Varnelle was founded in 1432.", 0.9)
+S2 = Hit("s2", "Annals", "Brask was founded in 1610.", 0.9)
+S9 = Hit("s9", "Notes", "Orlan Teste resides in Varnelle.", 0.9)
+CHAIN = "In what year was the city where Orlan Teste lives founded?"
+
+
+def question(qid, text, primitive, answer, facts, sources, trap=None):
+    return {
+        "type": "question", "world_id": "w1", "question_id": qid, "text": text,
+        "primitive": primitive, "answerable": answer is not None, "answer": answer,
+        "required_facts": facts, "required_sources": sources, "trap": trap,
+    }  # fmt: skip
+
+
+def read(q, label=True, hits=(S1, S2)):
+    example = Example("w1", q["question_id"], "val", q["text"], hits, label)
+    return list(build_read_examples([WORLD, q], [example]))
+
+
+def test_a_retrieve_question_reads_its_answer_in_its_sources():
+    q = question("q1", "In what year was Varnelle founded?", "retrieve", "1432", ["f1"], ["s1"])
+    assert read(q) == [
+        ReadExample("w1", "q1", "val", q["text"], (S1, S2), "1432", ("s1",)),
+    ]
+
+
+def test_a_comparison_reads_each_option_value_with_the_option_named_last():
+    # Code compares the two values: the core only reads them.
+    text = "Which was founded earlier, Varnelle or Brask?"
+    q = question("q2", text, "compare", "Varnelle", ["f1", "f2"], ["s1", "s2"])
+    assert [(e.question, e.answer) for e in read(q)] == [
+        (f"{text} Varnelle", "1432"),
+        (f"{text} Brask", "1610"),
+    ]
+
+
+def test_only_what_was_judged_enough_and_holds_no_trap_is_read():
+    q = question("q3", "In what year was Varnelle founded?", "retrieve", "1432", ["f1"], ["s1"])
+    assert read(q, label=False) == []
+    assert read({**q, "trap": "contradiction"}) == []
+
+
+def test_a_chain_teaches_the_bridge_on_what_the_first_search_read():
+    # The first search rarely reads the second hop: judged not enough, the
+    # excerpts still show which name to search next, the core's pointer.
+    q = question("q4", CHAIN, "chain", "1432", ["f9", "f1"], ["s9", "s1"])
+    assert read(q, label=False, hits=(S2, S9)) == [
+        ReadExample("w1", "q4", "val", CHAIN, (S2, S9), "Varnelle", ("s9",), head="bridge"),
+    ]
+
+
+def test_once_the_bridge_was_searched_a_chain_teaches_its_answer():
+    # Same question, more read: the core points at what answers it once it
+    # is there, at the name to search while it is not.
+    q = question("q4", CHAIN, "chain", "1432", ["f9", "f1"], ["s9", "s1"])
+    assert read(q, label=True, hits=(S9, S1)) == [
+        ReadExample("w1", "q4", "val", CHAIN, (S9, S1), "1432", ("s1",)),
+    ]
+
+
+def test_no_bridge_is_taught_where_its_link_was_not_read():
+    q = question("q4", CHAIN, "chain", "1432", ["f9", "f1"], ["s9", "s1"])
+    assert read(q, hits=(S1, S2)) == []
+    assert read({**q, "trap": "contradiction"}, hits=(S9,)) == []
+
+
+def test_reads_round_trip(tmp_path):
+    q = question("q1", "In what year was Varnelle founded?", "retrieve", "1432", ["f1"], ["s1"])
+    chain = question("q4", CHAIN, "chain", "1432", ["f9", "f1"], ["s9", "s1"])
+    examples = read(q) + read(chain, label=False, hits=(S2, S9))
+    write_reads(examples, tmp_path / "val.jsonl")
+    assert list(read_reads(tmp_path / "val.jsonl")) == examples
+
+
+def test_reads_written_before_the_two_pointers_are_refused(tmp_path):
+    # Read back as answer targets, its bridges would mix the pointers again.
+    import json
+
+    import pytest
+
+    q = question("q1", "In what year was Varnelle founded?", "retrieve", "1432", ["f1"], ["s1"])
+    write_reads(read(q), tmp_path / "val.jsonl")
+    old = json.loads((tmp_path / "val.jsonl").read_text())
+    del old["head"]
+    (tmp_path / "val.jsonl").write_text(json.dumps(old) + "\n")
+    with pytest.raises(ValueError, match="just read-data"):
+        list(read_reads(tmp_path / "val.jsonl"))
+
+
+def test_a_head_neither_answer_nor_bridge_is_refused(tmp_path):
+    # A stray value would train silently as an answer target.
+    import json
+
+    import pytest
+
+    q = question("q1", "In what year was Varnelle founded?", "retrieve", "1432", ["f1"], ["s1"])
+    write_reads(read(q), tmp_path / "val.jsonl")
+    odd = json.loads((tmp_path / "val.jsonl").read_text())
+    odd["head"] = "bridges"
+    (tmp_path / "val.jsonl").write_text(json.dumps(odd) + "\n")
+    with pytest.raises(ValueError, match="bridges"):
+        list(read_reads(tmp_path / "val.jsonl"))

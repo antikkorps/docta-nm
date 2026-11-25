@@ -4,6 +4,7 @@
 
 ## Checklist
 
+- [ ] I have read the [Contributor License Agreement](https://github.com/antikkorps/docta-nm/blob/dev/CLA.md), version 1, and agree to it for this and my later contributions.
 - [ ] The pull request targets `dev`, and covers one topic.
 - [ ] Tests were written first; `just up && just test` passes.
 - [ ] A line is added under `Unreleased` in `CHANGELOG.md` (if a user or contributor would notice).

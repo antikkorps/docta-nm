@@ -13,12 +13,14 @@ TRACE_FIELDS = ["question_id", "world_id", "states", "decision"]
 
 
 def read_gold(path: Path) -> list[Gold]:
-    """The questions of a generated split; worlds and sources are skipped."""
+    """The questions of a generated split, with the entity names of their world
+    and what false sources claim about their facts. Two passes, so a question
+    never misses a claim written after it: a missed claim would turn every
+    "fooled" score into a silent, flattering zero."""
+    records = list(read_records(path))
+    names, claims = _world_index(records)
     golds: dict[Key, Gold] = {}
-    names: dict[str, list[str]] = {}
-    for where, record in read_records(path):
-        if record["type"] == "world":
-            names[record["world_id"]] = [e["name"] for e in record["entities"]]
+    for where, record in records:
         if record["type"] != "question":
             continue
         key = (record["world_id"], record["question_id"])
@@ -27,10 +29,36 @@ def read_gold(path: Path) -> list[Gold]:
         answer = record["answer"]
         if record["answerable"] and not (isinstance(answer, str) and answer):
             raise ValueError(f"{where}: question is answerable but has no answer")
-        golds[key] = Gold.from_record(record, names.get(record["world_id"], []))
+        wid = record["world_id"]
+        false = [v for f in record["required_facts"] for v in claims.get((wid, f), ())]
+        golds[key] = Gold.from_record(record, names.get(wid, {}).values(), false)
     if not golds:
         raise ValueError(f"{path}: no question to score")
     return list(golds.values())
+
+
+def _world_index(records: list) -> tuple[dict, dict]:
+    """Entity names per world, and the false claims per (world, fact)."""
+    names = {
+        r["world_id"]: {e["id"]: e["name"] for e in r["entities"]}
+        for _, r in records
+        if r["type"] == "world"
+    }
+    claims: dict[tuple[str, str], set[str]] = {}
+    for where, r in records:
+        if r["type"] == "source":
+            _collect_claims(where, r, names.get(r["world_id"], {}), claims)
+    return names, claims
+
+
+def _collect_claims(where: str, source: dict, names: dict[str, str], claims: dict) -> None:
+    """Each false claim, read as an answer would be: an entity by its name."""
+    for claim in source["false_claims"]:
+        obj = claim["obj"]
+        if isinstance(obj, str) and obj not in names:
+            raise ValueError(f"{where}: false claim names unknown entity {obj!r}")
+        value = names[obj] if isinstance(obj, str) else str(obj)
+        claims.setdefault((source["world_id"], claim["fact"]), set()).add(value)
 
 
 def read_predictions(path: Path, gold_keys: set[Key]) -> dict[Key, Pred]:
@@ -107,7 +135,8 @@ def _type_problem(r: dict) -> str | None:
     return None
 
 
-STATES = {"frame", "plan", "consult", "evaluate", "confront", "conclude"}
+# "human": a hint the protocol gave mid-way (orchestrator human.py).
+STATES = {"frame", "plan", "consult", "evaluate", "confront", "conclude", "human"}
 
 
 def _trace_problem(r: dict) -> str | None:

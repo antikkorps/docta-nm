@@ -17,18 +17,22 @@ from docta_orchestrator.jsonl import read_records
 from docta_orchestrator.loop import Search, run
 from docta_orchestrator.models import (
     AlwaysAbstainModel,
+    ChallengeModel,
     DigModel,
     KeywordModel,
+    MajorityModel,
     RandomModel,
     RuleEvaluateModel,
 )
-from docta_orchestrator.search import search
+from docta_orchestrator.search import Hit, search
 from docta_orchestrator.states import Model
 
 
-def predict(question: dict, model: Model, search: Search, max_rounds: int = 3) -> tuple[dict, dict]:
+def predict(
+    question: dict, model: Model, search: Search, max_rounds: int = 3, hint: Hit | None = None
+) -> tuple[dict, dict]:
     """One question through the loop: its prediction record and its trace."""
-    outcome, states = run(question["text"], model, search, max_rounds)
+    outcome, states = run(question["text"], model, search, max_rounds, hint)
     prediction = {
         "question_id": question["question_id"],
         "world_id": question["world_id"],
@@ -71,14 +75,17 @@ def run_models(
 
 
 def baseline_models(seed: int) -> list[Model]:
-    """The floors: three fake models, the hand-written Evaluate rule, and the
-    first model that digs (searches again from what it read)."""
+    """The floors: three fake models, the hand-written Evaluate rule, the first
+    model that digs, and two hand-written Confronts (the naive vote, and the
+    one that counts copies once)."""
     return [
         RandomModel(seed),
         AlwaysAbstainModel(),
         KeywordModel(),
         RuleEvaluateModel(),
         DigModel(),
+        MajorityModel(),
+        ChallengeModel(),
     ]
 
 

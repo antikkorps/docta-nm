@@ -52,6 +52,66 @@ def test_keyword_model_compares_two_numbers():
     assert set(older.cited) == {"s1", "s3"}  # Varnelle in s1, Brask in s3
 
 
+def test_keyword_model_asks_a_name_only_with_which_or_who():
+    # A rule on what a question asks, not on its opening words: any other
+    # wording of a number question still reads a number.
+    year = ask(KeywordModel(), "When, as a year, was Varnelle founded?")
+    assert (year.answer, year.cited) == ("1432", ("s1",))
+    city = ask(KeywordModel(), "Name the city which Orlan Teste lives in?")
+    assert city.answer == "Varnelle"
+
+
+def test_keyword_model_compares_two_names_joined_by_or_in_any_wording():
+    older = ask(KeywordModel(), "Which of Brask or Varnelle was founded earlier?")
+    assert older.answer == "Varnelle"
+    # A question's opening word is never a name, capitalised or not.
+    later = ask(KeywordModel(), "Of Brask or Varnelle, which was founded more recently?")
+    assert later.answer == "Brask"
+
+
+def test_keyword_model_compares_two_people_with_two_word_names():
+    people = [
+        Hit("p1", "Notes", "Orlan Teste is 182 centimetres tall.", 0.9),
+        Hit("p2", "Notes", "Mira Kol is 175 centimetres tall.", 0.9),
+    ]
+    question = "Which of Mira Kol or Orlan Teste is taller?"
+    outcome, _ = run(question, KeywordModel(), lambda q: people)
+    assert (outcome.answer, set(outcome.cited)) == ("Orlan Teste", {"p1", "p2"})
+
+
 def test_keyword_model_abstains_when_nothing_relevant_comes_back():
     assert ask(KeywordModel(), "In what year was Orlan Teste born?").exit == Exit.NOT_FOUND
     assert ask(KeywordModel(), "How tall is Zorvath, in centimetres?").exit == Exit.NOT_FOUND
+
+
+def test_keyword_model_never_answers_a_sentence_opening_word():
+    from docta_orchestrator.models import KeywordModel
+    from docta_orchestrator.search import Hit
+    from docta_orchestrator.states import Framing
+
+    rolls = Hit("s1", "Survey", "On the rolls of Kortha are 40 members.", 0.9)
+    seat = Hit("s2", "Notes", "Kortha keeps its seat in Varnelle.", 0.9)
+    found = KeywordModel().answer(Framing("Which city holds the seat of Kortha?"), (rolls, seat))
+    assert found == ("Varnelle", ("s2",))
+
+
+def test_a_frame_word_opening_a_sentence_is_never_a_name():
+    # Any capitalised word of a seen template is a template word, not a name.
+    from docta_orchestrator.models import KeywordModel
+    from docta_orchestrator.search import Hit
+    from docta_orchestrator.states import Framing
+
+    said = Hit("s1", "Notes", "It is said that Orlan Teste belongs to Kortha.", 0.9)
+    records = Hit("s2", "Notes", "Records show that Mira Kol lives in Varnelle.", 0.9)
+    model = KeywordModel()
+    assert model.answer(Framing("Which guild does Orlan Teste belong to?"), (said,)) == (
+        "Kortha",
+        ("s1",),
+    )
+    assert model.answer(Framing("In which city does Mira Kol live?"), (records,))[0] == "Varnelle"
+
+
+def test_an_attribution_word_is_never_a_name():
+    from docta_orchestrator.models.templates import TEMPLATE_WORDS
+
+    assert {"According", "Chronicle", "Notes"} <= TEMPLATE_WORDS

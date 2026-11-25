@@ -30,7 +30,7 @@ wheels = [
 
 [[package]]
 name = "docta-eval"
-version = "0.0.1"
+version = "0.0.2"
 source = { editable = "eval" }
 dependencies = [
     { name = "docta-orchestrator" },
@@ -41,7 +41,7 @@ requires-dist = [{ name = "docta-orchestrator", editable = "orchestrator" }]
 
 [[package]]
 name = "docta-orchestrator"
-version = "0.0.1"
+version = "0.0.2"
 source = { editable = "orchestrator" }
 dependencies = [
     { name = "psycopg", extra = ["binary"] },
@@ -52,7 +52,7 @@ requires-dist = [{ name = "psycopg", extras = ["binary"], specifier = ">=3.3.9" 
 
 [[package]]
 name = "docta-train"
-version = "0.0.1"
+version = "0.0.2"
 source = { editable = "train" }
 dependencies = [
     { name = "docta-orchestrator" },

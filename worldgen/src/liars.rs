@@ -4,6 +4,7 @@
 use crate::corpus::Source;
 use crate::model::{Fact, Obj, World};
 use crate::sources::{name, render};
+use crate::split::Wording;
 use crate::templates;
 use rand::seq::IndexedRandom;
 use rand::{Rng, RngExt};
@@ -20,7 +21,7 @@ pub struct Claim<'a> {
     pub wrong: Obj,
     /// Prefix of temporary ids, unique within the world until renumbering.
     pub tag: String,
-    pub held_out: bool,
+    pub wording: Wording,
     pub titles: &'a mut Titles,
 }
 
@@ -73,7 +74,7 @@ impl<'a> Claim<'a> {
         world: &'a World,
         fact: &'a Fact,
         tag: String,
-        held_out: bool,
+        wording: Wording,
         titles: &'a mut Titles,
         rng: &mut R,
     ) -> Self {
@@ -83,7 +84,7 @@ impl<'a> Claim<'a> {
             fact,
             wrong,
             tag,
-            held_out,
+            wording,
             titles,
         }
     }
@@ -97,7 +98,7 @@ impl<'a> Claim<'a> {
             id: format!("{}:origin", self.tag),
             title: self.titles.for_origin(subj, rng),
             reliability,
-            text: templates::sentence(self.fact.pred, subj, &wrong, self.held_out, rng),
+            text: templates::sentence(self.fact.pred, subj, &wrong, self.wording, rng),
             facts: Vec::new(),
             false_claims: vec![(self.fact.id.clone(), self.wrong.clone())],
             copy_of: None,
@@ -107,12 +108,12 @@ impl<'a> Claim<'a> {
     /// A copy repeats its origin's sentence and says where it took it from.
     /// Its mid reliability keeps repetition from looking like good sourcing.
     pub fn copy<R: Rng>(&mut self, origin: &Source, k: u8, rng: &mut R) -> Source {
-        let phrasing = if self.held_out {
+        let phrasing = if self.wording == Wording::OodHeld {
             HELD_OUT_ATTRIBUTION
         } else {
             ATTRIBUTIONS.choose(rng).expect("non-empty")
         };
-        let claim = lower_first_article(&origin.text);
+        let claim = crate::grammar::lower_opening(&origin.text);
         Source {
             id: format!("{}:copy{k}", origin.id),
             title: self.titles.for_copy(name(self.world, &self.fact.subj), rng),
@@ -148,14 +149,6 @@ fn wrong_value<R: Rng>(world: &World, fact: &Fact, rng: &mut R) -> Obj {
             let other = others.choose(rng).expect("two entities per kind");
             Obj::Entity(other.id.clone())
         }
-    }
-}
-
-/// "The founding of X…" reads "…, the founding of X…" mid-sentence.
-fn lower_first_article(sentence: &str) -> String {
-    match sentence.strip_prefix("The ") {
-        Some(rest) => format!("the {rest}"),
-        None => sentence.to_string(),
     }
 }
 

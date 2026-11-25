@@ -1,0 +1,20 @@
+# Paths that steer the tooling rather than the research: AI assistant
+# instructions, CI, task runner, dependencies, database schema and local
+# infrastructure. A change there can run code on every contributor's machine
+# or redirect an AI assistant working on the repository, so the maintainer
+# reviews each one explicitly (see CONTRIBUTING.md, "External contributions").
+
+/CLAUDE.md              @antikkorps
+/.claude/               @antikkorps
+/.github/               @antikkorps
+/justfile               @antikkorps
+/docker-compose.yml     @antikkorps
+/.env.example           @antikkorps
+/db/                    @antikkorps
+/rust-toolchain.toml    @antikkorps
+/Cargo.toml             @antikkorps
+/Cargo.lock             @antikkorps
+/worldgen/Cargo.toml    @antikkorps
+/pyproject.toml         @antikkorps
+/*/pyproject.toml       @antikkorps
+/uv.lock                @antikkorps

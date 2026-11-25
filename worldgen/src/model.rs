@@ -41,6 +41,18 @@ pub enum Pred {
 }
 
 impl Pred {
+    pub const ALL: [Pred; 9] = [
+        Pred::FoundedIn,
+        Pred::Population,
+        Pred::BasedIn,
+        Pred::BornIn,
+        Pred::LivesIn,
+        Pred::MemberOf,
+        Pred::Elevation,
+        Pred::Members,
+        Pred::Height,
+    ];
+
     pub fn as_str(self) -> &'static str {
         match self {
             Pred::FoundedIn => "founded_in",

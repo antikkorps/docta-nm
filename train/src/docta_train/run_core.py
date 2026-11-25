@@ -11,35 +11,69 @@ from pathlib import Path
 import psycopg
 from docta_orchestrator.baseline import run_models
 from docta_orchestrator.jsonl import read_records
+from docta_orchestrator.protocol import VARIANTS, run_on_split
 from docta_orchestrator.search import search
 
-from docta_train.core_model import CoreEvaluateModel
+from docta_train.bridge_model import CoreBridgeModel
+from docta_train.core_model import CoreChainModel, CoreEvaluateModel
 from docta_train.predictor import Predictor
+from docta_train.read_model import CoreReadModel
+from docta_train.reader import ReadPredictor
 
 
-def main(argv: list[str]) -> int:
+def parse_args(argv: list[str]) -> argparse.Namespace:
     p = argparse.ArgumentParser(prog="python -m docta_train.run_core")
     p.add_argument("split", type=Path)
     p.add_argument("--checkpoint", type=Path, default=Path("models/core_evaluate/model.pt"))
     p.add_argument("--out", type=Path, default=Path("predictions"))
     p.add_argument("--traces", type=Path, default=Path("data/traces"))
     p.add_argument("--threshold", type=float, default=0.5)
-    args = p.parse_args(argv)
+    p.add_argument("--reader", type=Path, default=Path("models/core_read/model.pt"),
+                   help="a Read core; when it exists, core_read and core_bridge run")  # fmt: skip
+    p.add_argument("--human", type=Path,
+                   help="run the human-correction protocol into this directory")  # fmt: skip
+    return p.parse_args(argv)
+
+
+READ_MODELS = ("core_read", "core_bridge")  # the models that need a Read core
+
+
+def build_models(args: argparse.Namespace) -> list:
+    core = Predictor(args.checkpoint)
+    models = [CoreEvaluateModel(core, args.threshold), CoreChainModel(core, args.threshold)]
+    if args.reader.exists():
+        reader = ReadPredictor(args.reader)
+        models += [CoreReadModel(core, reader, args.threshold),
+                   CoreBridgeModel(core, reader, args.threshold)]  # fmt: skip
+    else:
+        # Every core_*.jsonl (or protocol file) is scored: an old run must not
+        # pass for this one.
+        stale = (
+            [args.human / f"{m}.{v}.jsonl" for m in READ_MODELS for v in VARIANTS]
+            if args.human
+            else [args.out / f"{m}.jsonl" for m in READ_MODELS]
+        )
+        for path in stale:
+            path.unlink(missing_ok=True)
+    return models
+
+
+def main(argv: list[str]) -> int:
+    args = parse_args(argv)
     url = os.environ.get("DATABASE_URL")
     if not url:
         print("error: DATABASE_URL is not set (see .env.example)", file=sys.stderr)
         return 2
     try:
-        model = CoreEvaluateModel(Predictor(args.checkpoint), args.threshold)
+        models = build_models(args)
+        if args.human:
+            # The chain models only: the protocol corrects a bridge mid-way.
+            run_on_split(args.split, models[1:], args.human)
+            return 0
         questions = [r for _, r in read_records(args.split) if r["type"] == "question"]
         with psycopg.connect(url, autocommit=True) as conn:
-            run_models(
-                questions,
-                [model],
-                lambda wid: lambda q: search(conn, wid, q),
-                args.out,
-                args.traces,
-            )
+            search_for = lambda wid: lambda q: search(conn, wid, q)  # noqa: E731
+            run_models(questions, models, search_for, args.out, args.traces)
     except (OSError, ValueError, psycopg.Error) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1

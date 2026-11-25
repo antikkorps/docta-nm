@@ -2,23 +2,23 @@
 
 "In what year was the city where Orlan Teste lives founded?": the first search
 reads "Orlan Teste lives in Varnelle." Varnelle is the unknown that reading
-revealed, so the next search goes after Varnelle, and the answer is read there.
+revealed, so the next search is "Varnelle", and the answer is read there.
 
 It only digs when the question refers to something indirectly ("the city
 where", "the guild that"). A direct question it cannot answer stays
 unanswered: following whatever names come up would turn a missing fact into
-a confident wrong answer. That cue is the generator's chain wording, which
-every split shares, ood included; sentences and questions are read with no
-template.
+a confident wrong answer. That cue is the seen chain wording, which ood
+holds out: on ood it never digs, so its chain score there shows what a rule
+on wording cannot reach. Sentences and questions are read with no template.
 """
 
 import re
 
 from docta_orchestrator.models.keyword import (
-    NUMBER_STARTS,
     QUESTION_WORDS,
     Found,
     KeywordModel,
+    asked_kind,
     capitalised_words,
     scored_answer,
 )
@@ -33,7 +33,9 @@ def indirect(question: str) -> bool:
 
 def proper_names(sentence: str) -> list[str]:
     names = re.findall(r"\b[A-Z][a-z]+(?: [A-Z][a-z]+)*\b", sentence)
-    return [n for n in names if n not in QUESTION_WORDS]
+    # "In Varnelle, ..." opens with a capitalised preposition glued to the name.
+    trimmed = [" ".join(w for w in n.split() if w not in QUESTION_WORDS) for n in names]
+    return [n for n in trimmed if n]
 
 
 def links(question: str, evidence: Evidence) -> list[Link]:
@@ -55,12 +57,13 @@ def can_dig(question: str, evidence: Evidence) -> bool:
     return indirect(question) and bool(revealed(question, evidence))
 
 
-def dug_answer(question: str, evidence: Evidence) -> Found | None:
+def dug_answer(question: str, evidence: Evidence, only: set[str] | None = None) -> Found | None:
     """The answer read about a revealed name, citing the link that led there.
     A subject has several links (a city, a guild): the answer whose sentence
-    best fits the question wins, not the first link met."""
-    kind = "number" if question.lower().startswith(NUMBER_STARTS) else "name"
-    found = links(question, evidence)
+    best fits the question wins, not the first link met. `only` keeps the
+    names a judge accepted as the bridge, so the answer comes from one of them."""
+    kind = asked_kind(question)
+    found = [(n, s) for n, s in links(question, evidence) if only is None or n in only]
     best: tuple[int, str, tuple[str, ...]] | None = None
     for name in dict.fromkeys(n for n, _ in found):
         # The revealed name joins the question, so it is never its own answer;
@@ -81,10 +84,10 @@ class DigModel(KeywordModel):
             return [q]
         if round_ > 1 or not can_dig(q, evidence):
             return []
-        # Drop the subject's words: its sources were read already and would
-        # crowd the new name's out of the top results.
-        rest = " ".join(w for w in re.findall(r"\w+", q) if w not in capitalised_words(q))
-        return [f"{name} {rest}" for name in revealed(q, evidence)]
+        # The bridge by its name alone: the question's other words ("where",
+        # "city", "lives") match sources about anything near the bridge and
+        # crowd out the one stating its value, the more so as phrasings vary.
+        return revealed(q, evidence)
 
     def answer(self, framing: Framing, evidence: Evidence) -> Found | None:
         q = framing.question

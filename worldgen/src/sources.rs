@@ -3,6 +3,7 @@
 
 use crate::corpus::Source;
 use crate::model::{Fact, Obj, World};
+use crate::split::Wording;
 use crate::templates;
 use rand::seq::{IndexedRandom, SliceRandom};
 use rand::{Rng, RngExt};
@@ -27,7 +28,7 @@ pub fn withhold<R: Rng>(world: &World, rng: &mut R) -> BTreeSet<String> {
 pub fn write<R: Rng>(
     world: &World,
     withheld: &BTreeSet<String>,
-    held_out: bool,
+    wording: Wording,
     rng: &mut R,
 ) -> Vec<Source> {
     let mut visible: Vec<&Fact> = world
@@ -41,13 +42,19 @@ pub fn write<R: Rng>(
     while !rest.is_empty() {
         let size = rng.random_range(1..=3).min(rest.len());
         let (group, tail) = rest.split_at(size);
-        sources.push(source(world, sources.len() + 1, group, held_out, rng));
+        sources.push(source(world, sources.len() + 1, group, wording, rng));
         rest = tail;
     }
     sources
 }
 
-fn source<R: Rng>(world: &World, n: usize, facts: &[&Fact], held_out: bool, rng: &mut R) -> Source {
+fn source<R: Rng>(
+    world: &World,
+    n: usize,
+    facts: &[&Fact],
+    wording: Wording,
+    rng: &mut R,
+) -> Source {
     let text: Vec<String> = facts
         .iter()
         .map(|f| {
@@ -55,7 +62,7 @@ fn source<R: Rng>(world: &World, n: usize, facts: &[&Fact], held_out: bool, rng:
                 f.pred,
                 name(world, &f.subj),
                 &render(world, &f.obj),
-                held_out,
+                wording,
                 rng,
             )
         })

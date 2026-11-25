@@ -1,57 +1,63 @@
-"""The Evaluate core: byte encoding, a tiny transformer, and its training loop."""
+"""The Evaluate core: a tiny transformer over word tokens, and its training loop."""
 
 import torch
-from docta_orchestrator.search import Hit
-from docta_train.model import CLS, Config, CoreEvaluate, encode, pad_batch
+from docta_train.model import Config, CoreEvaluate, pad_batch
 from docta_train.training import train_steps
 
-TINY = Config(d_model=32, layers=1, heads=2, ff=64, max_len=64)
-S1 = Hit("s1", "Chronicle", "Varnelle was founded in 1432.", 0.9)
+TINY = Config(d_model=32, layers=1, heads=2, ff=64, max_len=16, local_heads=1)
+VOCAB = 12
 
 
-def test_encodes_question_then_excerpts_as_bytes():
-    ids = encode("When?", [S1], max_len=512)
-    assert ids[0] == CLS
-    text = bytes(i - 3 for i in ids[1:]).decode()
-    assert text == "Q: When?\n[Chronicle] Varnelle was founded in 1432.\n"
-
-
-def test_truncates_to_max_len():
-    assert len(encode("x" * 1000, [S1], max_len=64)) == 64
+def test_pads_to_the_longest_sequence_and_masks_the_padding():
+    ids, mask = pad_batch([[1, 5, 6], [1, 7]])
+    assert ids.tolist() == [[1, 5, 6], [1, 7, 0]]
+    assert mask.tolist() == [[False, False, False], [False, False, True]]
 
 
 def test_padding_never_changes_a_prediction():
     torch.manual_seed(0)
-    model = CoreEvaluate(TINY).eval()
-    short, long_ = encode("a?", [], 64), encode("a much longer question?", [S1], 64)
-    ids, mask = pad_batch([short, long_])
-    alone_ids, alone_mask = pad_batch([short])
+    model = CoreEvaluate(TINY, VOCAB).eval()
+    short, long_ = [1, 5, 6], [1, 7, 8, 9, 10, 11]
     with torch.no_grad():
-        assert torch.allclose(model(ids, mask)[0], model(alone_ids, alone_mask)[0], atol=1e-5)
+        both, alone = model(*pad_batch([short, long_])), model(*pad_batch([short]))
+    assert torch.allclose(both[0], alone[0], atol=1e-5)
 
 
 def toy_batches():
-    """Label = whether the text says 'yes': learnable in a few dozen steps."""
-    texts = [("yes it is", 1.0), ("no it is not", 0.0)] * 32
-    return [([encode(t, [], 64) for t, _ in texts], torch.tensor([y for _, y in texts]))]
+    """Label = whether token 5 ('yes') is there: learnable in a few dozen steps."""
+    seqs = [([1, 5, 9, 10], 1.0), ([1, 6, 9, 10, 11], 0.0)] * 32
+    return [([s for s, _ in seqs], torch.tensor([y for _, y in seqs]))]
 
 
 def test_training_learns_a_toy_task():
     torch.manual_seed(0)
-    model = CoreEvaluate(TINY)
+    model = CoreEvaluate(TINY, VOCAB)
     train_steps(model, toy_batches() * 60, lr=3e-3)
-    ids, mask = pad_batch([encode("yes it is", [], 64), encode("no it is not", [], 64)])
     with torch.no_grad():
-        p = torch.sigmoid(model.eval()(ids, mask))
+        p = torch.sigmoid(model.eval()(*pad_batch([[1, 5, 9, 10], [1, 6, 9, 10, 11]])))
     assert p[0] > 0.9 and p[1] < 0.1
 
 
 def test_training_is_deterministic():
     def trained():
         torch.manual_seed(0)
-        model = CoreEvaluate(TINY)
+        model = CoreEvaluate(TINY, VOCAB)
         train_steps(model, toy_batches() * 3, lr=3e-3)
         return model.state_dict()
 
     a, b = trained(), trained()
     assert all(torch.equal(a[k], b[k]) for k in a)
+
+
+def test_validation_breaks_accuracy_down_by_question_shape():
+    from docta_train.training import validate
+
+    torch.manual_seed(0)
+    model = CoreEvaluate(TINY, VOCAB)
+    train_steps(model, toy_batches() * 60, lr=3e-3)
+    yes, no = [1, 5, 9, 10], [1, 6, 9, 10, 11]
+    batches = [([yes, no], torch.tensor([1.0, 1.0])), ([yes], torch.tensor([1.0]))]
+    metrics = validate(model, batches, shapes=["a", "b", "a"])
+    assert metrics["val_by_shape"] == {"a": 1.0, "b": 0.0}
+    assert metrics["val_accuracy"] == 2 / 3  # exact, not a float32 mean
+    assert "val_by_shape" not in validate(model, batches)

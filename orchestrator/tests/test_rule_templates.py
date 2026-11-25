@@ -1,5 +1,6 @@
-"""The rule's Python copy of the seen templates must track worldgen's Rust ones:
-generate a small corpus and check the rule reads all of seen, none of ood.
+"""The seen phrasings worldgen exports (templates_seen.json) must be what it
+writes: generate a small corpus and check the rule reads all of seen (train
+and test), none of val's or ood's held-out phrasings.
 A random corpus may miss a template, so each one also round-trips on its own."""
 
 import shutil
@@ -45,7 +46,7 @@ def stated(world: dict, fact_ids: list[str]) -> list[tuple[str, str, str]]:
 
 def test_every_seen_sentence_reads_back_to_exactly_its_facts(corpus):
     checked = 0
-    for split in ("train", "val", "test"):
+    for split in ("train", "test"):
         worlds = {r["world_id"]: r for r in corpus[split] if r["type"] == "world"}
         for r in corpus[split]:
             if r["type"] == "source":
@@ -55,14 +56,17 @@ def test_every_seen_sentence_reads_back_to_exactly_its_facts(corpus):
     assert checked
 
 
-def test_every_seen_question_is_understood_and_no_ood_one_is(corpus):
+def test_every_seen_question_is_understood_and_no_held_out_one_is(corpus):
     def questions(split):
         return [r["text"] for r in corpus[split] if r["type"] == "question"]
 
-    seen = questions("train") + questions("val") + questions("test")
+    seen = questions("train") + questions("test")
     assert seen and all(needs(q) is not None for q in seen)
-    ood = questions("ood")
-    assert ood and all(needs(q) is None for q in ood)
+    # val's phrasings are held out like ood's: a rule passing them would make
+    # val no measure of generalisation.
+    for split in ("val", "ood"):
+        held = questions(split)
+        assert held and all(needs(q) is None for q in held), split
 
 
 def reached(world: dict, need: tuple[str, tuple[str, ...]]) -> list[str]:
@@ -91,8 +95,9 @@ def test_every_template_copy_round_trips():
             assert read_sentence(t.format(s="Kel Dorn", o="Varnelle")) == [
                 ("Kel Dorn", pred, "Varnelle")
             ]
-    for pred, t in QUESTIONS.items():
-        assert needs(t.format(s="Kel Dorn")) == [("Kel Dorn", (pred,))]
+    for pred, templates in QUESTIONS.items():
+        for t in templates:
+            assert needs(t.format(s="Kel Dorn")) == [("Kel Dorn", (pred,))]
     for pred, t in COMPARISONS.items():
         assert needs(t.format(s="Kel Dorn", o="Brask")) == [
             ("Kel Dorn", (pred,)),

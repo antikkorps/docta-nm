@@ -71,4 +71,6 @@ def test_baseline_runs_the_fake_models_and_the_evaluate_rule():
     from docta_orchestrator.baseline import baseline_models
 
     names = [m.name for m in baseline_models(seed=0)]
-    assert names == ["random", "always_abstain", "keyword", "rule_evaluate", "dig"]
+    assert names == [
+        "random", "always_abstain", "keyword", "rule_evaluate", "dig", "majority", "challenge",
+    ]  # fmt: skip

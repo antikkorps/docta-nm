@@ -12,6 +12,7 @@ from docta_eval.io import read_gold, read_predictions, read_traces
 from docta_eval.metrics import score
 from docta_eval.process import process_scores
 from docta_eval.report import render
+from docta_eval.traps import trap_scores
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -34,6 +35,9 @@ def evaluate(gold: Path, predictions: list[Path], traces: Path | None = None) ->
             raise ValueError(f"model {path.stem!r} appears twice: rename one of its files")
         preds = read_predictions(path, keys)
         results[path.stem] = score(golds, preds)
+        traps = trap_scores(golds, preds)
+        if traps:
+            results[path.stem]["traps"] = traps
         if traces is not None:
             model_traces = read_traces(traces / f"{path.stem}.jsonl", keys)
             _check_agreement(preds, model_traces, path.stem)
@@ -42,9 +46,23 @@ def evaluate(gold: Path, predictions: list[Path], traces: Path | None = None) ->
 
 
 def _check_agreement(preds: dict, traces: dict, model: str) -> None:
-    """A stale traces directory would mix two runs' numbers without a word."""
+    """A stale traces directory would mix two runs' numbers without a word: the
+    answer tables and the reflection table must describe the same decisions."""
+    for key in sorted(set(traces) ^ set(preds)):
+        side = "a trace but no prediction" if key in traces else "a prediction but no trace"
+        raise ValueError(f"{model}: {key[0]}/{key[1]} has {side}")
     for key, trace in traces.items():
-        if key in preds and preds[key].abstained != trace["decision"]["abstained"]:
+        p = preds[key]
+        mine = {
+            "abstained": p.abstained,
+            "answer": p.answer,
+            "cited_sources": sorted(p.cited_sources),
+            "exit": p.exit,
+        }
+        decision = {**trace["decision"]}
+        if "cited_sources" in decision:
+            decision["cited_sources"] = sorted(decision["cited_sources"])
+        if any(field in decision and decision[field] != mine[field] for field in mine):
             raise ValueError(f"{model}: trace of {key[0]}/{key[1]} disagrees with its prediction")
 
 
