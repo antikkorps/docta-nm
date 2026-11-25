@@ -52,6 +52,31 @@ def test_cli_sets_dropout_and_warmup(tmp_path, monkeypatch):
     assert seen["config"].dropout == 0.2 and seen["warmup"] == 7
 
 
+def test_a_fresh_run_defaults_to_the_settings_that_got_every_seed_off_the_plateau(
+    tmp_path, monkeypatch
+):
+    # Over three seeds on val, --warmup 4000 --lr 1e-3 --dropout 0.1 took off
+    # every time; the old defaults left two seeds in four on shape alone.
+    from docta_train import fit as fit_module
+    from docta_train import fit_args
+    from docta_train.evaluate_data import write_examples
+
+    write_examples(examples("train", 4), tmp_path / "train.jsonl")
+    write_examples(examples("val", 2), tmp_path / "val.jsonl")
+    seen = {}
+    monkeypatch.setattr(fit_module, "protect_machine", lambda **kw: None)
+    monkeypatch.setattr(
+        fit_module,
+        "fit",
+        lambda tr, va, out, config, epochs, batch, lr, *a, **kw: (
+            seen.update(kw, config=config, lr=lr) or {}
+        ),
+    )
+    fit_module.main(["--data", str(tmp_path), "--out", str(tmp_path / "m"), "--no-balance"])
+    lr = seen["lr"] or fit_args.DEFAULT_LR  # None: fit falls back on the default
+    assert (seen["config"].dropout, seen["warmup"], lr) == (0.1, 4000, 1e-3)
+
+
 def test_resume_refuses_a_run_saved_before_warmup(tmp_path):
     import pytest
 

@@ -6,7 +6,11 @@ from pathlib import Path
 from docta_train import checkpoint
 from docta_train.model import Config
 
-DEFAULT_LR = 3e-4
+# Over three seeds on val, these got every Evaluate run off the shape-alone
+# plateau; warmup 1000 left two seeds in four there, a lower lr overfitted.
+DEFAULT_LR = 1e-3
+DEFAULT_DROPOUT = 0.1
+DEFAULT_WARMUP = 4000
 
 
 def within(kind: type, low: float, high: float):
@@ -26,7 +30,9 @@ def config_of(args: argparse.Namespace) -> Config:
     """The run's own dropout on a resume that names none, like its learning rate."""
     if args.dropout is not None:
         return Config(dropout=args.dropout)
-    if not args.resume or not (args.out / "last.pt").exists():
+    if not args.resume:
+        return Config(dropout=DEFAULT_DROPOUT)
+    if not (args.out / "last.pt").exists():
         return Config()  # without last.pt, fit says there is nothing to resume
     saved = checkpoint.load_last(args.out / "last.pt").get("config") or {}
     return Config(dropout=saved.get("dropout", Config.dropout))
@@ -41,13 +47,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--lr", type=float, help=f"default {DEFAULT_LR}; with --resume, the run's own")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument(
-        "--dropout", type=within(float, 0, 0.99), help="default 0; with --resume, the run's own"
+        "--dropout",
+        type=within(float, 0, 0.99),
+        help=f"default {DEFAULT_DROPOUT}; with --resume, the run's own",
     )
     p.add_argument(
         "--warmup",
         type=within(int, 0, float("inf")),
-        default=0,
-        help="steps of learning-rate climb; a resumed run keeps its own",
+        default=DEFAULT_WARMUP,
+        help=f"learning-rate climb in steps (default {DEFAULT_WARMUP}); a resume keeps its own",
     )
     p.add_argument(
         "--max-train", type=int, help="cap the training examples read (before balancing)"
