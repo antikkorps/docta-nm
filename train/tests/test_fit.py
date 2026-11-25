@@ -236,3 +236,32 @@ def test_predictor_refuses_a_vocabulary_without_the_current_special_tokens(tmp_p
     torch.save(saved, tmp_path / "model.pt")
     with pytest.raises(ValueError, match="rerun `just fit`"):
         Predictor(tmp_path / "model.pt")
+
+
+def test_fit_refuses_an_example_longer_than_the_core_reads(tmp_path):
+    # A cut excerpt can lose the sentence its label rests on: noise, silently.
+    long = Hit("s9", "T", " ".join(["Brask was founded in 1610."] * 40), 0.9)
+    lost = Example("w", "q", "train", "When was Brask founded?", (long,), True)
+    with pytest.raises(ValueError, match="1 of 17 examples.*max_len 96"):
+        fit([*examples("train", 16), lost], examples("val", 4), tmp_path, TINY, 1, 8, 3e-3, 0)
+
+
+def test_cli_says_how_to_fix_examples_too_long(tmp_path, monkeypatch, capsys):
+    from docta_train import fit as fit_module
+    from docta_train.evaluate_data import write_examples
+
+    write_examples(examples("train", 4), tmp_path / "train.jsonl")
+    write_examples(examples("val", 2), tmp_path / "val.jsonl")
+    monkeypatch.setattr(fit_module, "protect_machine", lambda **kw: None)
+    monkeypatch.setattr(fit_module, "fit", raise_too_long)
+    assert fit_module.main(["--data", str(tmp_path), "--no-balance"]) == 1
+    assert "max_len 96" in capsys.readouterr().err
+
+
+def raise_too_long(*args, **kwargs):
+    raise ValueError("1 of 8 examples are longer than max_len 96")
+
+
+def test_the_core_reads_the_longest_example_of_the_richer_language():
+    # Measured on 20,000 worlds of palier 1: 530 tokens (train), 517 (ood).
+    assert Config().max_len >= 576

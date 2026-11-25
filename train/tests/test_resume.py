@@ -125,3 +125,14 @@ def test_resume_refuses_a_run_saved_before_word_tokens(tmp_path):
     torch.save(saved, tmp_path / "last.pt")
     with pytest.raises(ValueError, match="without --resume"):
         run(tmp_path, 1, resume=True)
+
+
+def test_resume_keeps_the_length_the_run_was_built_for(tmp_path):
+    # Positions are weights: a resumed core cannot grow a longer reach.
+    import argparse
+
+    from docta_train.fit_args import config_of
+
+    run(tmp_path, 1)
+    args = argparse.Namespace(dropout=None, resume=True, out=tmp_path)
+    assert config_of(args).max_len == TINY.max_len

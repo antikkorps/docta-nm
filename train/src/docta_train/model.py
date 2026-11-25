@@ -19,9 +19,9 @@ class Config:
     layers: int = 4
     heads: int = 4
     ff: int = 256
-    # Longest example: 270 words on 20,000 worlds since the sentence grammar
-    # (157 before); a cut-off excerpt would turn its label into noise.
-    max_len: int = 320
+    # Longest example on 20,000 worlds of the richer language: 530 tokens
+    # (train), 517 (ood); 320 cut 13% of them. Training refuses a longer one.
+    max_len: int = 576
     # Each attention matrix (length x length per head) is kept for backward:
     # the sentence mask, like any dropout, rules out the memory-efficient kernel.
     dropout: float = 0.0
@@ -32,6 +32,18 @@ class Config:
         # fine and learn nothing.
         if not 0 <= self.local_heads < self.heads:
             raise ValueError(f"local_heads must be in [0, heads), got {self.local_heads}")
+
+
+def whole(seqs: Sequence[list[int]], max_len: int) -> Sequence[list[int]]:
+    """A cut excerpt can lose the sentence a label or an answer rests on, so
+    an example the core cannot read whole is refused, never cut."""
+    over = [len(s) for s in seqs if len(s) > max_len]
+    if over:
+        raise ValueError(
+            f"{len(over)} of {len(seqs)} examples are longer than max_len {max_len} "
+            f"(longest {max(over)} tokens): raise Config.max_len and retrain"
+        )
+    return seqs
 
 
 def pad_batch(batch: Sequence[list[int]]) -> tuple[torch.Tensor, torch.Tensor]:

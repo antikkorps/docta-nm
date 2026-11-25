@@ -20,7 +20,7 @@ import torch
 
 from docta_train.fit_args import within
 from docta_train.guard import protect_machine
-from docta_train.model import Config, pad_batch
+from docta_train.model import Config, pad_batch, whole
 from docta_train.read_data import ReadExample, read_reads
 from docta_train.reader import (
     CoreRead,
@@ -38,9 +38,9 @@ Item = tuple[list[int], list[int], bool]  # token ids, positions of the answer, 
 
 
 def encoded(examples: Sequence[ReadExample], vocab: Vocab, max_len: int) -> list[Item]:
+    every = whole([vocab.encode(e.question, e.excerpts) for e in examples], max_len)
     items = []
-    for e in examples:
-        ids = vocab.encode(e.question, e.excerpts)[:max_len]
+    for e, ids in zip(examples, every, strict=True):
         at = answer_positions(aligned(e.question, e.excerpts), e.answer, e.sources, max_len)
         items.append((ids, at, e.head == "bridge"))
     return items
@@ -165,8 +165,14 @@ def main(argv: list[str]) -> int:
     except (OSError, ValueError) as e:
         print(f"error: {e} (run `just read-data` first)", file=sys.stderr)
         return 1
-    report = fit_read(train, val, args.out, Config(dropout=args.dropout), args.epochs, args.batch,
-                      args.lr, args.seed, args.warmup, args.max_minutes)  # fmt: skip
+    try:
+        report = fit_read(
+            train, val, args.out, Config(dropout=args.dropout), args.epochs,
+            args.batch, args.lr, args.seed, args.warmup, args.max_minutes,
+        )  # fmt: skip
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
     print(json.dumps(report, indent=2), file=sys.stderr)
     return 0
 
