@@ -21,6 +21,9 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Changed
 
+- `just fit` defaults to `--warmup 4000 --lr 1e-3 --dropout 0.1` (was no
+  warmup, `--lr 3e-4`, no dropout): over three seeds on `val`, these got every
+  Evaluate run off the shape-alone plateau.
 - `just fit-read` keeps the epoch with the best `val_exact` instead of the
   last: on `val`'s held phrasings the Read core peaks before the end (65.6% at
   epoch 3, 61.5% at epoch 4 on one seed).
