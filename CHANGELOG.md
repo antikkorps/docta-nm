@@ -21,6 +21,17 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Changed
 
+- **A richer language, palier 1**: each relation in 9 or 10 seen clauses
+  (was 4 or 5), 30 frames (was 8), eight asides (was one), 16 titles (was
+  8), three or more wordings per question, and descriptions that state and
+  imply no fact ("Varnelle, a town of some renown, ..."): about 200 distinct
+  template words (was about 90). No two relations share their distinctive
+  words, and a frame never repeats a word of its aside. The clauses held out for val and ood are unchanged, still
+  built from seen words. Every split changes: rerun `just gen 42 20000`,
+  `just load`, then retrain.
+- **JSONL v2**: each source carries the template that wrote each of its
+  sentences (`phrasings`), each question its own (`template`): ground truth
+  for diagnosis by wording, never a model input. Readers accept v2 only.
 - `just fit` defaults to `--warmup 4000 --lr 1e-3 --dropout 0.1` (was no
   warmup, `--lr 3e-4`, no dropout): over three seeds on `val`, these got every
   Evaluate run off the shape-alone plateau.

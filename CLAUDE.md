@@ -111,8 +111,8 @@ docs/                # brief and design notes
 - Never introduce an LLM, external API or pretrained model anywhere in the chain,
   including data generation. Names, source texts and questions come from
   syllable assembly and templates only.
-- Ground truth (`facts`, `fact_ids`, `required_*`, `answer`) is never a model
-  input. `search()` returns only `source_id`, `title`, `body`, `reliability`.
+- Ground truth (`facts`, `fact_ids`, `required_*`, `answer`, `phrasings`,
+  `template`) is never a model input. `search()` returns only `source_id`, `title`, `body`, `reliability`.
   It may serve as a training target or for scoring (Evaluate's label, Read's
   answer position, which sentence carries a hop): a target teaches the method;
   what a model reads at inference holds no ground truth, and its weights hold
@@ -130,8 +130,9 @@ docs/                # brief and design notes
 **Data**
 - JSONL is canonical; Postgres is a projection reloaded from it. Loading is
   idempotent: reloading a world replaces it.
-- Every JSONL line carries `"schema":"v1"` (v0 plus traps: see
-  docs/design-challenge.md). Changing the format means a new schema version,
+- Every JSONL line carries `"schema":"v2"`: v1 (v0 plus traps, see
+  docs/design-challenge.md) plus the template that wrote each sentence
+  (`phrasings`) and question (`template`), for diagnosis by wording. Changing the format means a new schema version,
   not a silent edit; the reader accepts the current version only.
 - Trap ground truth (`false_claims`, `copy_of`, `trap`, `expected_exit`) is
   never a model input, like `facts`.
