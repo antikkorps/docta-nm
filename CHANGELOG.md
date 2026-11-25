@@ -19,6 +19,12 @@ lines under a new version, and its GitHub Release carries the reference scores.
   in `scores/`, kept in the repository. `just human` now also saves its scores
   (`predictions/<split>/human/scores.json`).
 
+### Changed
+
+- `just fit` defaults to `--warmup 4000 --lr 1e-3 --dropout 0.1` (was no
+  warmup, `--lr 3e-4`, no dropout): over three seeds on `val`, these got every
+  Evaluate run off the shape-alone plateau.
+
 ## [0.0.2] - 2026-11-25
 
 Trained cores take over steps of the method: the Evaluate core judges whether
