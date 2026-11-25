@@ -1,4 +1,4 @@
-"""Loads JSONL v1 files into Postgres: `python -m docta_orchestrator.load data/*.jsonl`.
+"""Loads JSONL v2 files into Postgres: `python -m docta_orchestrator.load data/*.jsonl`.
 
 Postgres is a projection of the canonical JSONL: loading a world replaces it, so
 reloading after `just gen` is always safe.
@@ -123,7 +123,7 @@ def load_files(conn: psycopg.Connection, paths: list[Path], prune: bool = False)
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        prog="python -m docta_orchestrator.load", description="Load JSONL v1 files into Postgres."
+        prog="python -m docta_orchestrator.load", description="Load JSONL v2 files into Postgres."
     )
     parser.add_argument("files", nargs="+", type=Path, help="JSONL files from docta-worldgen")
     parser.add_argument(

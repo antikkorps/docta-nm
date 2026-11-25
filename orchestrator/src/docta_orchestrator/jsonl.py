@@ -1,4 +1,4 @@
-"""Reading the generator's JSONL v1 output, the canonical dataset format.
+"""Reading the generator's JSONL v2 output, the canonical dataset format.
 
 Every record is checked as it is read, so any later failure is impossible or
 names the file and line to fix.
@@ -9,17 +9,17 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
-SCHEMA = "v1"
+SCHEMA = "v2"
 
 # Fields each record type must carry; `missing` is optional on questions.
 REQUIRED = {
     "world": ["world_id", "seed", "split", "entities", "facts"],
     "source": [
-        "world_id", "source_id", "title", "reliability", "text", "facts",
-        "false_claims", "copy_of",
+        "world_id", "source_id", "title", "reliability", "text", "phrasings",
+        "facts", "false_claims", "copy_of",
     ],
     "question": [
-        "world_id", "question_id", "text", "primitive", "hops", "answerable",
+        "world_id", "question_id", "text", "template", "primitive", "hops", "answerable",
         "answer", "required_facts", "required_sources", "trap", "expected_exit",
     ],
 }  # fmt: skip
@@ -58,7 +58,7 @@ def read_records(path: Path) -> Iterator[Located]:
 
 
 def _problem(record: object) -> str | None:
-    """What is wrong with a parsed line, or None if it is a valid v1 record."""
+    """What is wrong with a parsed line, or None if it is a valid v2 record."""
     if not isinstance(record, dict):
         return f"expected a JSON object, got {type(record).__name__}"
     if record.get("schema") != SCHEMA:

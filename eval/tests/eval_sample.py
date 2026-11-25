@@ -3,11 +3,12 @@
 
 def question(qid, primitive, hops, answer, required, text=None):
     return {
-        "schema": "v1",
+        "schema": "v2",
         "type": "question",
         "world_id": "w1",
         "question_id": qid,
         "text": text or f"question {qid}?",
+        "template": text or f"question {qid}?",
         "primitive": primitive,
         "hops": hops,
         "answerable": answer is not None,

@@ -5,7 +5,7 @@ from docta_eval.io import read_gold, read_predictions
 from eval_sample import GOLD, MIXED, pred
 
 WORLD = {
-    "schema": "v1", "type": "world", "world_id": "w1", "seed": 1, "split": "test",
+    "schema": "v2", "type": "world", "world_id": "w1", "seed": 1, "split": "test",
     "entities": [], "facts": [],
 }  # fmt: skip
 KEYS = {("w1", q["question_id"]) for q in GOLD}
@@ -132,8 +132,8 @@ def test_gold_knows_what_the_false_sources_claim(tmp_path):
     world = {**WORLD, "entities": [{"id": "e1", "kind": "city", "name": "Varnelle"},
                                    {"id": "e2", "kind": "city", "name": "Brask"}]}  # fmt: skip
     liar = {
-        "schema": "v1", "type": "source", "world_id": "w1", "source_id": "s9", "title": "T",
-        "reliability": 0.7, "text": "…", "facts": [], "copy_of": None,
+        "schema": "v2", "type": "source", "world_id": "w1", "source_id": "s9", "title": "T",
+        "reliability": 0.7, "text": "…", "phrasings": [], "facts": [], "copy_of": None,
         "false_claims": [{"fact": "f1", "obj": 1450}, {"fact": "f2", "obj": "e2"}],
     }  # fmt: skip
     year = {**GOLD[0], "trap": "contradiction", "required_facts": ["f1"]}
@@ -146,8 +146,8 @@ def test_gold_knows_what_the_false_sources_claim(tmp_path):
 def test_false_answers_do_not_depend_on_line_order(tmp_path):
     world = {**WORLD, "entities": [{"id": "e2", "kind": "city", "name": "Brask"}]}
     liar = {
-        "schema": "v1", "type": "source", "world_id": "w1", "source_id": "s9", "title": "T",
-        "reliability": 0.7, "text": "…", "facts": [], "copy_of": None,
+        "schema": "v2", "type": "source", "world_id": "w1", "source_id": "s9", "title": "T",
+        "reliability": 0.7, "text": "…", "phrasings": [], "facts": [], "copy_of": None,
         "false_claims": [{"fact": "f2", "obj": "e2"}],
     }  # fmt: skip
     city = {**GOLD[0], "trap": "contradiction", "required_facts": ["f2"]}
@@ -157,8 +157,8 @@ def test_false_answers_do_not_depend_on_line_order(tmp_path):
 
 def test_a_false_claim_naming_an_unknown_entity_is_an_error(tmp_path):
     liar = {
-        "schema": "v1", "type": "source", "world_id": "w1", "source_id": "s9", "title": "T",
-        "reliability": 0.7, "text": "…", "facts": [], "copy_of": None,
+        "schema": "v2", "type": "source", "world_id": "w1", "source_id": "s9", "title": "T",
+        "reliability": 0.7, "text": "…", "phrasings": [], "facts": [], "copy_of": None,
         "false_claims": [{"fact": "f2", "obj": "e7"}],
     }  # fmt: skip
     with pytest.raises(ValueError, match=r"test\.jsonl:2.*e7"):
