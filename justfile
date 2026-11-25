@@ -71,6 +71,11 @@ human split="test":
     uv run python -m docta_train.run_core data/{{split}}.jsonl --human predictions/{{split}}/human
     uv run python -m docta_eval.human data/{{split}}.jsonl predictions/{{split}}/human
 
+# The method step by step for one model (default core_read) on test, val and ood, and the change since the last snapshot in scores/
+[positional-arguments]
+steps *args:
+    uv run python -m docta_eval.steps "$@"
+
 # Run the trained cores on a split (core_read too once `just fit-read` ran), then score them next to the baselines
 core split="test":
     uv run python -m docta_train.run_core data/{{split}}.jsonl --out predictions/{{split}} --traces data/traces/{{split}}
