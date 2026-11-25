@@ -41,7 +41,7 @@ def whole(seqs: Sequence[list[int]], max_len: int) -> Sequence[list[int]]:
     if over:
         raise ValueError(
             f"{len(over)} of {len(seqs)} examples are longer than max_len {max_len} "
-            f"(longest {max(over)} tokens): raise Config.max_len and retrain"
+            f"(longest {max(over)} tokens): raise Config.max_len in model.py and retrain"
         )
     return seqs
 

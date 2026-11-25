@@ -28,14 +28,17 @@ def within(kind: type, low: float, high: float):
 
 
 def config_of(args: argparse.Namespace) -> Config:
-    """On a resume, the run's own core (its length is in its weights) and its
-    own dropout unless one is named, like its learning rate."""
+    """On a resume, the run's own core: its length is in its weights. A
+    named dropout other than the run's own is refused by the resume."""
     if not args.resume:
         return Config(dropout=DEFAULT_DROPOUT if args.dropout is None else args.dropout)
     last = args.out / "last.pt"
     # Without last.pt, fit says there is nothing to resume.
     saved = (checkpoint.load_last(last).get("config") or {}) if last.exists() else {}
-    config = Config(**saved)
+    try:
+        config = Config(**saved)
+    except TypeError as e:  # a setting this code no longer has
+        raise checkpoint.ResumeError(f"{last}: {e}: {checkpoint.RERUN}") from e
     return config if args.dropout is None else replace(config, dropout=args.dropout)
 
 

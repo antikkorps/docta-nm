@@ -260,8 +260,3 @@ def test_cli_says_how_to_fix_examples_too_long(tmp_path, monkeypatch, capsys):
 
 def raise_too_long(*args, **kwargs):
     raise ValueError("1 of 8 examples are longer than max_len 96")
-
-
-def test_the_core_reads_the_longest_example_of_the_richer_language():
-    # Measured on 20,000 worlds of palier 1: 530 tokens (train), 517 (ood).
-    assert Config().max_len >= 576

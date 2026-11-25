@@ -143,7 +143,7 @@ def save(model: CoreRead, vocab: Vocab, metrics: dict, path: Path) -> None:
     torch.save(state | {"state": model.state_dict(), "metrics": metrics}, path)
 
 
-def main(argv: list[str]) -> int:
+def parse_args(argv: list[str]) -> argparse.Namespace:
     p = argparse.ArgumentParser(prog="python -m docta_train.fit_read")
     p.add_argument("--data", type=Path, default=Path("data/read"))
     p.add_argument("--out", type=Path, default=Path("models/core_read"))
@@ -157,7 +157,11 @@ def main(argv: list[str]) -> int:
     p.add_argument("--max-minutes", type=float, help="stop after the epoch that passes this budget")
     p.add_argument("--max-gb", type=float, default=6.0, help="address-space cap (Linux only)")
     p.add_argument("--threads", type=int, default=2, help="CPU threads left to training")
-    args = p.parse_args(argv)
+    return p.parse_args(argv)
+
+
+def main(argv: list[str]) -> int:
+    args = parse_args(argv)
     protect_machine(max_gb=args.max_gb, threads=args.threads)
     try:
         train = list(read_reads(args.data / "train.jsonl"))[: args.max_train]
@@ -170,7 +174,7 @@ def main(argv: list[str]) -> int:
             train, val, args.out, Config(dropout=args.dropout), args.epochs,
             args.batch, args.lr, args.seed, args.warmup, args.max_minutes,
         )  # fmt: skip
-    except ValueError as e:
+    except ValueError as e:  # examples too long to read whole
         print(f"error: {e}", file=sys.stderr)
         return 1
     print(json.dumps(report, indent=2), file=sys.stderr)

@@ -136,3 +136,16 @@ def test_resume_keeps_the_length_the_run_was_built_for(tmp_path):
     run(tmp_path, 1)
     args = argparse.Namespace(dropout=None, resume=True, out=tmp_path)
     assert config_of(args).max_len == TINY.max_len
+
+
+def test_resume_refuses_a_core_with_a_setting_this_code_no_longer_has(tmp_path):
+    import argparse
+
+    import torch
+    from docta_train.checkpoint import ResumeError
+    from docta_train.fit_args import config_of
+
+    torch.save({"config": {**TINY.__dict__, "gone": 1}}, tmp_path / "last.pt")
+    args = argparse.Namespace(dropout=None, resume=True, out=tmp_path)
+    with pytest.raises(ResumeError, match="without --resume"):
+        config_of(args)
