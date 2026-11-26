@@ -17,7 +17,8 @@ pub const QUESTIONS_PER_WORLD: usize = 9;
 pub struct Options {
     pub unanswerable_ratio: f64,
     pub max_hops: u8,
-    /// Share of answerable retrieve questions whose fact gets a trap.
+    /// Ceiling on the share of answerable retrieve questions whose fact gets
+    /// a trap; the real share is lower (crate::dataset::Counts).
     pub trap_ratio: f64,
 }
 

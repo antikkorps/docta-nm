@@ -18,15 +18,26 @@ pub struct Config {
     pub options: Options,
 }
 
-/// Writes every world to the file of its split; returns worlds per split.
-pub fn write(cfg: &Config, out: &Path) -> io::Result<BTreeMap<Split, u64>> {
+/// What a split holds, as the binary reports it.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Counts {
+    pub worlds: u64,
+    pub questions: u64,
+    /// `--trap-ratio` is a ceiling (one trap per true source, none on a fact
+    /// another question uses): this is how many questions really got one.
+    pub traps: u64,
+}
+
+/// Writes every world to the file of its split; returns what each split holds.
+pub fn write(cfg: &Config, out: &Path) -> io::Result<BTreeMap<Split, Counts>> {
     fs::create_dir_all(out)?;
     let mut files = BTreeMap::new();
     for split in Split::ALL {
         let file = File::create(out.join(format!("{}.jsonl", split.as_str())))?;
         files.insert(split, BufWriter::new(file));
     }
-    let mut counts: BTreeMap<Split, u64> = Split::ALL.iter().map(|s| (*s, 0)).collect();
+    let mut counts: BTreeMap<Split, Counts> =
+        Split::ALL.iter().map(|s| (*s, Counts::default())).collect();
     for i in 0..cfg.worlds {
         let seed = world_seed(cfg.seed, i);
         let split = assign(seed, &cfg.ratios);
@@ -35,7 +46,10 @@ pub fn write(cfg: &Config, out: &Path) -> io::Result<BTreeMap<Split, u64>> {
         for line in lines(&corpus, split) {
             writeln!(file, "{line}")?;
         }
-        *counts.get_mut(&split).expect("one count per split") += 1;
+        let count = counts.get_mut(&split).expect("one count per split");
+        count.worlds += 1;
+        count.questions += corpus.questions.len() as u64;
+        count.traps += corpus.questions.iter().filter(|q| q.trap.is_some()).count() as u64;
     }
     for file in files.values_mut() {
         file.flush()?;

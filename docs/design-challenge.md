@@ -63,8 +63,11 @@ Every line carries `"schema":"v1"`. v1 is v0 plus:
   disagreement. For the other traps `required_sources` lists the true source
   only: citing a copy or the false source costs citation precision.
 
-The generator gains `--trap-ratio` (default 0.3: share of answerable questions
-whose fact gets a trap). Traps add sources; they never remove the true one.
+The generator gains `--trap-ratio` (default 0.3: ceiling on the share of
+answerable retrieve questions whose fact gets a trap; one trap per true source
+and none on a fact another question uses, so about 23% get one, 5% of all
+questions, and `just gen` reports the real count per split). Traps add
+sources; they never remove the true one.
 `--trap-ratio 0` gives worlds without traps.
 
 ## Guards (worldgen tests, extending `quality.rs` and `ood.rs`)
