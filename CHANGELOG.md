@@ -13,6 +13,11 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Added
 
+- **Real text, frozen** (`docta_orchestrator.realtext.collect`): 200 cities
+  of the United States and 150 programming languages from Wikipedia, split
+  into sections and paragraphs and pinned to their revision, with a Wikidata
+  answer key kept apart. Collected once, never trained on: it measures how
+  far the method carries to real English.
 - **The method, step by step** (`just steps`): one row per step (search,
   judge, read, dig, confront, conclude, human) and per measure, on test, `val`
   and `ood` side by side, with the change since the last release's snapshot

@@ -156,6 +156,17 @@ Each step of the method is measured on its own, so a blockage shows at the step 
 
 Run `just core` (and `just human`) on each split first; a split not run is left blank. Each release saves a snapshot in [`scores/`](scores/) (`just steps --save X.Y.Z`), kept in the repository, and `just steps` prints the change since the latest one, so anyone can follow every step from one version to the next.
 
+### Real text, frozen
+
+The method is learned on invented worlds; a probe on real English text shows how far it carries. Two domains are collected once and never trained on: 200 cities of the United States (the near transfer: founded, population, elevation, who was born there, the relations of the worlds) and 150 programming languages (the far transfer: designed by, influenced by).
+
+```bash
+uv run python -m docta_orchestrator.realtext.collect cities --out data/real/cities
+uv run python -m docta_orchestrator.realtext.collect languages --out data/real/languages
+```
+
+Each domain writes two files apart. `articles.jsonl` holds what a model may read: each Wikipedia article (CC BY-SA 4.0) split into sections and paragraphs, pinned to its revision (`oldid` link) with its hash. `entities.jsonl` is the answer key from Wikidata (CC0): every stated value, so disagreements between statements survive, used for scoring only. The collector names itself with a generic client, pauses between requests and caches every answer (`data/real/.cache`), so a rerun asks nothing twice.
+
 ## How it works
 
 - **`worldgen/`** (Rust) generates fictional worlds: invented names, entities and facts, sources written from English templates, and questions (`retrieve`, `chain`, `compare`, plus unanswerable `spot_missing`). Every entity has one fact no source states, and unanswerable questions take every shape, so neither mention counts nor wording give abstention away. Output is byte-identical for the same seed. No LLM is used anywhere.
