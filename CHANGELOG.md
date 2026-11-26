@@ -61,6 +61,11 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Fixed
 
+- `--max-minutes` no longer starts an epoch that would likely end past the
+  budget (judged on the last epoch's length), where one long epoch could
+  overrun it by far; an epoch is still never cut half-way, so `--resume`
+  goes on exactly. `just fit` reports missing data with a message, like
+  `just fit-read`, instead of a traceback (#19).
 - `just gen` stops with the world and the slot when a question slot finds
   no question, instead of writing a world with fewer than nine questions
   (#15). No world of `just gen 42 20000` is affected: its output is

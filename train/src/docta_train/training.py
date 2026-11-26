@@ -27,6 +27,13 @@ class Warmup:
         return self.lr * min(1.0, self.done / self.steps) if self.steps else self.lr
 
 
+def over_budget(elapsed: float, last_epoch: float, max_minutes: float | None) -> bool:
+    """Whether another epoch as long as the last one would end past the budget
+    (seconds). An epoch is never cut half-way: --resume goes on from a whole
+    one, exactly as if the run had never stopped."""
+    return max_minutes is not None and elapsed + last_epoch > max_minutes * 60
+
+
 def run_epoch(
     model: nn.Module,
     optimiser: torch.optim.Optimizer,

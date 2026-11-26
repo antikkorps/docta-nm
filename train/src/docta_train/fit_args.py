@@ -67,7 +67,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--max-val", type=int, help="cap the validation examples read (before balancing)"
     )
-    p.add_argument("--max-minutes", type=float, help="stop after the epoch that passes this budget")
+    p.add_argument(
+        "--max-minutes", type=float, help="start no epoch that would likely end past this budget"
+    )
     p.add_argument("--max-gb", type=float, default=6.0, help="address-space cap (Linux only)")
     p.add_argument("--threads", type=int, default=2, help="CPU threads left to training")
     p.add_argument(

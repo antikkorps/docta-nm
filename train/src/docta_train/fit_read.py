@@ -31,7 +31,7 @@ from docta_train.reader import (
     pointer_loss,
 )
 from docta_train.shortcut import shape
-from docta_train.training import Warmup, by_shape
+from docta_train.training import Warmup, by_shape, over_budget
 from docta_train.words import Vocab
 
 Item = tuple[list[int], list[int], bool]  # token ids, positions of the answer, bridge head
@@ -122,6 +122,7 @@ def fit_read(train, val, out: Path, config: Config, epochs: int, batch: int, lr:
     metrics, best, start = {}, {}, time.monotonic()
     with (out / "log.jsonl").open("w", encoding="utf-8") as log:
         for epoch in range(1, epochs + 1):
+            began = time.monotonic()
             metrics = {"epoch": epoch, "train_loss": run_epoch(run, train_items, batch)}
             metrics |= validate(model, val, val_items, batch)
             # val holds phrasings of its own and peaks before the last epoch
@@ -131,7 +132,8 @@ def fit_read(train, val, out: Path, config: Config, epochs: int, batch: int, lr:
                 save(model, vocab, metrics, out / "model.pt")
             log.write(json.dumps({**metrics, "minutes": (time.monotonic() - start) / 60}) + "\n")
             log.flush()
-            if max_minutes is not None and time.monotonic() - start > max_minutes * 60:
+            now = time.monotonic()
+            if over_budget(now - start, now - began, max_minutes):
                 break
     return {"last": metrics, "best": best, "parameters": sum(p.numel() for p in model.parameters())}
 
@@ -154,7 +156,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--dropout", type=within(float, 0, 0.99), default=0.1)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--max-train", type=int, help="cap the training examples read")
-    p.add_argument("--max-minutes", type=float, help="stop after the epoch that passes this budget")
+    p.add_argument(
+        "--max-minutes", type=float, help="start no epoch that would likely end past this budget"
+    )
     p.add_argument("--max-gb", type=float, default=6.0, help="address-space cap (Linux only)")
     p.add_argument("--threads", type=int, default=2, help="CPU threads left to training")
     return p.parse_args(argv)

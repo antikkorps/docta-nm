@@ -20,7 +20,7 @@ from docta_train.fit_args import DEFAULT_LR, build_parser, config_of
 from docta_train.guard import protect_machine
 from docta_train.model import Config, whole
 from docta_train.shortcut import balance, shape, shape_accuracy
-from docta_train.training import Batch, run_epoch, validate
+from docta_train.training import Batch, over_budget, run_epoch, validate
 from docta_train.words import Vocab
 
 Data = list[tuple[list[int], float]]
@@ -70,6 +70,7 @@ def fit(
     start = time.monotonic()
     with (out / "log.jsonl").open("a" if resume else "w", encoding="utf-8") as log:
         for _ in range(epochs):
+            began = time.monotonic()
             metrics = next_epoch(run, train_data, val_data, shapes, batch)
             # Best, then last, then the log: a run killed in between resumes from
             # an epoch whose best is already saved and whose line is not yet logged.
@@ -78,7 +79,8 @@ def fit(
             checkpoint.save_last(run, out / "last.pt", data)
             log.write(json.dumps({**metrics, "minutes": (time.monotonic() - start) / 60}) + "\n")
             log.flush()
-            if max_minutes is not None and time.monotonic() - start > max_minutes * 60:
+            now = time.monotonic()
+            if over_budget(now - start, now - began, max_minutes):
                 break
     return {"best": run.best, "parameters": sum(p.numel() for p in run.model.parameters())}
 
@@ -138,6 +140,9 @@ def main(argv: list[str]) -> int:
     protect_machine(max_gb=args.max_gb, threads=args.threads)
     try:
         train, val, shortcut, vocab = load(args)
+    except OSError as e:
+        print(f"error: {e} (run `just evaluate-data` first)", file=sys.stderr)
+        return 1
     except ValueError as e:
         print(f"error: {e} (balancing drops shapes with one label; see --no-balance)",
               file=sys.stderr)  # fmt: skip
