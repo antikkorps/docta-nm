@@ -20,7 +20,7 @@ from docta_train.fit_args import DEFAULT_LR, build_parser, config_of
 from docta_train.guard import protect_machine
 from docta_train.model import Config, whole
 from docta_train.shortcut import balance, shape, shape_accuracy
-from docta_train.training import Batch, run_epoch, validate
+from docta_train.training import Batch, EmptySplit, require, run_epoch, validate
 from docta_train.words import Vocab
 
 Data = list[tuple[list[int], float]]
@@ -58,6 +58,8 @@ def fit(
     keeps the epoch with the best validation accuracy in OUT/model.pt. `lr`
     None means the default when fresh, the run's own when resumed. `vocab`
     defaults to the one learned from `train`."""
+    require(train, "train")
+    require(val, "val")
     out.mkdir(parents=True, exist_ok=True)
     # With the vocabulary, a dataset regenerated at the same size is refused too.
     data = {"seed": seed, "batch": batch, "train": len(train), "val": len(val)}
@@ -117,6 +119,8 @@ def load(args: argparse.Namespace) -> tuple[list[Example], list[Example], dict[s
     examples. The vocabulary is learned before balancing, which picks by label."""
     train = list(read_examples(args.data / "train.jsonl"))[: args.max_train]
     val = list(read_examples(args.data / "val.jsonl"))[: args.max_val]
+    require(train, "train")
+    require(val, "val")
     shortcut = {"unbalanced": shape_accuracy(train, val)}
     vocab = Vocab.build(train)
     if not args.no_balance:
@@ -138,6 +142,9 @@ def main(argv: list[str]) -> int:
     protect_machine(max_gb=args.max_gb, threads=args.threads)
     try:
         train, val, shortcut, vocab = load(args)
+    except EmptySplit as e:  # no data: balancing is not the cause
+        print(f"error: {e}", file=sys.stderr)
+        return 1
     except ValueError as e:
         print(f"error: {e} (balancing drops shapes with one label; see --no-balance)",
               file=sys.stderr)  # fmt: skip
@@ -149,7 +156,7 @@ def main(argv: list[str]) -> int:
             args.lr, args.seed, args.max_minutes,
             resume=args.resume, vocab=vocab, warmup=args.warmup,
         )  # fmt: skip
-    except ValueError as e:  # a ResumeError, or examples too long to read
+    except ValueError as e:  # a ResumeError, examples too long, or a split empty
         print(f"error: {e}", file=sys.stderr)
         return 1
     print(json.dumps(report | {"shape_accuracy": shortcut}, indent=2), file=sys.stderr)
