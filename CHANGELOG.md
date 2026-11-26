@@ -61,6 +61,10 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Fixed
 
+- `just gen` stops with the world and the slot when a question slot finds
+  no question, instead of writing a world with fewer than nine questions
+  (#15). No world of `just gen 42 20000` is affected: its output is
+  unchanged, byte for byte.
 - Training no longer cuts an example longer than the core reads: a cut
   excerpt could lose the sentence its label or answer rests on. `just fit`
   and `just fit-read` now refuse such data, and the cores read up to 576
