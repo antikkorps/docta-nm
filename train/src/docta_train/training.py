@@ -34,6 +34,20 @@ def over_budget(elapsed: float, last_epoch: float, max_minutes: float | None) ->
     return max_minutes is not None and elapsed + last_epoch > max_minutes * 60
 
 
+class EmptySplit(ValueError):
+    """A split with nothing to learn or measure from: no data, not a setting."""
+
+
+def require(examples: Sequence, split: str) -> None:
+    """An empty split would end its first epoch on a division by zero, after
+    the minutes spent loading: refuse it at once, saying how to get data."""
+    if not examples:
+        raise EmptySplit(
+            f"no {split} example: generate more worlds (`just gen 42 1000`) and rebuild "
+            "the data; caps (--max-train, --max-val) and balancing can also empty a split"
+        )
+
+
 def run_epoch(
     model: nn.Module,
     optimiser: torch.optim.Optimizer,

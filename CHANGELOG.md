@@ -62,14 +62,21 @@ lines under a new version, and its GitHub Release carries the reference scores.
 ### Fixed
 
 - `--max-minutes` no longer starts an epoch that would likely end past the
-  budget (judged on the last epoch's length), where one long epoch could
-  overrun it by far; an epoch is still never cut half-way, so `--resume`
-  goes on exactly. `just fit` reports missing data with a message, like
-  `just fit-read`, instead of a traceback (#19).
+  budget (judged on the last epoch's length; the first always runs), where
+  one long epoch could overrun it by far; an epoch is still never cut half-way, so `--resume`
+  goes on exactly. `just fit` reports missing data, and both trainers an
+  unwritable `--out`, with a message instead of a traceback (#19).
+- `just fit` and `just fit-read` refuse an empty train or val split at once,
+  saying how to get data, instead of failing on a division by zero after
+  loading (#12).
 - `just gen` stops with the world and the slot when a question slot finds
   no question, instead of writing a world with fewer than nine questions
   (#15). No world of `just gen 42 20000` is affected: its output is
   unchanged, byte for byte.
+- `--trap-ratio` is documented as what it is, a ceiling: about 23% of
+  answerable retrieve questions get a trap at the default 0.3 (5% of all
+  questions). `just gen` now reports, per split, the worlds, the questions
+  and how many got a trap (#16). The data is unchanged.
 - Training no longer cuts an example longer than the core reads: a cut
   excerpt could lose the sentence its label or answer rests on. `just fit`
   and `just fit-read` now refuse such data, and the cores read up to 576

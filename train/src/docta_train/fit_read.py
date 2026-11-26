@@ -31,7 +31,7 @@ from docta_train.reader import (
     pointer_loss,
 )
 from docta_train.shortcut import shape
-from docta_train.training import Warmup, by_shape, over_budget
+from docta_train.training import Warmup, by_shape, over_budget, require
 from docta_train.words import Vocab
 
 Item = tuple[list[int], list[int], bool]  # token ids, positions of the answer, bridge head
@@ -110,15 +110,8 @@ def fit_read(train, val, out: Path, config: Config, epochs: int, batch: int, lr:
              seed: int, warmup: int = 0, max_minutes: float | None = None) -> dict:  # fmt: skip
     """Trains from scratch; keeps the epoch with the best val exactness."""
     out.mkdir(parents=True, exist_ok=True)
-    torch.manual_seed(seed)
-    vocab = Vocab.build(train)  # from train only: val stays unseen
-    model = CoreRead(config, len(vocab.words))
-    run = {"model": model, "optimiser": torch.optim.AdamW(model.parameters(), lr=lr),
-           "rng": random.Random(seed), "warmup": Warmup(lr, warmup)}  # fmt: skip
-    train_items, val_items = (
-        encoded(train, vocab, config.max_len),
-        encoded(val, vocab, config.max_len),
-    )
+    run, vocab, train_items, val_items = prepared(train, val, config, lr, seed, warmup)
+    model = run["model"]
     metrics, best, start = {}, {}, time.monotonic()
     with (out / "log.jsonl").open("w", encoding="utf-8") as log:
         for epoch in range(1, epochs + 1):
@@ -136,6 +129,22 @@ def fit_read(train, val, out: Path, config: Config, epochs: int, batch: int, lr:
             if over_budget(now - start, now - began, max_minutes):
                 break
     return {"last": metrics, "best": best, "parameters": sum(p.numel() for p in model.parameters())}
+
+
+def prepared(train, val, config: Config, lr: float, seed: int, warmup: int) -> tuple:
+    """A fresh core, its optimiser and the encoded splits; refuses a split
+    with nothing in it, or a train split with no answer the core can point at
+    (an epoch's mean loss would divide by zero)."""
+    require(train, "train")
+    require(val, "val")
+    torch.manual_seed(seed)
+    vocab = Vocab.build(train)  # from train only: val stays unseen
+    model = CoreRead(config, len(vocab.words))
+    run = {"model": model, "optimiser": torch.optim.AdamW(model.parameters(), lr=lr),
+           "rng": random.Random(seed), "warmup": Warmup(lr, warmup)}  # fmt: skip
+    train_items = encoded(train, vocab, config.max_len)
+    require([item for item in train_items if item[1]], "train")
+    return run, vocab, train_items, encoded(val, vocab, config.max_len)
 
 
 def save(model: CoreRead, vocab: Vocab, metrics: dict, path: Path) -> None:
@@ -157,7 +166,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--max-train", type=int, help="cap the training examples read")
     p.add_argument(
-        "--max-minutes", type=float, help="start no epoch that would likely end past this budget"
+        "--max-minutes",
+        type=float,
+        help="start no epoch that would likely end past this budget (the first always runs)",
     )
     p.add_argument("--max-gb", type=float, default=6.0, help="address-space cap (Linux only)")
     p.add_argument("--threads", type=int, default=2, help="CPU threads left to training")
@@ -178,7 +189,7 @@ def main(argv: list[str]) -> int:
             train, val, args.out, Config(dropout=args.dropout), args.epochs,
             args.batch, args.lr, args.seed, args.warmup, args.max_minutes,
         )  # fmt: skip
-    except ValueError as e:  # examples too long to read whole
+    except (OSError, ValueError) as e:  # --out unwritable, examples too long, a split empty
         print(f"error: {e}", file=sys.stderr)
         return 1
     print(json.dumps(report, indent=2), file=sys.stderr)
