@@ -27,8 +27,10 @@ struct Args {
     /// Maximum reasoning hops per question.
     #[arg(long, default_value_t = 2, value_parser = clap::value_parser!(u8).range(1..=2))]
     max_hops: u8,
-    /// Share of answerable retrieve questions whose fact gets a trap
-    /// (contradiction, false consensus or undecidable).
+    /// Ceiling on the share of answerable retrieve questions whose fact gets
+    /// a trap (contradiction, false consensus or undecidable): one trap per
+    /// true source and none on a fact another question uses, so fewer get one
+    /// (about 23% at 0.3). The real count is reported per split.
     #[arg(long, default_value_t = 0.3, value_parser = parse_ratio)]
     trap_ratio: f64,
     /// Write the seen phrasings the orchestrator's rules read to this file,
@@ -69,8 +71,14 @@ fn main() -> ExitCode {
     };
     match write(&cfg, &args.out) {
         Ok(counts) => {
-            for (split, n) in counts {
-                eprintln!("{}: {n} worlds", split.as_str());
+            for (split, c) in counts {
+                eprintln!(
+                    "{}: {} worlds, {} questions, {} with a trap",
+                    split.as_str(),
+                    c.worlds,
+                    c.questions,
+                    c.traps
+                );
             }
             ExitCode::SUCCESS
         }

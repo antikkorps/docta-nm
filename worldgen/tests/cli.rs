@@ -73,3 +73,29 @@ fn invalid_options_fail() {
     assert!(!run(&dir, &["--unanswerable-ratio", "1.5"]));
     assert!(!run(&dir, &["--max-hops", "3"]));
 }
+
+/// `--trap-ratio` is a ceiling (one trap per true source, no trap on a fact
+/// another question uses), so the binary reports how many questions really
+/// got one, and that count must be what the file holds.
+#[test]
+fn the_real_trap_count_is_reported_per_split() {
+    let dir = temp_dir("traps");
+    let output = Command::new(env!("CARGO_BIN_EXE_docta-worldgen"))
+        .args(["--seed", "42", "--worlds", "300", "--out"])
+        .arg(&dir)
+        .output()
+        .expect("binary runs");
+    let report = String::from_utf8(output.stderr).expect("utf-8");
+    for split in SPLITS {
+        let traps = read(&dir, split)
+            .lines()
+            .map(|l| serde_json::from_str::<Value>(l).expect("valid JSON"))
+            .filter(|v| v["type"] == "question" && !v["trap"].is_null())
+            .count();
+        let line = report
+            .lines()
+            .find(|l| l.starts_with(&format!("{split}:")))
+            .expect("a line per split");
+        assert!(line.contains(&format!(", {traps} with a trap")), "{line}");
+    }
+}
