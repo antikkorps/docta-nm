@@ -99,7 +99,8 @@ def load_files(conn: psycopg.Connection, paths: list[Path], prune: bool = False)
     """Loads every world of `paths` in one transaction, so a bad line leaves the
     database exactly as it was; returns the number of worlds loaded.
 
-    With `prune`, worlds absent from `paths` are deleted, so the database mirrors
+    With `prune`, worlds absent from `paths` are deleted (the real-text probe
+    excepted), so the database mirrors
     the files exactly. Off by default: loading test.jsonl alone must not wipe
     the train split.
     """
@@ -117,7 +118,12 @@ def load_files(conn: psycopg.Connection, paths: list[Path], prune: bool = False)
             # or truncated input file is far likelier than a wish to wipe it.
             if not seen:
                 raise ValueError("no world read: refusing to prune the database against nothing")
-            conn.execute("DELETE FROM worlds WHERE NOT (world_id = ANY(%s))", [list(seen)])
+            # The real-text probe loads from its own folder (realtext.load):
+            # a reload of the invented worlds must not wipe it.
+            conn.execute(
+                "DELETE FROM worlds WHERE split <> 'real' AND NOT (world_id = ANY(%s))",
+                [list(seen)],
+            )
     return len(seen)
 
 

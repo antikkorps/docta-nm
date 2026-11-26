@@ -23,6 +23,10 @@ def test_a_long_paragraph_is_cut_at_sentence_ends():
     assert chunks(one, limit=5) == [one]  # cutting inside it would break what it says
 
 
+def test_a_blank_paragraph_gives_no_source():
+    assert chunks("   ") == []
+
+
 def test_sources_are_the_texts_after_the_cuts_with_no_ground_truth():
     b = corpus()
     assert (b.world["world_id"], b.world["split"]) == ("real_cities", "real")

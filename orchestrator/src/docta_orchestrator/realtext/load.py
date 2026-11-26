@@ -34,7 +34,7 @@ def chunks(paragraph: str, limit: int = WORDS) -> list[str]:
         if out[-1] and len(" ".join([*out[-1], sentence]).split()) > limit:
             out.append([])
         out[-1].append(sentence)
-    return [" ".join(part) for part in out if part]
+    return [" ".join(part) for part in out if part and " ".join(part).strip()]
 
 
 def sources(articles: list[dict]) -> list[dict]:

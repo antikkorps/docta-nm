@@ -83,6 +83,14 @@ def test_prune_removes_worlds_absent_from_the_input(conn, tmp_path):
     assert counts(conn, "w_test01")["worlds"] == 1
 
 
+def test_prune_never_drops_the_real_text_probe(conn, tmp_path):
+    # `just load` prunes against data/*.jsonl, which never holds the probe:
+    # reloading the worlds must not silently wipe it.
+    load_world(conn, WorldBatch({**WORLD, "world_id": "real_cities", "split": "real"}))
+    load_files(conn, [jsonl(tmp_path / "one.jsonl", WORLD)], prune=True)
+    assert counts(conn, "real_cities")["worlds"] == 1
+
+
 def test_a_world_in_two_files_is_an_error(conn, tmp_path):
     a = jsonl(tmp_path / "a.jsonl", WORLD)
     b = jsonl(tmp_path / "b.jsonl", WORLD)
