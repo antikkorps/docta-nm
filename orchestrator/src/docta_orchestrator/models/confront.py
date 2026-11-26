@@ -58,8 +58,10 @@ def claims(question: str, evidence: Evidence) -> list[Claim]:
     fact = (wanted[0][0], wanted[0][1][0])
     found = []
     for hit in evidence:
+        previous = None  # a pronoun means the subject of the sentence before
         for sentence in sentences(hit.body):
-            stated, credits = read_claim(sentence)
+            stated, credits = read_claim(sentence, previous)
+            previous = stated[0][0] if stated else None
             found += [
                 Claim(o, hit.source_id, hit.title, hit.reliability, credits)
                 for s, p, o in stated
@@ -68,7 +70,7 @@ def claims(question: str, evidence: Evidence) -> list[Claim]:
     return found
 
 
-def read_claim(sentence: str) -> tuple[list, str | None]:
+def read_claim(sentence: str, previous: str | None = None) -> tuple[list, str | None]:
     """What a sentence states, and the title it credits if it repeats one.
     The credit is looked for first: read whole, "As T reports, Brask is home to
     X." fits "{o} is home to {s}." with the credit swallowed into the object."""
@@ -78,7 +80,7 @@ def read_claim(sentence: str) -> tuple[list, str | None]:
         stated = read_sentence(rest[:1].upper() + rest[1:])
         if stated and title:
             return stated, title.group()
-    return read_sentence(sentence), None
+    return read_sentence(sentence, previous), None
 
 
 def vote(found: list[Claim]) -> Settled:

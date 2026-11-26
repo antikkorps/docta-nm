@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 from docta_orchestrator.jsonl import read_records
-from docta_orchestrator.models.rule_evaluate import needs, read_sentence, sentences
+from docta_orchestrator.models.rule_evaluate import needs, read_body, read_sentence
 from docta_orchestrator.models.templates import COMPARISONS, QUESTIONS, SENTENCES
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -50,7 +50,7 @@ def test_every_seen_sentence_reads_back_to_exactly_its_facts(corpus):
         worlds = {r["world_id"]: r for r in corpus[split] if r["type"] == "world"}
         for r in corpus[split]:
             if r["type"] == "source":
-                read = sorted(t for s in sentences(r["text"]) for t in read_sentence(s))
+                read = sorted(t for stated in read_body(r["text"]) for t in stated)
                 assert read == stated(worlds[r["world_id"]], r["facts"]), r["text"]
                 checked += 1
     assert checked
@@ -92,7 +92,8 @@ def test_the_rule_needs_exactly_the_facts_an_answerable_question_requires(corpus
 def test_every_template_copy_round_trips():
     for pred, templates in SENTENCES.items():
         for t in templates:
-            assert read_sentence(t.format(s="Kel Dorn", o="Varnelle")) == [
+            # A pronoun form has no {s}: its subject is the sentence before's.
+            assert read_sentence(t.format(s="Kel Dorn", o="Varnelle"), "Kel Dorn") == [
                 ("Kel Dorn", pred, "Varnelle")
             ]
     for pred, templates in QUESTIONS.items():

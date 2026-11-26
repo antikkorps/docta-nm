@@ -26,6 +26,17 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Changed
 
+- **Pronouns, palier 2 begins**: a source names a subject again by pronoun
+  right after a sentence about it ("Kel Dorn was born in 1950. She lives in
+  Brask."): he, she or singular they (45/45/10, drawn from the world seed and
+  the person, never from the name, the verb agreeing with "they"), it for a
+  city or a guild, as subject, object (him, them) or owner (her home, its
+  ranks). A core must follow the text to know whom a sentence is about.
+  Trap sources always name their subject. The rules read a pronoun as the
+  subject of the sentence before, and find a sentence's templates by its
+  closing words (the pronoun forms bring the seen templates to tens of
+  thousands). Every split changes: rerun `just gen 42 20000`, `just load`,
+  then retrain.
 - **A richer language, palier 1**: each relation in 9 or 10 seen clauses
   (was 4 or 5), 30 frames (was 8), eight asides (was one), 16 titles (was
   8), three or more wordings per question, and descriptions that state and
@@ -50,6 +61,10 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Fixed
 
+- `just gen` stops with the world and the slot when a question slot finds
+  no question, instead of writing a world with fewer than nine questions
+  (#15). No world of `just gen 42 20000` is affected: its output is
+  unchanged, byte for byte.
 - `--trap-ratio` is documented as what it is, a ceiling: about 23% of
   answerable retrieve questions get a trap at the default 0.3 (5% of all
   questions). `just gen` now reports, per split, the worlds, the questions

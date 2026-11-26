@@ -45,6 +45,12 @@ pub fn sentence<R: Rng>(
     )
 }
 
+/// `named` again with its subject said by `p`; `None` where no pronoun reads
+/// naturally. The template records the pronoun, so diagnosis sees it.
+pub fn by_pronoun(named: &Written, p: crate::pronouns::Pronoun, obj: &str) -> Option<Written> {
+    crate::pronouns::variant(&named.template, p).map(|t| written(&t, "", obj))
+}
+
 /// A question about `subj`, which may be a chain's link: its template then
 /// holds the link's template, the link's subject as `{s}`.
 pub fn question<R: Rng>(pred: Pred, subj: &Written, wording: Wording, rng: &mut R) -> Written {

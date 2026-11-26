@@ -52,6 +52,16 @@ pub fn sentence_phrasings(pred: Pred) -> Sentences {
     }
 }
 
+/// `templates` and every pronoun form of each: a sentence a source writes by
+/// pronoun is the same phrasing, seen or held out alike.
+pub fn with_pronouns(pred: Pred, templates: Vec<String>) -> Vec<String> {
+    let forms = templates
+        .iter()
+        .flat_map(|t| crate::pronouns::variants(t, pred))
+        .collect::<Vec<_>>();
+    templates.into_iter().chain(forms).collect()
+}
+
 /// The capitalised words a sentence can open with that are template words,
 /// never names: a copy lowers them when it repeats the sentence mid-way.
 pub fn opening_words() -> BTreeSet<&'static str> {

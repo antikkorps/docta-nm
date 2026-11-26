@@ -54,7 +54,16 @@ pub fn generate<R: Rng>(
             ctx.draw(shape, want_answer, rng)
                 .filter(|d| asked.insert(key(d)))
         });
-        out.extend(found.map(|d| ctx.finish(d, want_answer)));
+        // A slot left empty would shift the question mix every score assumes:
+        // stop loudly rather than write a world with fewer questions.
+        let draft = found.unwrap_or_else(|| {
+            panic!(
+                "{}: no question for slot {} after {MAX_ATTEMPTS} draws",
+                world.world_id,
+                out.len() + 1
+            )
+        });
+        out.push(ctx.finish(draft, want_answer));
     }
     for (i, q) in out.iter_mut().enumerate() {
         q.id = format!("q{}", i + 1);
