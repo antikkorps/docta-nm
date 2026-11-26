@@ -2,6 +2,8 @@
 
 import dataclasses
 
+import pytest
+
 from docta_orchestrator.jsonl import WorldBatch
 from docta_orchestrator.load import load_world
 from docta_orchestrator.search import Hit, search, to_tsquery
@@ -50,6 +52,13 @@ def test_stays_inside_the_asked_world(conn):
 def test_respects_k_and_empty_queries(conn):
     assert len(search(loaded(conn), "w_test01", "Varnelle", k=1)) == 1
     assert search(conn, "w_test01", "?!") == []
+
+
+@pytest.mark.parametrize("k", [0, -1])
+def test_a_k_below_one_is_refused_before_any_query(k):
+    # LIMIT 0 would read as "nothing found" and a negative one fails in SQL.
+    with pytest.raises(ValueError, match="k must be at least 1"):
+        search(None, "w_test01", "Varnelle", k=k)
 
 
 def test_odd_queries_reach_the_database_safely(conn):

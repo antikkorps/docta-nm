@@ -116,11 +116,14 @@ def weigh(found: list[Claim]) -> Settled | None:
 
 def origin_of(c: Claim, found: list[Claim]) -> str:
     """The independent source behind a claim: itself (by id, as true sources
-    may share a title), or the origin a copy credits, by id if it was read."""
+    may share a title), or the origin a copy credits, by id if it was read.
+    Among read sources sharing the credited title, the origin is the one
+    saying what the copy repeats: a copy never adds a voice of its own."""
     if c.credits is None:
         return c.source_id
-    read = {o.title: o.source_id for o in found if o.credits is None}
-    return read.get(c.credits, c.credits)
+    named = [o for o in found if o.credits is None and o.title == c.credits]
+    same = [o for o in named if o.value == c.value]
+    return (same or named)[0].source_id if named else c.credits
 
 
 class ConfrontRule(RuleEvaluateModel, ABC):
