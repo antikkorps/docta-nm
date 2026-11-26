@@ -100,8 +100,7 @@ def load_files(conn: psycopg.Connection, paths: list[Path], prune: bool = False)
     database exactly as it was; returns the number of worlds loaded.
 
     With `prune`, worlds absent from `paths` are deleted (the real-text probe
-    excepted), so the database mirrors
-    the files exactly. Off by default: loading test.jsonl alone must not wipe
+    excepted), so the database mirrors the files exactly. Off by default: loading test.jsonl alone must not wipe
     the train split.
     """
     seen: set[str] = set()
