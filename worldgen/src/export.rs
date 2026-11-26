@@ -5,7 +5,7 @@
 //! combinatorial grammar, so worldgen writes the file and a test keeps the committed copy
 //! (orchestrator/src/docta_orchestrator/models/templates_seen.json) in step.
 
-use crate::grammar::sentence_phrasings;
+use crate::grammar::{sentence_phrasings, with_pronouns};
 use crate::model::Pred;
 use crate::templates::{comparison_phrasings, link_phrasings, question_phrasings};
 use serde_json::{Map, Value, json};
@@ -19,7 +19,10 @@ pub fn seen_templates_json() -> String {
     let mut links = Map::new();
     for pred in Pred::ALL {
         let key = pred.as_str().to_string();
-        sentences.insert(key.clone(), json!(sentence_phrasings(pred).seen));
+        sentences.insert(
+            key.clone(),
+            json!(with_pronouns(pred, sentence_phrasings(pred).seen)),
+        );
         questions.insert(key.clone(), json!(question_phrasings(pred).seen));
         if let Some(c) = comparison_phrasings(pred) {
             comparisons.insert(key.clone(), json!(c.seen[0]));

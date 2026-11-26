@@ -24,6 +24,8 @@ const EXCLUDED: &[&str] = &[
     "person", "peru", "register", "resides", "riga", "rise", "rises", "robin", "roma", "rome",
     "salad", "salon", "satin", "serves", "sofia", "some", "state", "stones", "sudan", "tales",
     "taller", "talon", "togo", "venus", "village",
+    // Pronouns a source may write (crate::pronouns); shorter ones are never names.
+    "them", "their", "they",
 ];
 
 /// Draws names for one world. Every name token is unique within the world, so a
@@ -147,6 +149,7 @@ mod tests {
         texts.push(crate::liars::HELD_OUT_ATTRIBUTION);
         texts.extend(crate::grammar::FRAMES);
         texts.extend(crate::grammar::PARENTHETICALS);
+        texts.extend(crate::pronouns::WORDS);
         for pred in Pred::ALL {
             let mut kinds = vec![sentence_clauses(pred), question_phrasings(pred)];
             kinds.extend(comparison_phrasings(pred));

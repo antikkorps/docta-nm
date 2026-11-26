@@ -7,7 +7,7 @@ use common::fits::{holds, skeleton};
 use common::seal::{PREDS, any_fits, any_fits_loose, sentences, words};
 use common::{DEFAULT, corpora_in, fact};
 use docta_worldgen::corpus::{Corpus, Primitive};
-use docta_worldgen::grammar::sentence_phrasings;
+use docta_worldgen::grammar::{sentence_phrasings, with_pronouns};
 use docta_worldgen::liars::{ATTRIBUTIONS, HELD_OUT_ATTRIBUTION};
 use docta_worldgen::model::Pred;
 use docta_worldgen::questions::HELD_OUT_CHAINS;
@@ -37,7 +37,7 @@ fn sentence_templates(held_out: bool) -> Vec<String> {
         .into_iter()
         .flat_map(|p| {
             let s = sentence_phrasings(p);
-            if held_out { s.held_out } else { s.seen }
+            with_pronouns(p, if held_out { s.held_out } else { s.seen })
         })
         .collect()
 }
