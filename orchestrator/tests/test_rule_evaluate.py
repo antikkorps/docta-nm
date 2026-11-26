@@ -67,3 +67,19 @@ def test_comparison_needs_both_sides():
 
 def test_unknown_phrasing_falls_back_to_keyword():
     assert ask("How tall is Kel Dorn?").answer == "181"
+
+
+def test_a_pronoun_reads_as_the_subject_of_the_sentence_before():
+    from docta_orchestrator.models.rule_evaluate import read_body
+
+    body = "Kel Dorn lives in Brask. She was born in 1950."
+    assert read_body(body) == [
+        [("Kel Dorn", "lives_in", "Brask")],
+        [("Kel Dorn", "born_in", "1950")],
+    ]
+
+
+def test_a_pronoun_with_no_readable_sentence_before_states_nothing():
+    from docta_orchestrator.models.rule_evaluate import read_body
+
+    assert read_body("She was born in 1950.") == [[]]

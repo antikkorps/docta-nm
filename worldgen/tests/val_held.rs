@@ -8,7 +8,7 @@ use common::seal::{PREDS, any_fits, any_fits_loose, sentences, words};
 use common::{DEFAULT, corpora_in};
 use docta_worldgen::corpus::{Corpus, Primitive};
 use docta_worldgen::export::seen_templates_json;
-use docta_worldgen::grammar::sentence_phrasings;
+use docta_worldgen::grammar::{sentence_phrasings, with_pronouns};
 use docta_worldgen::split::Split;
 use docta_worldgen::templates::{
     Phrasings, comparison_phrasings, link_phrasings, question_phrasings, sentence_clauses,
@@ -25,7 +25,7 @@ fn val_held(of: impl Fn(docta_worldgen::model::Pred) -> Option<Phrasings>) -> Ve
 fn val_sentences() -> Vec<String> {
     PREDS
         .into_iter()
-        .flat_map(|p| sentence_phrasings(p).val_held)
+        .flat_map(|p| with_pronouns(p, sentence_phrasings(p).val_held))
         .collect()
 }
 

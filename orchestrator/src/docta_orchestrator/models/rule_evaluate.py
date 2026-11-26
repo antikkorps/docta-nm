@@ -25,7 +25,10 @@ def pattern(template: str) -> re.Pattern[str]:
     return re.compile(escaped)
 
 
-NAME = r"[A-Z][a-z]+(?: [A-Z][a-z]+)*"
+# A pronoun opening a sentence is capitalised too, but never a name (worldgen
+# excludes the long ones from names; the short ones are below name length).
+PRONOUN = r"(?:He|She|They|It|His|Her|Its|Their|Him|Them)\b"
+NAME = rf"(?!{PRONOUN})[A-Z][a-z]+(?: [A-Z][a-z]+)*"
 
 
 @cache
@@ -36,15 +39,59 @@ def sentence_pattern(template: str) -> re.Pattern[str]:
     return re.compile(escaped.replace(r"\{o\}", rf"(?P<o>{NAME}|\d+)"))
 
 
-def read_sentence(sentence: str) -> list[Statement]:
-    """Every fact a seen sentence template states; none for anything else."""
-    found = []
+Entry = tuple[int, str, str, tuple[str, ...]]  # order, predicate, template, its literal pieces
+
+
+@cache
+def sentence_index() -> dict[str, list[Entry]]:
+    """The seen templates by the words they close on. With every frame, aside
+    and pronoun form there are tens of thousands: trying each regex on each
+    sentence took minutes on a small corpus."""
+    index: dict[str, list[Entry]] = {}
+    order = 0
     for pred, templates in SENTENCES.items():
         for template in templates:
-            m = sentence_pattern(template).fullmatch(sentence)
-            if m:
-                found.append((m["s"], pred, m["o"]))
+            pieces = tuple(re.split(r"\{[so]\}", template))
+            index.setdefault(pieces[-1], []).append((order, pred, template, pieces))
+            order += 1
+    return index
+
+
+def candidates(sentence: str) -> list[Entry]:
+    """Templates whose fixed words the sentence has, in place: only those can
+    match, so only those are tried, in the order of the exported file."""
+    found = [
+        entry
+        for closing, entries in sentence_index().items()
+        if sentence.endswith(closing)
+        for entry in entries
+        if sentence.startswith(entry[3][0]) and all(p in sentence for p in entry[3][1:-1])
+    ]
+    return sorted(found)
+
+
+def read_sentence(sentence: str, previous: str | None = None) -> list[Statement]:
+    """Every fact a seen sentence template states; none for anything else. A
+    template without `{s}` names its subject by pronoun, which worldgen writes
+    only right after a sentence about the same subject: `previous`."""
+    found = []
+    for _, pred, template, _ in candidates(sentence):
+        m = sentence_pattern(template).fullmatch(sentence)
+        subject = (m["s"] if "{s}" in template else previous) if m else None
+        if subject:
+            found.append((subject, pred, m["o"]))
     return found
+
+
+def read_body(body: str) -> list[list[Statement]]:
+    """What each sentence states, a pronoun read as the subject of the
+    sentence before; after a sentence the rule cannot read, nothing."""
+    read: list[list[Statement]] = []
+    previous = None
+    for sentence in sentences(body):
+        read.append(read_sentence(sentence, previous))
+        previous = read[-1][0][0] if read[-1] else None
+    return read
 
 
 def needs(question: str) -> list[Need] | None:
@@ -75,12 +122,7 @@ def sentences(body: str) -> list[str]:
 
 
 def statements(evidence: Evidence) -> dict[tuple[str, str], str]:
-    return {
-        (s, p): o
-        for hit in evidence
-        for sentence in sentences(hit.body)
-        for s, p, o in read_sentence(sentence)
-    }
+    return {(s, p): o for hit in evidence for stated in read_body(hit.body) for s, p, o in stated}
 
 
 def resolved(need: Need, known: dict[tuple[str, str], str]) -> bool:

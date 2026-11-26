@@ -12,6 +12,7 @@ pub mod liars;
 pub mod model;
 pub mod names;
 pub mod phrasings;
+pub mod pronouns;
 pub mod questions;
 pub mod seed;
 pub mod sources;
