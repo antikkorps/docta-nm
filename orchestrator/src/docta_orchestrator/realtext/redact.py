@@ -11,7 +11,7 @@ import random
 
 from docta_orchestrator.realtext.entities import SCHEMA
 from docta_orchestrator.realtext.questions import asked, named
-from docta_orchestrator.realtext.stated import Index, sentences
+from docta_orchestrator.realtext.stated import MIN_NAME, Index, sentences
 
 
 def redact(entities: list[dict], articles: list[dict], share: float, seed: int) -> list[dict]:
@@ -21,6 +21,9 @@ def redact(entities: list[dict], articles: list[dict], share: float, seed: int) 
     facts = [e for e in named(entities) if asked(e)]
     stated = [e for e in facts if index.states(e["qid"], e["name"], asked(e)[1])]
     need = round(share * len(facts)) - (len(facts) - len(stated))
+    # A short label ("C") or a shared one ("Salem") hides in sentences no
+    # check pins on the subject, so a cut could leave the answer readable.
+    stated = [e for e in stated if e["name"] == e["label"] and len(e["label"]) >= MIN_NAME]
     chosen = random.Random(seed).sample(stated, max(0, min(need, len(stated))))
     out = []
     for e in sorted(chosen, key=lambda e: e["qid"]):

@@ -90,3 +90,26 @@ def test_the_cli_refuses_a_share_with_nothing_to_balance(tmp_path, share):
 
     with pytest.raises(SystemExit):
         probe.main([str(tmp_path), "--share", share])
+
+
+def test_a_subject_whose_name_may_hide_elsewhere_is_never_cut():
+    # "C" or a second "Salem" can be named in a sentence no check pins on
+    # them ("B evolved into C in 1972"): a cut could leave the answer readable.
+    short = city("Q5", "C", [1972])
+    twins = [city("Q7", "Salem", [1626]), city("Q8", "Salem", [1842])]
+    twins[0]["title"], twins[1]["title"] = "Salem, Massachusetts", "Salem, Oregon"
+    texts = [article("Q5", "C was made in 1972."), article("Q7", "Salem was settled in 1626."),
+             article("Q8", "Salem grew in 1842.")]  # fmt: skip
+    assert redact([short, *twins], texts, share=1.0, seed=0) == []
+
+
+def test_a_shape_with_one_side_only_is_dropped():
+    pool = [fake("chain", False, 0), fake("chain", False, 1), fake("retrieve", True, 2),
+            fake("retrieve", False, 3)]  # fmt: skip
+    assert {q["shape"] for q in balanced(pool, share=1 / 3, seed=0)} == {"retrieve"}
+
+
+def test_half_a_question_rounds_up_not_to_even():
+    pool = [fake("retrieve", True, 0), fake("retrieve", False, 1), fake("retrieve", False, 2)]
+    kept = balanced(pool, share=1 / 3, seed=0)
+    assert sorted(q["answerable"] for q in kept) == [False, True]

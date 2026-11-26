@@ -47,19 +47,27 @@ def balanced(questions: list[dict], share: float, seed: int) -> list[dict]:
     """Every shape with `share` of its questions unanswerable, by dropping
     some of its majority side. A chain or a compare loses its answer when
     any of its facts is cut, so left alone they would be mostly
-    unanswerable, and the shape alone would predict abstention."""
+    unanswerable, and the shape alone would predict abstention. A shape
+    with one side only is dropped for the same reason."""
     rng, kept = random.Random(seed), []
     for shape in sorted({q["shape"] for q in questions}):
         yes = [q for q in questions if q["shape"] == shape and q["answerable"]]
         no = [q for q in questions if q["shape"] == shape and not q["answerable"]]
-        if yes and no:
-            want_no = round(len(yes) * share / (1 - share))
-            if len(no) > want_no:
-                no = rng.sample(no, want_no)
-            else:
-                yes = rng.sample(yes, min(len(yes), round(len(no) * (1 - share) / share)))
+        if not (yes and no):
+            continue  # one side only: the shape alone would give the answer away
+        want_no = half_up(len(yes) * share / (1 - share))
+        if len(no) > want_no:
+            no = rng.sample(no, want_no)
+        else:
+            yes = rng.sample(yes, min(len(yes), half_up(len(no) * (1 - share) / share)))
         kept += yes + no
     return sorted(kept, key=lambda q: q["question_id"])
+
+
+def half_up(x: float) -> int:
+    # round() goes to even: one answerable and two unanswerable would keep
+    # no unanswerable question at all.
+    return int(x + 0.5)
 
 
 def report(questions: list[dict], where: Path) -> None:
