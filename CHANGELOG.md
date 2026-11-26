@@ -38,6 +38,10 @@ lines under a new version, and its GitHub Release carries the reference scores.
 - `just fit-read` keeps the epoch with the best `val_exact` instead of the
   last: on `val`'s held phrasings the Read core peaks before the end (65.6% at
   epoch 3, 61.5% at epoch 4 on one seed).
+- `just fit` keeps the epoch with the best `val_accuracy` instead of the
+  lowest `val_loss` (ties go to the lower loss), the score that is reported:
+  on palier 1 an overconfident core's loss rose while it got more right
+  (seed 2: 55.2% at the lowest loss, epoch 1; 71.3% at epoch 6).
 
 ### Fixed
 

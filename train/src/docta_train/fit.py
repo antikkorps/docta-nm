@@ -1,6 +1,6 @@
 """Trains the Evaluate core: `python -m docta_train.fit --data data/evaluate`.
 
-Writes OUT/model.pt (best epoch by validation loss), OUT/last.pt (to resume)
+Writes OUT/model.pt (the epoch with the best val accuracy), OUT/last.pt (to resume)
 and OUT/log.jsonl. `--resume` adds `--epochs` more to the run in OUT.
 """
 
@@ -55,7 +55,7 @@ def fit(
     warmup: int = 0,
 ) -> dict:
     """Trains from scratch, or `epochs` more on OUT/last.pt with `resume`;
-    keeps the epoch with the lowest validation loss in OUT/model.pt. `lr`
+    keeps the epoch with the best validation accuracy in OUT/model.pt. `lr`
     None means the default when fresh, the run's own when resumed. `vocab`
     defaults to the one learned from `train`."""
     out.mkdir(parents=True, exist_ok=True)
@@ -95,9 +95,19 @@ def next_epoch(
         ),
     }
     metrics |= validate(run.model, batches(val_data, batch), shapes)
-    if run.best is None or metrics["val_loss"] < run.best["val_loss"]:
+    if better(metrics, run.best):
         run.best = metrics
     return metrics
+
+
+def better(metrics: dict, best: dict | None) -> bool:
+    """Accuracy is the score reported, so it picks the epoch kept. The loss
+    only breaks ties: an overconfident core's loss can rise while it gets
+    more answers right (palier 1, seed 2: 55% at the lowest loss, 71% later)."""
+    if best is None:
+        return True
+    key = (metrics["val_accuracy"], -metrics["val_loss"])
+    return key > (best["val_accuracy"], -best["val_loss"])
 
 
 def load(args: argparse.Namespace) -> tuple[list[Example], list[Example], dict[str, float], Vocab]:

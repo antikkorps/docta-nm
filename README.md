@@ -100,7 +100,7 @@ The Evaluate core is trained and run by the `train/` package (PyTorch, on CPU). 
 
 ```bash
 just evaluate-data     # builds data/evaluate from data/{train,val,test,ood}.jsonl: a question, the excerpts read, labelled enough or not
-just fit               # trains the core on data/evaluate, writes models/core_evaluate (model.pt, log.jsonl)
+just fit               # trains the core on data/evaluate, writes models/core_evaluate (model.pt: the epoch with the best val accuracy; log.jsonl)
 just core              # scores the trained core on test beside the baselines
 just core ood          # likewise on ood
 just human             # each chain with no hint, the right bridge and a wrong one said mid-way
