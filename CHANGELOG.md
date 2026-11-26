@@ -50,6 +50,10 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Fixed
 
+- `--trap-ratio` is documented as what it is, a ceiling: about 23% of
+  answerable retrieve questions get a trap at the default 0.3 (5% of all
+  questions). `just gen` now reports, per split, the worlds, the questions
+  and how many got a trap (#16). The data is unchanged.
 - Training no longer cuts an example longer than the core reads: a cut
   excerpt could lose the sentence its label or answer rests on. `just fit`
   and `just fit-read` now refuse such data, and the cores read up to 576

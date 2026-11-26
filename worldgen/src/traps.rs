@@ -26,7 +26,9 @@ pub struct Ground<'a> {
     pub wording: Wording,
 }
 
-/// Sets a trap on `round(ratio × answerable retrieve questions)` questions.
+/// Sets a trap on at most `round(ratio × eligible)` questions, eligible being
+/// the answerable retrieve questions no other question rests on; one trap per
+/// true source cuts that further (crate::dataset::Counts reports the result).
 pub fn apply<R: Rng>(
     ground: &Ground,
     sources: &mut Vec<Source>,
