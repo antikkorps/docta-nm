@@ -3,7 +3,6 @@
 import dataclasses
 
 import pytest
-
 from docta_orchestrator.jsonl import WorldBatch
 from docta_orchestrator.load import load_world
 from docta_orchestrator.search import Hit, search, to_tsquery
