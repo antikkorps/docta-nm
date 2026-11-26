@@ -61,6 +61,11 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Fixed
 
+- `--max-minutes` no longer starts an epoch that would likely end past the
+  budget (judged on the last epoch's length; the first always runs), where
+  one long epoch could overrun it by far; an epoch is still never cut half-way, so `--resume`
+  goes on exactly. `just fit` reports missing data, and both trainers an
+  unwritable `--out`, with a message instead of a traceback (#19).
 - `just fit` and `just fit-read` refuse an empty train or val split at once,
   saying how to get data, instead of failing on a division by zero after
   loading (#12).
