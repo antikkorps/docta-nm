@@ -61,6 +61,9 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Fixed
 
+- `just fit` and `just fit-read` refuse an empty train or val split at once,
+  saying how to get data, instead of failing on a division by zero after
+  loading (#12).
 - `just gen` stops with the world and the slot when a question slot finds
   no question, instead of writing a world with fewer than nine questions
   (#15). No world of `just gen 42 20000` is affected: its output is
