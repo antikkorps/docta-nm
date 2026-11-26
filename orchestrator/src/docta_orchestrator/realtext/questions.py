@@ -1,4 +1,5 @@
-"""Questions on the frozen real text, from the Wikidata answer key.
+"""Questions on the frozen real text, from the Wikidata answer key:
+`python -m docta_orchestrator.realtext.questions data/real/cities`.
 
 The wordings are the ones the cores learned on the invented worlds where a
 real relation has one (a founding, a birth year), so a drop in score is a
@@ -8,10 +9,15 @@ question says which it uses. Whether a question is answerable is judged on
 the texts (see stated.py), never assumed from the key.
 """
 
+import argparse
+import json
 import random
+import sys
 from itertools import combinations
+from pathlib import Path
 
 from docta_orchestrator.models.templates import COMPARISONS, QUESTIONS
+from docta_orchestrator.realtext.collect import write
 from docta_orchestrator.realtext.entities import SCHEMA
 from docta_orchestrator.realtext.stated import Index
 
@@ -104,7 +110,7 @@ def apart(a: dict, b: dict) -> bool:
     return bool(ya and yb) and (max(ya[1]) < min(yb[1]) or max(yb[1]) < min(ya[1]))
 
 
-def question(body, hops, primitive, stated, values, subjects, seen, gap) -> dict:  # noqa: PLR0913
+def question(body, hops, primitive, stated, values, subjects, seen, gap) -> dict:
     """One record; an unanswerable one exports spot_missing, as in the
     worlds, and keeps the key's value in `missing` for the hand check."""
     values = [str(v) for v in values]
@@ -116,3 +122,21 @@ def question(body, hops, primitive, stated, values, subjects, seen, gap) -> dict
         "unanswerable": None if stated else "natural",
         "missing": None if stated else f"{gap} (key: {', '.join(values)})",
     }  # fmt: skip
+
+
+def main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("dir", type=Path, help="a collected domain")
+    parser.add_argument("--seed", type=int, default=42)
+    args = parser.parse_args(argv)
+    read = [[json.loads(line) for line in (args.dir / f"{name}.jsonl").open(encoding="utf-8")]
+            for name in ("entities", "articles")]  # fmt: skip
+    out = build(*read, seed=args.seed)
+    write(args.dir / "questions.jsonl", out)
+    unanswerable = sum(not q["answerable"] for q in out)
+    print(f"{len(out)} questions, {unanswerable} unanswerable, in {args.dir}", file=sys.stderr)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))
