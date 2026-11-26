@@ -14,6 +14,9 @@ from collections.abc import Iterable
 # A capital after the stop keeps "c. 1750" and "St. Louis" whole.
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[A-Z])")
 _NUMBER = re.compile(r"\b\d+\b")
+MIN_NAME = 3
+# Words a sentence uses to state a chain's first hop.
+LINK_WORDS = {"born_in": ("born",), "designed_by": ("design", "creat", "develop", "invent")}
 
 
 def paragraphs(article: dict) -> Iterable[str]:
@@ -42,16 +45,30 @@ class Index:
                 for number in set(_NUMBER.findall(sentence)):
                     self.by_number[number].append(sentence)
 
-    def states(self, qid: str, label: str, values: Iterable) -> bool:
+    def stated(self, qid: str, label: str, values: Iterable) -> str | None:
+        """The first value the texts state for the subject, if any."""
         own = self.own.get(qid, "")
         for value in map(str, values):
             if mentions(own, value):
-                return True
-            if any(mentions(s, label) for s in self.by_number.get(value, ())):
-                return True
-        return False
+                return value
+            # A label of one or two letters ("J", "C") matches initials and
+            # "C++": only the subject's own article can speak for it.
+            if len(label) >= MIN_NAME and any(
+                mentions(s, label) for s in self.by_number.get(value, ())
+            ):
+                return value
+        return None
 
-    def links(self, a: tuple[str, str], b: tuple[str, str]) -> bool:
-        """Whether either article of two entities (qid, label) names the
-        other: the first hop of a chain (a birthplace, a designer)."""
-        return mentions(self.own.get(a[0], ""), b[1]) or mentions(self.own.get(b[0], ""), a[1])
+    def states(self, qid: str, label: str, values: Iterable) -> bool:
+        return self.stated(qid, label, values) is not None
+
+    def links(self, a: tuple[str, str], b: tuple[str, str], link: str) -> bool:
+        """Whether a sentence in either article of two entities (qid, label)
+        names the other and says the link: "born in Lincoln" ties a person to
+        a city, "University of Nebraska–Lincoln" does not."""
+        for (qid, _), (_, other) in ((a, b), (b, a)):
+            for sentence in sentences(self.own.get(qid, "")):
+                low = sentence.lower()
+                if mentions(sentence, other) and any(w in low for w in LINK_WORDS[link]):
+                    return True
+        return False

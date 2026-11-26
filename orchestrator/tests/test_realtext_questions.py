@@ -109,3 +109,32 @@ def test_the_cli_writes_questions_next_to_the_corpus(tmp_path):
     assert questions.main([str(tmp_path), "--seed", "3"]) == 0
     lines = (tmp_path / "questions.jsonl").read_text().splitlines()
     assert [json.loads(line) for line in lines] == build(CITIES, ARTICLES, seed=3)
+
+
+def test_cities_sharing_a_label_are_asked_by_their_full_title():
+    twins = [city("Q7", "Salem", [1626]), city("Q8", "Salem", [1842])]
+    twins[0]["title"], twins[1]["title"] = "Salem, Massachusetts", "Salem, Oregon"
+    texts = [article("Q7", "Salem was settled in 1626."), article("Q8", "Salem grew in 1842.")]
+    bodies = [q["body"] for q in build(twins, texts, seed=0) if q["hops"] == 1]
+    assert any("Salem, Massachusetts" in b for b in bodies)
+    assert not any(b.endswith(" Salem?") for b in bodies)
+
+
+def test_a_short_label_never_counts_as_named_elsewhere():
+    # "J" in "Peter J. (May 1990)" names a person, not the language J.
+    texts = [article("L2", "J is an array language."),
+             article("P2", "Denning, Peter J. (May 1990) wrote on it.")]  # fmt: skip
+    assert not Index(texts).states("L2", "J", [1990])
+
+
+def test_a_chain_link_needs_a_sentence_that_says_it():
+    index = Index([article("P3", "Jack Sock played for the University of Nebraska–Lincoln."),
+                   article("Q9", "Lincoln is the capital of Nebraska.")])  # fmt: skip
+    assert not index.links(("P3", "Jack Sock"), ("Q9", "Lincoln"), "born_in")
+    born = Index([article("P3", "Sock was born in Lincoln, Nebraska.")])
+    assert born.links(("P3", "Jack Sock"), ("Q9", "Lincoln"), "born_in")
+
+
+def test_the_answer_given_is_a_value_the_texts_state():
+    tolm = next(q for q in build(CITIES, ARTICLES, seed=0) if q["subjects"] == ["Q3"])
+    assert tolm["answer"] == "1750"  # the key also has 1749, which no text states

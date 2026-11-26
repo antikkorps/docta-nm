@@ -13,6 +13,7 @@ import argparse
 import json
 import random
 import sys
+from collections import Counter
 from itertools import combinations
 from pathlib import Path
 
@@ -35,6 +36,7 @@ def build(entities: list[dict], articles: list[dict], seed: int = 0) -> list[dic
     """Every retrieve and chain question the key allows, and up to one
     comparison per entity of each kind, numbered in a fixed order."""
     rng, index = random.Random(seed), Index(articles)
+    entities = named(entities)
     known = {e["qid"]: e for e in entities}
     out = [q for e in entities for q in retrieve(e, index, rng)]
     out += [q for e in entities for q in chains(e, known, index, rng)]
@@ -42,6 +44,13 @@ def build(entities: list[dict], articles: list[dict], seed: int = 0) -> list[dic
         out += compare([e for e in entities if e["kind"] == kind], index, rng)
     return [{"schema": SCHEMA, "type": "question", "question_id": f"q{i:05d}", **q}
             for i, q in enumerate(out)]  # fmt: skip
+
+
+def named(entities: list[dict]) -> list[dict]:
+    """Each entity with the name a question gives it: its label, or its full
+    title when another entity shares the label (two Salems)."""
+    count = Counter(e["label"] for e in entities)
+    return [{**e, "name": e["title"] if count[e["label"]] > 1 else e["label"]} for e in entities]
 
 
 def asked(e: dict) -> tuple[str, list[int]] | None:
@@ -64,9 +73,9 @@ def retrieve(e: dict, index: Index, rng: random.Random) -> list[dict]:
     if asked(e) is None:
         return []
     fact, years = asked(e)
-    body, seen = wording(e, e["label"], rng)
-    stated = index.states(e["qid"], e["label"], years)
-    gap = f"no text states the {NOUN[fact]} of {e['label']}"
+    body, seen = wording(e, e["name"], rng)
+    stated = index.stated(e["qid"], e["name"], years)
+    gap = f"no text states the {NOUN[fact]} of {e['name']}"
     return [question(body, 1, "retrieve", stated, years, [e["qid"]], seen, gap)]
 
 
@@ -79,28 +88,29 @@ def chains(e: dict, known: dict, index: Index, rng: random.Random) -> list[dict]
         if len(targets) != 1 or asked(targets[0]) is None:
             continue
         target = targets[0]
-        body, _ = wording(target, phrase.format(s=e["label"]), rng)
-        hop = index.links((e["qid"], e["label"]), (target["qid"], target["label"]))
-        stated = hop and index.states(target["qid"], target["label"], asked(target)[1])
-        gap = f"no text ties {e['label']} to {target['label']} and states its year"
+        body, _ = wording(target, phrase.format(s=e["name"]), rng)
+        hop = index.links((e["qid"], e["label"]), (target["qid"], target["label"]), link)
+        stated = index.stated(target["qid"], target["name"], asked(target)[1]) if hop else None
+        gap = f"no text ties {e['name']} to {target['name']} and states its year"
         out.append(question(body, 2, "chain", stated, asked(target)[1],
                             [e["qid"], target["qid"]], False, gap))  # fmt: skip
     return out
 
 
 def compare(group: list[dict], index: Index, rng: random.Random) -> list[dict]:
-    """Pairs whose years cannot overlap, whatever value is right: with
-    1749 against 1749 or 1750 no answer is fair."""
+    """As many pairs as entities, among those whose years cannot overlap
+    whatever value is right: with 1749 against 1749 or 1750 no answer is
+    fair."""
     pairs = [(a, b) for a, b in combinations(group, 2) if apart(a, b)]
     out = []
     for a, b in rng.sample(pairs, min(len(group), len(pairs))):
-        first = a if max(asked(a)[1]) < min(asked(b)[1]) else b
+        first = (a if max(asked(a)[1]) < min(asked(b)[1]) else b)["name"]
         seen = a["kind"] == "city"
         template = COMPARISONS["founded_in"] if seen else RELEASED_EARLIER
-        stated = all(index.states(x["qid"], x["label"], asked(x)[1]) for x in (a, b))
-        gap = f"no text states the year of both {a['label']} and {b['label']}"
-        body = template.format(s=a["label"], o=b["label"])
-        out.append(question(body, 1, "compare", stated, [first["label"]],
+        both = all(index.states(x["qid"], x["name"], asked(x)[1]) for x in (a, b))
+        gap = f"no text states the year of both {a['name']} and {b['name']}"
+        body = template.format(s=a["name"], o=b["name"])
+        out.append(question(body, 1, "compare", first if both else None, [first],
                             [a["qid"], b["qid"]], seen, gap))  # fmt: skip
     return out
 
@@ -111,16 +121,17 @@ def apart(a: dict, b: dict) -> bool:
 
 
 def question(body, hops, primitive, stated, values, subjects, seen, gap) -> dict:
-    """One record; an unanswerable one exports spot_missing, as in the
-    worlds, and keeps the key's value in `missing` for the hand check."""
-    values = [str(v) for v in values]
+    """One record; `stated` is the answer the texts give, or None. An
+    unanswerable question exports spot_missing, as in the worlds, and keeps
+    the key's value in `missing` for the hand check."""
+    values, answerable = [str(v) for v in values], stated is not None
     return {
-        "body": body, "hops": hops, "primitive": primitive if stated else "spot_missing",
-        "answerable": stated, "answer": values[0] if stated else None,
+        "body": body, "hops": hops, "primitive": primitive if answerable else "spot_missing",
+        "answerable": answerable, "answer": stated,
         "values": values, "multi_valued": len(values) > 1, "subjects": subjects,
         "wording": "seen" if seen else "new",
-        "unanswerable": None if stated else "natural",
-        "missing": None if stated else f"{gap} (key: {', '.join(values)})",
+        "unanswerable": None if answerable else "natural",
+        "missing": None if answerable else f"{gap} (key: {', '.join(values)})",
     }  # fmt: skip
 
 
