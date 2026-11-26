@@ -61,6 +61,10 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Fixed
 
+- `search` refuses a `k` below 1 instead of reading `LIMIT 0` as "nothing
+  found" or failing in SQL; Confront ties a copy to the read source that
+  bears its credited title and says what it repeats, so two sources sharing
+  that title can no longer turn the copy into a second voice (#18).
 - `--max-minutes` no longer starts an epoch that would likely end past the
   budget (judged on the last epoch's length; the first always runs), where
   one long epoch could overrun it by far; an epoch is still never cut half-way, so `--resume`

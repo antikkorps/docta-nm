@@ -105,3 +105,12 @@ def test_two_true_sources_sharing_a_title_stay_independent():
     rival = Hit("s2", "Notes on Varnelle", "Varnelle has existed since 1450.", 0.92)
     outcome = ask(ChallengeModel(), [TRUTH, twin, rival])
     assert outcome.answer == "1432"  # 0.90 + 0.70 against 0.92
+
+
+def test_a_copy_folds_into_the_same_titled_source_that_says_what_it_says():
+    # Worldgen reserves origin titles, so this collision cannot happen in its
+    # data; were it to, a last-wins title map would tie the copy to the twin
+    # and count its 1450 as a second, independent voice.
+    twin = Hit("s6", "Notes on Varnelle", "The founding of Varnelle dates back to 1432.", 0.7)
+    outcome = ask(ChallengeModel(), [ORIGIN, twin, COPIES[0]])
+    assert outcome.answer == "1432"  # 0.70 against 0.62, the copy weighing nothing more

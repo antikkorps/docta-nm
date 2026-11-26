@@ -28,6 +28,9 @@ def to_tsquery(text: str) -> str | None:
 
 def search(conn: psycopg.Connection, world_id: str, query: str, k: int = 5) -> list[Hit]:
     """The `k` sources of `world_id` that best match `query`, best first."""
+    if k < 1:
+        # LIMIT 0 would pass for "nothing found", a negative LIMIT fails in SQL.
+        raise ValueError(f"k must be at least 1, got {k}")
     tsquery = to_tsquery(query)
     if tsquery is None:
         return []
