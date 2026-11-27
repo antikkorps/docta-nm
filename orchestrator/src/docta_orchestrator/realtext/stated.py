@@ -32,32 +32,36 @@ def mentions(text: str, word: str) -> bool:
 
 
 class Index:
-    """Each article's text by subject, and every sentence by the numbers it
-    holds, so a check reads a handful of sentences, not the corpus."""
+    """Each article's sentences by subject, and every sentence by the
+    numbers it holds, so a check reads a handful of sentences, not the
+    corpus. Sentences are split per paragraph, so a redaction can find each
+    one again where it stands."""
 
     def __init__(self, articles: Iterable[dict]):
-        self.own: dict[str, str] = {}
-        self.by_number: dict[str, list[str]] = defaultdict(list)
+        self.own: dict[str, list[str]] = {}
+        self.by_number: dict[str, list[tuple[str, str]]] = defaultdict(list)
         for a in articles:
-            text = " ".join(paragraphs(a))
-            self.own[a["qid"]] = text
-            for sentence in sentences(text):
+            self.own[a["qid"]] = [s for p in paragraphs(a) for s in sentences(p)]
+            for sentence in self.own[a["qid"]]:
                 for number in set(_NUMBER.findall(sentence)):
-                    self.by_number[number].append(sentence)
+                    self.by_number[number].append((a["qid"], sentence))
+
+    def stating(self, qid: str, label: str, values: Iterable) -> list[tuple[str, str]]:
+        """Every (article, sentence) that states one of the values for the
+        subject: its own article's, or one elsewhere naming it. A label of one
+        or two letters ("J", "C") matches initials and "C++", so only the
+        subject's own article can speak for it."""
+        out = []
+        for value in map(str, values):
+            out += [(qid, s) for s in self.own.get(qid, []) if mentions(s, value)]
+            if len(label) >= MIN_NAME:
+                out += [(q, s) for q, s in self.by_number.get(value, ())
+                        if q != qid and mentions(s, label)]  # fmt: skip
+        return out
 
     def stated(self, qid: str, label: str, values: Iterable) -> str | None:
         """The first value the texts state for the subject, if any."""
-        own = self.own.get(qid, "")
-        for value in map(str, values):
-            if mentions(own, value):
-                return value
-            # A label of one or two letters ("J", "C") matches initials and
-            # "C++": only the subject's own article can speak for it.
-            if len(label) >= MIN_NAME and any(
-                mentions(s, label) for s in self.by_number.get(value, ())
-            ):
-                return value
-        return None
+        return next((str(v) for v in values if self.stating(qid, label, [v])), None)
 
     def states(self, qid: str, label: str, values: Iterable) -> bool:
         return self.stated(qid, label, values) is not None
@@ -67,7 +71,7 @@ class Index:
         names the other and says the link: "born in Lincoln" ties a person to
         a city, "University of Nebraska–Lincoln" does not."""
         for (qid, _), (_, other) in ((a, b), (b, a)):
-            for sentence in sentences(self.own.get(qid, "")):
+            for sentence in self.own.get(qid, []):
                 low = sentence.lower()
                 if mentions(sentence, other) and any(w in low for w in LINK_WORDS[link]):
                     return True
