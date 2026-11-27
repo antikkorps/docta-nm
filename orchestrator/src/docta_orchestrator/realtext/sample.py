@@ -6,7 +6,8 @@ So many questions of each kind (answerable, naturally absent, redacted),
 drawn with a seed so the label error found can be reported and redone. Each
 comes with what shows its label right or wrong: the sentences that state its
 year, a chain's link, the cuts, and for an absence the years its article
-does hold. Ground truth throughout: for the person checking, never a model.
+does hold. Drawn from all domains pooled, so each domain's share follows its
+size. Ground truth throughout: for the person checking, never a model.
 """
 
 import argparse
@@ -22,12 +23,13 @@ from docta_orchestrator.realtext.redact import apply
 from docta_orchestrator.realtext.stated import Index
 
 KINDS = ("answerable", "natural", "redacted")
-_YEAR = re.compile(r"\b1\d{3}\b|\b20\d{2}\b")
-NEARBY = 6  # enough to see the year is not there, few enough to read
+# Any number of three or four digits: an absence is checked against every
+# year its article could hold, not a handful.
+_NUMBER = re.compile(r"\b\d{3,4}\b")
 
 
 def sample(domains: list[Path], per_kind: int = 50, seed: int = 0) -> list[dict]:
-    pool = [item for where in domains for item in items(where)]
+    pool = [item for where in sorted(domains) for item in items(where)]
     rng, out = random.Random(seed), []
     for kind in KINDS:
         mine = [i for i in pool if i["kind"] == kind]
@@ -39,26 +41,36 @@ def sample(domains: list[Path], per_kind: int = 50, seed: int = 0) -> list[dict]
 def items(where: Path) -> list[dict]:
     entities = {e["qid"]: e for e in named(read(where / "entities.jsonl"))}
     articles = read(where / "articles.jsonl")
-    cuts = read(where / "redactions.jsonl")
-    index = Index(apply(articles, cuts))
+    texts = (Index(articles), Index(apply(articles, read(where / "redactions.jsonl"))))
     urls = {a["qid"]: a.get("url") for a in articles}
-    return [item(q, entities, index, cuts, urls) for q in read(where / "questions.jsonl")]
+    return [item(q, entities, texts, urls) for q in read(where / "questions.jsonl")]
 
 
-def item(q: dict, entities: dict, index: Index, cuts: list[dict], urls: dict) -> dict:
+def item(q: dict, entities: dict, texts: tuple[Index, Index], urls: dict) -> dict:
+    before, after = (evidence_of(q, entities, index) for index in texts)
     holders = q["subjects"] if q["shape"] == "compare" else q["subjects"][-1:]
-    years = [y for s in holders for y in years_of(entities[s], index)]
-    evidence = {
-        "states": [list(x) for x in years],
-        "link": [list(x) for x in link_of(q, entities, index)],
-        "cut": [[c["article"], c["sentence"]] for c in cuts if c["subject"] in q["subjects"]],
-        "years_nearby": [] if q["answerable"] else nearby(holders, index),
-        "urls": [urls.get(s) for s in q["subjects"]],
+    shown = {
+        "states": [[a, s] for a, s, why in after if why == "year"],
+        "link": [[a, s] for a, s, why in after if why == "link"],
+        # What the cuts took from this question, not every cut on its subjects.
+        "cut": [list(x) for x in before if x not in after],
+        "years_nearby": [] if q["answerable"] else nearby(holders, texts[1]),
     }
+    quoted = {a for rows in shown.values() for a, *_ in rows} | set(q["subjects"])
+    shown["urls"] = {a: urls.get(a) for a in sorted(quoted)}
     return {"domain": entities[q["subjects"][0]]["domain"], "question_id": q["question_id"],
             "body": q["body"], "shape": q["shape"], "kind": q["unanswerable"] or "answerable",
             "answer": q["answer"], "values": q["values"], "subjects": q["subjects"],
-            "evidence": evidence, "verdict": None}  # fmt: skip
+            "evidence": shown, "verdict": None}  # fmt: skip
+
+
+def evidence_of(q: dict, entities: dict, index: Index) -> list[tuple[str, str, str]]:
+    """The sentences a label rests on in these texts: each year-holder's
+    stated year, and a chain's link."""
+    holders = q["subjects"] if q["shape"] == "compare" else q["subjects"][-1:]
+    out = [(a, s, "year") for h in holders for a, s in years_of(entities[h], index)]
+    out += [(a, s, "link") for a, s in link_of(q, entities, index)]
+    return list(dict.fromkeys(out))
 
 
 def years_of(e: dict, index: Index) -> list[tuple[str, str]]:
@@ -75,8 +87,7 @@ def link_of(q: dict, entities: dict, index: Index) -> list[tuple[str, str]]:
 
 
 def nearby(holders: list[str], index: Index) -> list[list[str]]:
-    found = [[q, s] for q in holders for s in index.own.get(q, []) if _YEAR.search(s)]
-    return found[:NEARBY]
+    return [[q, s] for q in holders for s in index.own.get(q, []) if _NUMBER.search(s)]
 
 
 def main(argv: list[str]) -> int:
