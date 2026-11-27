@@ -35,6 +35,12 @@ lines under a new version, and its GitHub Release carries the reference scores.
   reliability for all), the key in `facts`. `worlds.split` accepts `real`:
   run `just reset-db` before loading. `just load --prune` leaves the probe in
   place.
+- **Hand-check sample** (`python -m docta_orchestrator.realtext.sample
+  data/real/cities data/real/languages --out data/real/sample.jsonl`): so
+  many questions of each kind (answerable, natural, redacted), drawn with a
+  seed, each with the sentences that state its year, a chain's link, the
+  cuts, and for an absence the years its article holds, so the label error
+  can be reported next to the scores.
 - **`just real cities`** (or `languages`): cuts and asks, loads, runs the
   baselines and the trained cores on the domain, and scores them; `just
   steps` shows a column for each domain scored.
