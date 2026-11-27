@@ -45,10 +45,11 @@ def main(argv: list[str]) -> int:
 
 
 def fair(questions: list[dict], entities: list[dict], texts: list[dict]) -> list[dict]:
-    """Without the comparisons labelled "no answer" whose order a reader can
-    tell from other dates: the hand check marked them wrong."""
+    """Without the comparisons naturally lacking an answer whose order a
+    reader can tell from other dates: the hand check marked such ones wrong,
+    and no redacted one."""
     known, index = {e["qid"]: e for e in named(entities)}, Index(texts)
-    unfair = lambda q: q["shape"] == "compare" and not q["answerable"]  # noqa: E731
+    unfair = lambda q: q["shape"] == "compare" and q.get("unanswerable") == "natural"  # noqa: E731
     return [q for q in questions if not (unfair(q) and order_readable(q, known, index))]
 
 

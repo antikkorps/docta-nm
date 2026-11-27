@@ -11,10 +11,12 @@ import re
 from collections import defaultdict
 from collections.abc import Iterable
 
-# A capital after the stop keeps "c. 1750" whole; no break after a lone
-# capital keeps "John G. Kemeny" and "U.S. Army" whole (the hand check found
-# links and dates lost to those cuts).
-_SENTENCE_END = re.compile(r"(?<=[.!?])(?<!\b[A-Z]\.)\s+(?=[A-Z])")
+# A capital after the stop keeps "c. 1750" whole.
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[A-Z])")
+# A first name then a lone capital is an initial ("John G. Kemeny"): the hand
+# check found links lost to that cut. After a lowercase word it is not ("in C.").
+_INITIAL = re.compile(r"\b[A-Z][a-z]+ [A-Z]\.$")
+_SUFFIXES = {"Jr.", "Sr.", "Jr", "Sr", "II", "III", "IV"}
 _NUMBER = re.compile(r"\b\d+\b")
 MIN_NAME = 3
 # Words a sentence uses to state a chain's first hop.
@@ -29,7 +31,13 @@ def paragraphs(article: dict) -> Iterable[str]:
 
 
 def sentences(text: str) -> list[str]:
-    return [s for s in _SENTENCE_END.split(text) if s]
+    out: list[str] = []
+    for part in _SENTENCE_END.split(text):
+        if out and _INITIAL.search(out[-1]):
+            out[-1] = f"{out[-1]} {part}"
+        elif part:
+            out.append(part)
+    return out
 
 
 def mentions(text: str, word: str) -> bool:
@@ -39,7 +47,8 @@ def mentions(text: str, word: str) -> bool:
 def variants(person: str) -> list[str]:
     """A person's label, and their surname when it is long enough to be a
     name rather than an initial."""
-    surname = person.split()[-1] if " " in person else ""
+    words = [w for w in person.replace(",", " ").split() if w not in _SUFFIXES]
+    surname = words[-1] if len(words) > 1 else ""
     return [person, surname] if len(surname) >= MIN_NAME else [person]
 
 

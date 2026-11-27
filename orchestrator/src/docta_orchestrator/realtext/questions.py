@@ -27,8 +27,9 @@ RELEASED_EARLIER = "Which was released earlier, {s} or {o}?"
 CHAINS = {"born_in": "the city where {s} was born", "designed_by": "the designer of {s}"}
 NOUN = {"inception": "founding or release year", "birth_year": "birth year"}
 # A year, or a decade ("the early 1980s" dates from 1980), never part of a
-# bigger number (a population of 1,234).
-_YEAR = re.compile(r"(?<![\d,.])(1\d{3}|20[0-2]\d)s?(?![\d,])")
+# bigger number (a population of 1,234); a comma after it is fine ("in 1994, a").
+DATED = 3  # distinct years the later article needs to bound its start
+_YEAR = re.compile(r"(?<![\d.])(?<!\d,)(1\d{3}|20[0-2]\d)s?(?!\d|,\d)")
 
 
 def build(entities: list[dict], articles: list[dict], seed: int = 0) -> list[dict]:
@@ -138,12 +139,13 @@ def question(body, hops, primitive, stated, values, subjects, seen, gap) -> dict
 
 def order_readable(q: dict, entities: dict, index: Index) -> bool:
     """Whether a reader can tell a comparison's order without both exact
-    years: the later entity's article dates nothing before the earlier one's
-    year, and the earlier one's article dates something by then (Newsqueak
-    "early 1980s" against an AMOS article dated from 1990 on). Such a
-    question is no fair "no answer"."""
+    years: the later entity's article dates several events, none before the
+    earlier one's year, and the earlier one's article dates something by
+    then (Newsqueak "early 1980s" against an AMOS article dated from 1990
+    on). One late date says nothing of where an entity starts."""
     first, later = sorted(q["subjects"], key=lambda s: entities[s]["name"] != q["values"][0])
     years = [[int(m.group(1)) for s in index.own.get(x, []) for m in _YEAR.finditer(s)]
              for x in (first, later)]  # fmt: skip
     known = max(asked(entities[first])[1])
-    return all(years) and min(years[1]) > known and min(years[0]) <= known
+    dated = len(set(years[1])) >= DATED
+    return dated and bool(years[0]) and min(years[1]) > known and min(years[0]) <= known
