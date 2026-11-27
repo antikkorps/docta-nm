@@ -29,6 +29,12 @@ lines under a new version, and its GitHub Release carries the reference scores.
   (`redactions.jsonl`, applied when loading; `articles.jsonl` keeps the text
   as collected), and each unanswerable question says whether its absence is
   natural or made.
+- **Real text in the database** (`python -m docta_orchestrator.realtext.load
+  data/real/cities`): one world per domain (`real_cities`), its sources the
+  paragraphs after the cuts (cut between sentences past 120 words, one
+  reliability for all), the key in `facts`. `worlds.split` accepts `real`:
+  run `just reset-db` before loading. `just load --prune` leaves the probe in
+  place.
 - **The method, step by step** (`just steps`): one row per step (search,
   judge, read, dig, confront, conclude, human) and per measure, on test, `val`
   and `ood` side by side, with the change since the last release's snapshot

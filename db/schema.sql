@@ -7,7 +7,8 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE TABLE worlds (
   world_id   text PRIMARY KEY,
   seed       bigint NOT NULL,
-  split      text NOT NULL CHECK (split IN ('train','val','test','ood'))
+  -- real: the frozen real-text probe (docs/design-real-probe.md), never trained on.
+  split      text NOT NULL CHECK (split IN ('train','val','test','ood','real'))
 );
 
 CREATE TABLE entities (
