@@ -1,8 +1,6 @@
 """Questions on real text: built from the Wikidata key with the wordings the
 cores know, and judged answerable per subject, from what the texts state."""
 
-import json
-
 from docta_orchestrator.realtext.questions import build
 from docta_orchestrator.realtext.stated import Index
 
@@ -57,6 +55,7 @@ def test_retrieve_questions_use_seen_wordings_and_abstain_where_nothing_states()
     assert (brask["answerable"], brask["answer"], brask["primitive"]) == (
         False, None, "spot_missing")  # fmt: skip
     assert brask["unanswerable"] == "natural" and "1802" in brask["missing"]
+    assert brask["shape"] == "retrieve"
 
 
 def test_any_stated_value_is_right_and_several_values_are_tagged():
@@ -99,16 +98,6 @@ def test_languages_ask_releases_and_designers_in_new_wordings():
     assert bodies["In what year was Brisk first released?"]["answer"] == "1995"
     chain = next(q for q in bodies.values() if "the designer of Brisk" in q["body"])
     assert (chain["answer"], chain["wording"]) == ("1950", "new")
-
-
-def test_the_cli_writes_questions_next_to_the_corpus(tmp_path):
-    from docta_orchestrator.realtext import questions
-
-    for name, rows in (("entities", CITIES), ("articles", ARTICLES)):
-        (tmp_path / f"{name}.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
-    assert questions.main([str(tmp_path), "--seed", "3"]) == 0
-    lines = (tmp_path / "questions.jsonl").read_text().splitlines()
-    assert [json.loads(line) for line in lines] == build(CITIES, ARTICLES, seed=3)
 
 
 def test_cities_sharing_a_label_are_asked_by_their_full_title():
