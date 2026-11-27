@@ -82,7 +82,10 @@ core split="test":
     uv run python -m docta_eval data/{{split}}.jsonl predictions/{{split}}/random.jsonl predictions/{{split}}/always_abstain.jsonl predictions/{{split}}/keyword.jsonl predictions/{{split}}/rule_evaluate.jsonl predictions/{{split}}/dig.jsonl predictions/{{split}}/majority.jsonl predictions/{{split}}/challenge.jsonl predictions/{{split}}/core_*.jsonl --traces data/traces/{{split}} --json predictions/{{split}}/scores.json
 
 # Real-text probe on one domain (cities or languages): cut and ask, load, run the baselines and the trained cores, score
+[positional-arguments]
 real domain="cities":
+    @# "$1", never the raw argument: past this guard it can only be one of two names.
+    @case "$1" in cities|languages) ;; *) echo "domain must be cities or languages"; exit 2;; esac
     uv run python -m docta_orchestrator.realtext.probe data/real/{{domain}}
     uv run python -m docta_orchestrator.realtext.load data/real/{{domain}}
     rm -rf predictions/real_{{domain}} data/traces/real_{{domain}}

@@ -1,7 +1,8 @@
 """The method step by step, so a blockage is pinned to one step.
 
 Each step of the method gets one row per measure, read from a model's
-scores.json on test, val and ood side by side, and the change since the last
+scores.json on test, val and ood side by side (and each real-text domain
+scored, shown but never saved), and the change since the last
 release's snapshot (scores/steps-<version>.json, kept in the repository so
 anyone can follow each step from one version to the next).
 """
@@ -33,6 +34,7 @@ STEPS: list[tuple[str, tuple[str, Path_], tuple[str, Path_]]] = [
                  ("early_conclusion_rate", ("process", "early_conclusion_rate"))),
     ("human", ("recovered", ("human", "recovered")), ("fooled", ("human", "fooled"))),
 ]  # fmt: skip
+WORLDS = ("test", "val", "ood")
 Table = dict[str, dict[str, dict[str, float | None]]]  # step → measure → split → value
 
 
@@ -79,13 +81,16 @@ def signed(value: float | None) -> str:
 
 def render(now: Table, moved: Table | None, splits: list[str]) -> str:
     heads = [*splits, *(f"Δ {s}" for s in splits if moved)]
-    lines = [f"{'step':<9} {'measure':<25} " + " ".join(f"{h:>8}" for h in heads)]
+    # A domain's name ("real_languages") is wider than a value.
+    widths = [max(8, len(h)) for h in heads]
+    row = lambda cells: " ".join(f"{c:>{w}}" for c, w in zip(cells, widths, strict=True))  # noqa: E731
+    lines = [f"{'step':<9} {'measure':<25} " + row(heads)]
     for step, measures in now.items():
         for name, values in measures.items():
             cells = [cell(values.get(s)) if s in values else "" for s in splits]
             if moved:
                 cells += [signed(moved[step][name].get(s)) for s in splits]
-            lines.append(f"{step:<9} {name:<25} " + " ".join(f"{c:>8}" for c in cells))
+            lines.append(f"{step:<9} {name:<25} " + row(cells))
     return "\n".join(lines)
 
 
@@ -150,8 +155,12 @@ def splits_of(a: argparse.Namespace) -> list[str]:
     domain never run adds no empty column."""
     if a.splits:
         return a.splits
+    if a.save:
+        # Snapshots are committed: what this machine happened to run must
+        # not make two saves of one release differ.
+        return list(WORLDS)
     real = sorted(p.parent.name for p in a.predictions.glob("real_*/scores.json"))
-    return ["test", "val", "ood", *real]
+    return [*WORLDS, *real]
 
 
 def gather(a: argparse.Namespace) -> tuple[Table, dict | None]:
