@@ -66,13 +66,17 @@ class Index:
     def states(self, qid: str, label: str, values: Iterable) -> bool:
         return self.stated(qid, label, values) is not None
 
-    def links(self, a: tuple[str, str], b: tuple[str, str], link: str) -> bool:
-        """Whether a sentence in either article of two entities (qid, label)
-        names the other and says the link: "born in Lincoln" ties a person to
-        a city, "University of Nebraska–Lincoln" does not."""
+    def linking(self, a: tuple[str, str], b: tuple[str, str], link: str) -> list[tuple[str, str]]:
+        """Every (article, sentence) in either article of two entities (qid,
+        label) that names the other and says the link: "born in Lincoln" ties
+        a person to a city, "University of Nebraska–Lincoln" does not."""
+        out = []
         for (qid, _), (_, other) in ((a, b), (b, a)):
             for sentence in self.own.get(qid, []):
                 low = sentence.lower()
                 if mentions(sentence, other) and any(w in low for w in LINK_WORDS[link]):
-                    return True
-        return False
+                    out.append((qid, sentence))
+        return out
+
+    def links(self, a: tuple[str, str], b: tuple[str, str], link: str) -> bool:
+        return bool(self.linking(a, b, link))
