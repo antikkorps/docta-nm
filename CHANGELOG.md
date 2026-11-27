@@ -35,6 +35,13 @@ lines under a new version, and its GitHub Release carries the reference scores.
   reliability for all), the key in `facts`. `worlds.split` accepts `real`:
   run `just reset-db` before loading. `just load --prune` leaves the probe in
   place.
+- **Real-text labels fixed from the hand check** (150 questions checked by
+  Franck: answerable 8% wrong, 20% with the unsure ones; natural absence 8%;
+  redacted 0%): sentences no longer break after an initial ("John G.
+  Kemeny", "U.S. Army"), a chain's link may name a person by surname, and
+  a comparison labelled "no answer" is dropped when its order reads off
+  the two articles' other dates. A year stated for another event (named,
+  incorporated) still counts: a known limit of the labels.
 - **Hand-check sample** (`python -m docta_orchestrator.realtext.sample
   data/real/cities data/real/languages --out data/real/sample.jsonl`): so
   many questions of each kind (answerable, natural, redacted), drawn with a

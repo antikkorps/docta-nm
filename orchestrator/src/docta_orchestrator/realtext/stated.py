@@ -11,12 +11,17 @@ import re
 from collections import defaultdict
 from collections.abc import Iterable
 
-# A capital after the stop keeps "c. 1750" and "St. Louis" whole.
-_SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[A-Z])")
+# A capital after the stop keeps "c. 1750" whole; no break after a lone
+# capital keeps "John G. Kemeny" and "U.S. Army" whole (the hand check found
+# links and dates lost to those cuts).
+_SENTENCE_END = re.compile(r"(?<=[.!?])(?<!\b[A-Z]\.)\s+(?=[A-Z])")
 _NUMBER = re.compile(r"\b\d+\b")
 MIN_NAME = 3
 # Words a sentence uses to state a chain's first hop.
 LINK_WORDS = {"born_in": ("born",), "designed_by": ("design", "creat", "develop", "invent")}
+# Which of a link's two entities is the person: an article may name them by
+# surname alone ("Kemeny and Kurtz").
+PERSON = {"born_in": 0, "designed_by": 1}
 
 
 def paragraphs(article: dict) -> Iterable[str]:
@@ -29,6 +34,13 @@ def sentences(text: str) -> list[str]:
 
 def mentions(text: str, word: str) -> bool:
     return re.search(rf"(?<!\w){re.escape(word)}(?!\w)", text) is not None
+
+
+def variants(person: str) -> list[str]:
+    """A person's label, and their surname when it is long enough to be a
+    name rather than an initial."""
+    surname = person.split()[-1] if " " in person else ""
+    return [person, surname] if len(surname) >= MIN_NAME else [person]
 
 
 class Index:
@@ -70,11 +82,14 @@ class Index:
         """Every (article, sentence) in either article of two entities (qid,
         label) that names the other and says the link: "born in Lincoln" ties
         a person to a city, "University of Nebraska–Lincoln" does not."""
+        names = [[a[1]], [b[1]]]
+        names[PERSON[link]] = variants(names[PERSON[link]][0])
         out = []
-        for (qid, _), (_, other) in ((a, b), (b, a)):
+        for (qid, _), others in ((a, names[1]), (b, names[0])):
             for sentence in self.own.get(qid, []):
                 low = sentence.lower()
-                if mentions(sentence, other) and any(w in low for w in LINK_WORDS[link]):
+                named = any(mentions(sentence, n) for n in others)
+                if named and any(w in low for w in LINK_WORDS[link]):
                     out.append((qid, sentence))
         return out
 
