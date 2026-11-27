@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
-from docta_train.words import BODY, PAD, SRC, STOP
+from docta_train.words import BODY, PAD, SPECIAL, SRC, STOP
 
 
 @dataclass(frozen=True)
@@ -26,6 +26,9 @@ class Config:
     # the sentence mask, like any dropout, rules out the memory-efficient kernel.
     dropout: float = 0.0
     local_heads: int = 2  # heads that read within one sentence; the others read all
+    # Flag the excerpt words the question also holds (see `overlap`). Off by
+    # default so cores saved before it load unchanged.
+    overlap: bool = False
 
     def __post_init__(self):
         # With every head local, <cls> never sees an excerpt: training would run
@@ -79,6 +82,22 @@ def attention_mask(ids: torch.Tensor, heads: int, local: int) -> torch.Tensor:
     return ~allowed.flatten(0, 1)
 
 
+def overlap(ids: torch.Tensor) -> torch.Tensor:
+    """1 on each excerpt word the question also holds, else 0.
+
+    On val, the core abstained wrongly on 86% of "What is the guild of X Y?",
+    though train holds thousands of "the guild of X Y is Z": it had paired
+    question templates with sentence templates instead of reading for the
+    question's words. Which words repeat is counting, so code marks them, as
+    reading systems long have (DrQA's exact-match feature). Special tokens
+    (<num>, <unk>, the generic <name>) never count; a name's rank does."""
+    in_question = (ids == SRC).cumsum(1) == 0
+    word = ids >= len(SPECIAL)
+    asked = ids.masked_fill(~(in_question & word), -1)
+    found = (ids[:, :, None] == asked[:, None, :]).any(-1)
+    return (found & word & ~in_question).long()
+
+
 class CoreEvaluate(nn.Module):
     """Reads question + excerpts, returns the logit of "this is enough"."""
 
@@ -87,6 +106,8 @@ class CoreEvaluate(nn.Module):
         self.config = config
         self.tokens = nn.Embedding(vocab_size, config.d_model, padding_idx=PAD)
         self.positions = nn.Embedding(config.max_len, config.d_model)
+        if config.overlap:
+            self.overlap = nn.Embedding(2, config.d_model)
         layer = nn.TransformerEncoderLayer(
             config.d_model,
             config.heads,
@@ -104,6 +125,8 @@ class CoreEvaluate(nn.Module):
         """Each token read in context, normalised: (batch, length, d_model)."""
         positions = torch.arange(ids.shape[1], device=ids.device)
         x = self.tokens(ids) + self.positions(positions)
+        if self.config.overlap:
+            x = x + self.overlap(overlap(ids))
         # The mask covers padding too.
         mask = attention_mask(ids, self.config.heads, self.config.local_heads)
         return self.norm(self.encoder(x, mask=mask))
