@@ -7,6 +7,7 @@ from pathlib import Path
 from docta_orchestrator.jsonl import read_records
 
 from docta_eval.metrics import Gold, Key, Pred
+from docta_eval.real import is_domain, read_real
 
 PREDICTION_FIELDS = ["question_id", "world_id", "abstained", "answer", "cited_sources"]
 TRACE_FIELDS = ["question_id", "world_id", "states", "decision"]
@@ -16,7 +17,10 @@ def read_gold(path: Path) -> list[Gold]:
     """The questions of a generated split, with the entity names of their world
     and what false sources claim about their facts. Two passes, so a question
     never misses a claim written after it: a missed claim would turn every
-    "fooled" score into a silent, flattering zero."""
+    "fooled" score into a silent, flattering zero. A folder is the real-text
+    probe instead."""
+    if is_domain(path):
+        return read_real(path)
     records = list(read_records(path))
     names, claims = _world_index(records)
     golds: dict[Key, Gold] = {}

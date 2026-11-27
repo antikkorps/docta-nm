@@ -25,6 +25,18 @@ class Gold:
     expected_exit: str | None = None
     # What the false sources about the question's fact claim, as answers read.
     false_answers: frozenset[str] = frozenset()
+    # Real text only (docta_eval.real): what the question asks whatever its
+    # answer, and whether its absence is natural, redacted or none.
+    shape: str | None = None
+    absence: str | None = None
+    # Other values the texts state for it, each as right: the key keeps
+    # disagreements (1749 and 1750) on purpose.
+    also: frozenset[str] = frozenset()
+
+    def accepts(self, answer: str | None) -> bool:
+        if self.answer is None or answer is None:
+            return False
+        return normalize(answer) in {normalize(a) for a in (self.answer, *self.also)}
 
     @classmethod
     def from_record(
@@ -98,8 +110,7 @@ class Counts:
             return
         self.answerable += 1
         self.abstain_fp += p.abstained
-        answered = not p.abstained and p.answer is not None
-        right = answered and normalize(p.answer) == normalize(gold.answer)
+        right = not p.abstained and gold.accepts(p.answer)
         self.correct += right
         # Justified: the answer comes from evidence that establishes it, not
         # from knowing it. Extra citations are scored by citation precision.
@@ -132,12 +143,29 @@ def summary(c: Counts) -> dict:
 
 
 def score(golds: list[Gold], preds: dict[Key, Pred]) -> dict:
-    """Overall scores, then the same broken down by primitive and by hops."""
-    return {
+    """Overall scores, then the same broken down by primitive and by hops,
+    and on real text by shape and by kind of absence."""
+    out = {
         "overall": _grouped(golds, preds, lambda g: "all").get("all", summary(Counts())),
         "by_primitive": _grouped(golds, preds, lambda g: g.primitive),
         "by_hops": _grouped(golds, preds, lambda g: str(g.hops)),
     }
+    if any(g.shape for g in golds):
+        out["by_shape"] = _grouped(golds, preds, lambda g: g.shape or "")
+        out["by_absence"] = _grouped(golds, preds, lambda g: g.absence or "")
+        _blank_fact_citations(out)
+    return out
+
+
+# A real paragraph carries no fact ids: these would read every citation as
+# wrong and every right answer as justified. "supported" stands in for them.
+FACT_CITATIONS = ("justified_accuracy", "citation_precision", "citation_recall")
+
+
+def _blank_fact_citations(scores: dict) -> None:
+    groups = [v for k, v in scores.items() if k != "overall"]
+    for one in [scores["overall"], *(s for g in groups for s in g.values())]:
+        one.update(dict.fromkeys(FACT_CITATIONS))
 
 
 def _grouped(golds: list[Gold], preds: dict[Key, Pred], group: Callable[[Gold], str]) -> dict:

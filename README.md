@@ -169,11 +169,23 @@ uv run python -m docta_orchestrator.realtext.collect languages --out data/real/l
 
 Each domain writes two files apart. `articles.jsonl` holds what a model may read: each Wikipedia article (CC BY-SA 4.0) split into sections and paragraphs, pinned to its revision (`oldid` link) with its hash. `entities.jsonl` is the answer key from Wikidata (CC0): every stated value, so disagreements between statements survive, used for scoring only. The collector names itself with a generic client, pauses between requests and caches every answer (`data/real/.cache`), so a rerun asks nothing twice.
 
+To score it, prepare a domain (questions and cuts), load it, then run and score the loop on the folder as on a split:
+
+```bash
+uv run python -m docta_orchestrator.realtext.probe data/real/cities
+uv run python -m docta_orchestrator.realtext.load data/real/cities
+uv run python -m docta_orchestrator.baseline data/real/cities --out predictions/real_cities \
+  --traces data/traces/real_cities
+uv run python -m docta_eval data/real/cities predictions/real_cities/*.jsonl
+```
+
+Scores come by shape (retrieve, chain, compare) and by kind of absence (natural, redacted). A paragraph has no fact ids, so citations are scored as *supported* instead: a right answer counts when a cited paragraph holds the year and is the entity's own article or names it. It is weaker than the worlds' citation precision and recall, which show `—` here, as do the reflection measures scored against the sources a question needs (reading recall and precision, early and late conclusions, digging). Where the texts state two values the key holds (1749 and 1750), either is a right answer.
+
 ## How it works
 
 - **`worldgen/`** (Rust) generates fictional worlds: invented names, entities and facts, sources written from English templates, and questions (`retrieve`, `chain`, `compare`, plus unanswerable `spot_missing`). Every entity has one fact no source states, and unanswerable questions take every shape, so neither mention counts nor wording give abstention away. Output is byte-identical for the same seed. No LLM is used anywhere.
 - **`orchestrator/`** (Python) loads the JSONL into Postgres, exposes `search(world_id, query, k)` (full-text search that never returns ground truth), and runs each question through an explicit state machine: Frame → Plan → Consult → Evaluate (back to Plan if needed) → Confront → Conclude, with exits `ill_posed_question`, `not_found` and `unresolved_contradiction`. Models only fill states; every run writes a trace to `data/traces/`.
-- **`eval/`** (Python) scores predictions: answer accuracy (raw and justified by its citations), citation precision and recall, and abstention precision, recall and F1, overall and by primitive and hops.
+- **`eval/`** (Python) scores predictions: answer accuracy (raw and justified by its citations), citation precision and recall, and abstention precision, recall and F1, overall and by primitive and hops (and on real text by shape and kind of absence, with *supported* citations).
 
 Design notes and the phase 0 brief: [`docs/`](docs/).
 

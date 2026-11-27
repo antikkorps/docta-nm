@@ -74,3 +74,17 @@ def test_baseline_runs_the_fake_models_and_the_evaluate_rule():
     assert names == [
         "random", "always_abstain", "keyword", "rule_evaluate", "dig", "majority", "challenge",
     ]  # fmt: skip
+
+
+def test_a_real_text_folder_gives_the_questions_and_nothing_of_their_answers(tmp_path):
+    from docta_orchestrator.baseline import questions_of
+    from docta_orchestrator.realtext import probe
+    from test_realtext_redact import ARTICLES, CITIES
+
+    cities = [{**row, "domain": "cities"} for row in CITIES]
+    for name, rows in (("entities", cities), ("articles", ARTICLES)):
+        (tmp_path / f"{name}.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    assert probe.main([str(tmp_path), "--share", "0.5"]) == 0
+    asked = questions_of(tmp_path)
+    assert asked and all(set(q) == {"world_id", "question_id", "text"} for q in asked)
+    assert {q["world_id"] for q in asked} == {"real_cities"}

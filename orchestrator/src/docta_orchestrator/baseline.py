@@ -24,6 +24,7 @@ from docta_orchestrator.models import (
     RandomModel,
     RuleEvaluateModel,
 )
+from docta_orchestrator.realtext.gold import asked
 from docta_orchestrator.search import Hit, search
 from docta_orchestrator.states import Model
 
@@ -74,6 +75,13 @@ def run_models(
                 trace_file.write(json.dumps(trace, ensure_ascii=False) + "\n")
 
 
+def questions_of(split: Path) -> list[dict]:
+    """A generated split's questions, or a real-text domain folder's."""
+    if split.is_dir():
+        return asked(split)
+    return [r for _, r in read_records(split) if r["type"] == "question"]
+
+
 def baseline_models(seed: int) -> list[Model]:
     """The floors: three fake models, the hand-written Evaluate rule, the first
     model that digs, and two hand-written Confronts (the naive vote, and the
@@ -91,7 +99,9 @@ def baseline_models(seed: int) -> list[Model]:
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="python -m docta_orchestrator.baseline")
-    parser.add_argument("split", type=Path, help="generated split, e.g. data/test.jsonl")
+    parser.add_argument(
+        "split", type=Path, help="generated split (data/test.jsonl) or real-text domain folder"
+    )
     parser.add_argument("--out", type=Path, default=Path("predictions"))
     parser.add_argument("--traces", type=Path, default=Path("data/traces"))
     parser.add_argument("--seed", type=int, default=0, help="RandomModel seed")
@@ -105,7 +115,7 @@ def main(argv: list[str]) -> int:
         print("error: DATABASE_URL is not set (see .env.example)", file=sys.stderr)
         return 2
     try:
-        questions = [r for _, r in read_records(args.split) if r["type"] == "question"]
+        questions = questions_of(args.split)
         models = baseline_models(args.seed)
         with psycopg.connect(url, autocommit=True) as conn:
             run_models(
