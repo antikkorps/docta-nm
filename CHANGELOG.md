@@ -43,6 +43,9 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Changed
 
+- `just fit-read` warms up over 4000 steps by default, like `just fit`: over
+  five seeds its `val_exact` spread over 8 points instead of 24, at a median
+  3.9 points lower (59.1% against 63.0%), so runs can be compared.
 - **Pronouns, palier 2 begins**: a source names a subject again by pronoun
   right after a sentence about it ("Kel Dorn was born in 1950. She lives in
   Brask."): he, she or singular they (45/45/10, drawn from the world seed and

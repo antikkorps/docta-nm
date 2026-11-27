@@ -137,3 +137,11 @@ def test_fit_read_cli_says_how_to_fix_examples_too_long(tmp_path, monkeypatch, c
 
 def raise_too_long(*args, **kwargs):
     raise ValueError("1 of 8 examples are longer than max_len 96")
+
+
+def test_read_starts_as_gently_as_evaluate_by_default():
+    # A steadier start makes runs comparable across seeds (README, fit-read).
+    from docta_train.fit_args import DEFAULT_WARMUP
+    from docta_train.fit_read import parse_args
+
+    assert parse_args([]).warmup == DEFAULT_WARMUP == 4000

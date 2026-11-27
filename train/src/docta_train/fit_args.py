@@ -1,4 +1,5 @@
-"""The command line of `docta_train.fit`: its options and what they default to."""
+"""The command line of `docta_train.fit`: its options and what they default
+to, some shared with `docta_train.fit_read`."""
 
 import argparse
 from dataclasses import replace
@@ -11,7 +12,7 @@ from docta_train.model import Config
 # plateau; warmup 1000 left two seeds in four there, a lower lr overfitted.
 DEFAULT_LR = 1e-3
 DEFAULT_DROPOUT = 0.1
-DEFAULT_WARMUP = 4000
+DEFAULT_WARMUP = 4000  # Read's too: it narrows its spread over seeds (README)
 
 
 def within(kind: type, low: float, high: float):
