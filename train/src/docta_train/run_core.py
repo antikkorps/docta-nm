@@ -9,8 +9,7 @@ import sys
 from pathlib import Path
 
 import psycopg
-from docta_orchestrator.baseline import run_models
-from docta_orchestrator.jsonl import read_records
+from docta_orchestrator.baseline import questions_of, run_models
 from docta_orchestrator.protocol import VARIANTS, run_on_split
 from docta_orchestrator.search import search
 
@@ -65,12 +64,16 @@ def main(argv: list[str]) -> int:
         print("error: DATABASE_URL is not set (see .env.example)", file=sys.stderr)
         return 2
     try:
+        if args.human and args.split.is_dir():
+            # The protocol plays a person who knows a chain's bridge: the
+            # worlds have one per question, real text has no such record.
+            raise ValueError(f"{args.split}: the human protocol needs a world split")
         models = build_models(args)
         if args.human:
             # The chain models only: the protocol corrects a bridge mid-way.
             run_on_split(args.split, models[1:], args.human)
             return 0
-        questions = [r for _, r in read_records(args.split) if r["type"] == "question"]
+        questions = questions_of(args.split)
         with psycopg.connect(url, autocommit=True) as conn:
             search_for = lambda wid: lambda q: search(conn, wid, q)  # noqa: E731
             run_models(questions, models, search_for, args.out, args.traces)

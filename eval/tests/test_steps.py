@@ -153,3 +153,64 @@ def test_a_broken_snapshot_is_an_error_not_a_crash(tmp_path, capsys):
     (tmp_path / "s" / "steps-0.0.1.json").write_text("{not json")
     assert main(snapshot_args(tmp_path)) == 1
     assert "steps-0.0.1.json" in capsys.readouterr().err
+
+
+def test_real_text_columns_join_by_themselves_once_scored(tmp_path, capsys):
+    import json as json_
+
+    from docta_eval.steps import main as steps_main
+
+    for split in ("test", "real_cities"):
+        (tmp_path / split).mkdir()
+        scores = {"models": {"core_read": {"overall": {"abstention_f1": 0.5}}}}
+        (tmp_path / split / "scores.json").write_text(json_.dumps(scores))
+    assert steps_main(["--predictions", str(tmp_path), "--snapshots", str(tmp_path / "s")]) == 0
+    header = capsys.readouterr().out.splitlines()[1]
+    assert header.split()[2:] == ["test", "val", "ood", "real_cities"]
+
+
+def scored(tmp_path, *splits):
+    import json as json_
+
+    for split in splits:
+        (tmp_path / split).mkdir()
+        scores = {"models": {"core_read": {"overall": {"abstention_f1": 0.5}}}}
+        (tmp_path / split / "scores.json").write_text(json_.dumps(scores))
+    (tmp_path / "real_unscored").mkdir()  # a run that never got scored
+
+
+def test_explicit_splits_win_and_an_unscored_domain_adds_nothing(tmp_path, capsys):
+    from docta_eval.steps import main as steps_main
+
+    scored(tmp_path, "test", "real_cities")
+    args = ["--predictions", str(tmp_path), "--snapshots", str(tmp_path / "s")]
+    assert steps_main(args + ["--splits", "test"]) == 0
+    assert capsys.readouterr().out.splitlines()[1].split()[2:] == ["test"]
+    assert steps_main(args) == 0
+    assert "real_unscored" not in capsys.readouterr().out
+
+
+def test_a_saved_snapshot_holds_the_worlds_splits_whatever_this_machine_ran(tmp_path):
+    # Snapshots are committed: a local real_* folder must not make two saves
+    # of the same release differ.
+    import json as json_
+
+    from docta_eval.steps import main as steps_main
+
+    scored(tmp_path, "test", "real_cities")
+    snaps = tmp_path / "s"
+    argv = ["--predictions", str(tmp_path), "--snapshots", str(snaps), "--save", "0.0.9"]
+    assert steps_main(argv) == 0
+    table = json_.loads((snaps / "steps-0.0.9.json").read_text())["models"]["core_read"]
+    assert set(table["judge"]["abstention_f1"]) == {"test"}
+
+
+def test_columns_stay_aligned_under_a_long_domain_name(tmp_path, capsys):
+    from docta_eval.steps import main as steps_main
+
+    scored(tmp_path, "test", "real_languages")
+    assert steps_main(["--predictions", str(tmp_path), "--snapshots", str(tmp_path / "s")]) == 0
+    lines = capsys.readouterr().out.splitlines()[1:]
+    header, judge = lines[0], next(line for line in lines if "abstention_f1" in line)
+    # The last column is the domain's: its value ends where its name does.
+    assert header.index("real_languages") + len("real_languages") == len(judge.rstrip())
