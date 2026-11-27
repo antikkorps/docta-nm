@@ -99,7 +99,7 @@ check, then `ood` once.
 
 | Issue | About | Belongs to |
 |---|---|---|
-| #74 | No memory cap on macOS; log peak RAM per epoch | training, footprint |
+| #74 | No memory cap on macOS; log peak RAM per run | training, footprint |
 | #21 | CI: double runs, `check.sql`, uv cache | CI |
 | #14 | CI: the training chain end to end on a tiny dataset | CI |
 | #17 | worldgen: document the invariants behind `index`/`expect` | worldgen |
@@ -111,21 +111,26 @@ dependabot (monthly, grouped), three worldgen files over ~200 lines
 
 ## Moving to another machine
 
-Git holds the code, the CHANGELOG and the step snapshots (`scores/`).
+Git holds the code, the CHANGELOG and the step snapshots (`scores/`), but
+only for branches pushed to `origin`: push every branch in progress first
+(`git branch -vv` shows the ones with no remote), or copy the whole repo.
 Everything else is rebuilt or copied:
 
-| Not in git | Rebuild | Or copy |
-|---|---|---|
-| `data/*.jsonl` (worlds) | `just gen` (same seed, same bytes) | |
-| Postgres volume | `just up && just reset-db && just load` | |
-| `data/real/` (frozen Wikipedia, ~57 MB) | `realtext.collect` asks Wikipedia again | **copy**: revisions are pinned and `SHA256SUMS` checks them |
-| `data/evaluate`, `data/read` | `just evaluate-data`, `just read-data` | |
-| `models/` (~40 MB) | retrain (hours) | **copy** to compare old and new on the same footing |
-| `predictions/` | `just baseline`, `just core`, `just real` | |
-| `.env` | from `.env.example` | |
+| Not in git | Copy or rebuild |
+|---|---|
+| `data/ref-0.0.2/` (the 0.0.2 worlds, 214 MB, own `SHA256SUMS`) | **copy**; or `git checkout v0.0.2 && just gen` |
+| `data/*.jsonl` (worlds of the current generator) | `just gen` (same seed and generator, same bytes); worldgen changed since 0.0.2 (pronouns), so these are not the worlds the current models learned on |
+| `data/evaluate`, `data/read` (~540 MB, built from the 0.0.2 worlds) | **copy**, since the current cores and the overlap runs train on them; rebuilding needs those worlds loaded first (`just load` on them), then `just evaluate-data` and `just read-data`, which read the database |
+| `data/real/` with its `.cache` (~57 MB) | **copy** the whole folder, then `shasum -a 256 -c SHA256SUMS` inside it (the checksums are not in git); collecting again fetches today's revisions, a different corpus |
+| Postgres volume | `just up && just reset-db && just load` |
+| `models/` (~40 MB) | **copy** to compare old and new on the same footing; retraining takes hours |
+| `predictions/` | `just baseline`, `just core`, `just real` |
+| `.env` | from `.env.example`; keep `POSTGRES_PORT=5442` |
 
 Then, on the new machine:
 
+- Install Docker, rustup (`rust-toolchain.toml` picks the version), uv and
+  just; run `uv sync`.
 - `just up && just test` before anything else.
 - **Remeasure what depends on the hardware**: the thread bench (on the M3,
   training stops gaining past 6 threads: 0.96 s/step on 1, 0.445 on 6), the
