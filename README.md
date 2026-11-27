@@ -169,15 +169,7 @@ uv run python -m docta_orchestrator.realtext.collect languages --out data/real/l
 
 Each domain writes two files apart. `articles.jsonl` holds what a model may read: each Wikipedia article (CC BY-SA 4.0) split into sections and paragraphs, pinned to its revision (`oldid` link) with its hash. `entities.jsonl` is the answer key from Wikidata (CC0): every stated value, so disagreements between statements survive, used for scoring only. The collector names itself with a generic client, pauses between requests and caches every answer (`data/real/.cache`), so a rerun asks nothing twice.
 
-To score it, prepare a domain (questions and cuts), load it, then run and score the loop on the folder as on a split:
-
-```bash
-uv run python -m docta_orchestrator.realtext.probe data/real/cities
-uv run python -m docta_orchestrator.realtext.load data/real/cities
-uv run python -m docta_orchestrator.baseline data/real/cities --out predictions/real_cities \
-  --traces data/traces/real_cities
-uv run python -m docta_eval data/real/cities predictions/real_cities/*.jsonl
-```
+To score it, `just real cities` (or `languages`) cuts and asks (`realtext.probe`), loads the domain, runs the baselines and the trained cores on its folder as on a split, and scores them into `predictions/real_cities/scores.json`; `just steps` then adds a `real_cities` column next to test, `val` and `ood`. The human-correction protocol does not run on real text: it plays a person who knows a chain's bridge, which only the worlds record.
 
 Scores come by shape (retrieve, chain, compare) and by kind of absence (natural, redacted). A paragraph has no fact ids, so citations are scored as *supported* instead: a right answer counts when a cited paragraph holds the year and is the entity's own article or names it. It is weaker than the worlds' citation precision and recall, which show `—` here, as do the reflection measures scored against the sources a question needs (reading recall and precision, early and late conclusions, digging). Where the texts state two values the key holds (1749 and 1750), either is a right answer.
 

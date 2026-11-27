@@ -138,17 +138,27 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p = argparse.ArgumentParser(prog="python -m docta_eval.steps", description=__doc__)
     p.add_argument("--model", default="core_read")
     p.add_argument("--predictions", type=Path, default=Path("predictions"))
-    p.add_argument("--splits", nargs="+", default=["test", "val", "ood"])
+    p.add_argument("--splits", nargs="+", help="default: test val ood, then each real_* scored")
     p.add_argument("--snapshots", type=Path, default=Path("scores"))
     p.add_argument("--save", metavar="VERSION", help="write scores/steps-VERSION.json")
     p.add_argument("--note", default="", help="saved with it: which checkpoints made it")
     return p.parse_args(argv)
 
 
+def splits_of(a: argparse.Namespace) -> list[str]:
+    """The worlds' splits, then each real-text domain already scored: a
+    domain never run adds no empty column."""
+    if a.splits:
+        return a.splits
+    real = sorted(p.parent.name for p in a.predictions.glob("real_*/scores.json"))
+    return ["test", "val", "ood", *real]
+
+
 def gather(a: argparse.Namespace) -> tuple[Table, dict | None]:
     """This model's table now, and the snapshot to measure the change from."""
     if a.save:
         version(a.save)  # refused before anything is read or written
+    a.splits = splits_of(a)
     by_split = {s: load(a.predictions, s, "scores.json", a.model) for s in a.splits}
     if not any(by_split.values()):
         raise ValueError(f"no scores for {a.model} in {a.predictions}/{{{','.join(a.splits)}}}")

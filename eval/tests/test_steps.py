@@ -153,3 +153,17 @@ def test_a_broken_snapshot_is_an_error_not_a_crash(tmp_path, capsys):
     (tmp_path / "s" / "steps-0.0.1.json").write_text("{not json")
     assert main(snapshot_args(tmp_path)) == 1
     assert "steps-0.0.1.json" in capsys.readouterr().err
+
+
+def test_real_text_columns_join_by_themselves_once_scored(tmp_path, capsys):
+    import json as json_
+
+    from docta_eval.steps import main as steps_main
+
+    for split in ("test", "real_cities"):
+        (tmp_path / split).mkdir()
+        scores = {"models": {"core_read": {"overall": {"abstention_f1": 0.5}}}}
+        (tmp_path / split / "scores.json").write_text(json_.dumps(scores))
+    assert steps_main(["--predictions", str(tmp_path), "--snapshots", str(tmp_path / "s")]) == 0
+    header = capsys.readouterr().out.splitlines()[1]
+    assert header.split()[2:] == ["test", "val", "ood", "real_cities"]

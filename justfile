@@ -80,3 +80,12 @@ steps *args:
 core split="test":
     uv run python -m docta_train.run_core data/{{split}}.jsonl --out predictions/{{split}} --traces data/traces/{{split}}
     uv run python -m docta_eval data/{{split}}.jsonl predictions/{{split}}/random.jsonl predictions/{{split}}/always_abstain.jsonl predictions/{{split}}/keyword.jsonl predictions/{{split}}/rule_evaluate.jsonl predictions/{{split}}/dig.jsonl predictions/{{split}}/majority.jsonl predictions/{{split}}/challenge.jsonl predictions/{{split}}/core_*.jsonl --traces data/traces/{{split}} --json predictions/{{split}}/scores.json
+
+# Real-text probe on one domain (cities or languages): cut and ask, load, run the baselines and the trained cores, score
+real domain="cities":
+    uv run python -m docta_orchestrator.realtext.probe data/real/{{domain}}
+    uv run python -m docta_orchestrator.realtext.load data/real/{{domain}}
+    rm -rf predictions/real_{{domain}} data/traces/real_{{domain}}
+    uv run python -m docta_orchestrator.baseline data/real/{{domain}} --out predictions/real_{{domain}} --traces data/traces/real_{{domain}}
+    if [ -f models/core_evaluate/model.pt ]; then uv run python -m docta_train.run_core data/real/{{domain}} --out predictions/real_{{domain}} --traces data/traces/real_{{domain}}; fi
+    uv run python -m docta_eval data/real/{{domain}} predictions/real_{{domain}}/*.jsonl --traces data/traces/real_{{domain}} --json predictions/real_{{domain}}/scores.json

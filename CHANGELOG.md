@@ -35,6 +35,9 @@ lines under a new version, and its GitHub Release carries the reference scores.
   reliability for all), the key in `facts`. `worlds.split` accepts `real`:
   run `just reset-db` before loading. `just load --prune` leaves the probe in
   place.
+- **`just real cities`** (or `languages`): cuts and asks, loads, runs the
+  baselines and the trained cores on the domain, and scores them; `just
+  steps` shows a column for each domain scored.
 - **Real text through the loop, scored**: `python -m docta_orchestrator.baseline`
   and `python -m docta_eval` take a prepared domain folder (`data/real/cities`)
   as well as a split. Scores add breakdowns by shape and by kind of absence;
