@@ -87,8 +87,13 @@ def load_last(path: Path) -> dict:
 def resume(path: Path, config: Config, vocab: Vocab, lr: float | None, data: dict) -> Run:
     """The run saved at `path`; `lr` replaces its learning rate when given."""
     saved = load_last(path)
-    same = (saved.get(k) for k in ("config", "vocab", "data"))
-    if list(same) != [asdict(config), list(vocab.words), data]:
+    try:
+        # A setting added since the run was saved takes its default, so the
+        # comparison sees the run's core, not its age.
+        theirs = asdict(Config(**(saved.get("config") or {})))
+    except TypeError as e:
+        raise ResumeError(f"{path}: {e}: {RERUN}") from e
+    if [theirs, saved.get("vocab"), saved.get("data")] != [asdict(config), list(vocab.words), data]:
         raise ResumeError(f"{path} was trained with another core or other data: {RERUN}")
     if "warmup" not in saved:
         raise ResumeError(f"{path} was saved by an earlier version: {RERUN}")

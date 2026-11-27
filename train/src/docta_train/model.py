@@ -93,9 +93,13 @@ def overlap(ids: torch.Tensor) -> torch.Tensor:
     (<num>, <unk>, the generic <name>) never count; a name's rank does."""
     in_question = (ids == SRC).cumsum(1) == 0
     word = ids >= len(SPECIAL)
-    asked = ids.masked_fill(~(in_question & word), -1)
-    found = (ids[:, :, None] == asked[:, None, :]).any(-1)
-    return (found & word & ~in_question).long()
+    # One row of the vocabulary per example, marked at the question's words:
+    # (batch, vocab), not a (batch, length, length) comparison. Non-words go
+    # to <pad>, which is never a word.
+    asked = torch.zeros(ids.shape[0], int(ids.max()) + 1, dtype=torch.bool, device=ids.device)
+    asked.scatter_(1, ids.masked_fill(~(in_question & word), PAD), True)
+    asked[:, PAD] = False
+    return (asked.gather(1, ids) & word & ~in_question).long()
 
 
 class CoreEvaluate(nn.Module):
@@ -107,7 +111,7 @@ class CoreEvaluate(nn.Module):
         self.tokens = nn.Embedding(vocab_size, config.d_model, padding_idx=PAD)
         self.positions = nn.Embedding(config.max_len, config.d_model)
         if config.overlap:
-            self.overlap = nn.Embedding(2, config.d_model)
+            self.shared = nn.Embedding(2, config.d_model)  # see `overlap`
         layer = nn.TransformerEncoderLayer(
             config.d_model,
             config.heads,
@@ -126,7 +130,7 @@ class CoreEvaluate(nn.Module):
         positions = torch.arange(ids.shape[1], device=ids.device)
         x = self.tokens(ids) + self.positions(positions)
         if self.config.overlap:
-            x = x + self.overlap(overlap(ids))
+            x = x + self.shared(overlap(ids))
         # The mask covers padding too.
         mask = attention_mask(ids, self.config.heads, self.config.local_heads)
         return self.norm(self.encoder(x, mask=mask))

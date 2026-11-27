@@ -41,6 +41,9 @@ def config_of(args: argparse.Namespace) -> Config:
         config = Config(**saved)
     except TypeError as e:  # a setting this code no longer has
         raise checkpoint.ResumeError(f"{last}: {e}: {checkpoint.RERUN}") from e
+    if args.overlap and not config.overlap:
+        # The flag adds weights the saved run never had: it cannot join midway.
+        raise checkpoint.ResumeError(f"{last} was trained without --overlap: start a new run")
     return config if args.dropout is None else replace(config, dropout=args.dropout)
 
 
