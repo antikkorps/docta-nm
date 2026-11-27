@@ -35,6 +35,15 @@ lines under a new version, and its GitHub Release carries the reference scores.
   reliability for all), the key in `facts`. `worlds.split` accepts `real`:
   run `just reset-db` before loading. `just load --prune` leaves the probe in
   place.
+- **Real text through the loop, scored**: `python -m docta_orchestrator.baseline`
+  and `python -m docta_eval` take a prepared domain folder (`data/real/cities`)
+  as well as a split. Scores add breakdowns by shape and by kind of absence;
+  the worlds' fact citations show `—`, and *supported* (a cited paragraph
+  holds the year and is the entity's own article or names it) stands in for
+  them, weaker and labelled so; so do the reflection measures that need
+  them. Any value the texts state for the year asked is a right answer.
+  A test keeps the answer key out of every
+  module but the probe's own, the scorer, and the runner's question texts.
 - **The method, step by step** (`just steps`): one row per step (search,
   judge, read, dig, confront, conclude, human) and per measure, on test, `val`
   and `ood` side by side, with the change since the last release's snapshot

@@ -11,6 +11,9 @@ COLUMNS = [
     ("false_abstention_rate", "bad abst"),
 ]
 WIDTH = 8
+# The last two exist on real text only (docta_eval.real).
+BREAKDOWNS = [("by_primitive", "primitive"), ("by_hops", "hops"),
+              ("by_shape", "shape"), ("by_absence", "absence")]  # fmt: skip
 
 TRAPS = [
     ("accuracy", "acc"),
@@ -52,12 +55,14 @@ def table(title: str, rows: list[tuple[str, dict]], columns=COLUMNS) -> str:
 def render(results: dict[str, dict]) -> str:
     """Overall table, then the breakdowns by primitive and by hops."""
     parts = [table("model", [(m, s["overall"]) for m, s in results.items()])]
-    for key, label in [("by_primitive", "primitive"), ("by_hops", "hops")]:
+    for key, label in BREAKDOWNS:
         rows = [
             (f"{m} · {group}", s)
             for m, scores in results.items()
-            for group, s in scores[key].items()
+            for group, s in scores.get(key, {}).items()
         ]
+        if not rows:
+            continue
         parts.append(table(f"model · {label}", rows))
     traps = [
         (f"{m} · {trap}", s)
@@ -66,6 +71,10 @@ def render(results: dict[str, dict]) -> str:
     ]
     if traps:
         parts.append(table("model · trap", traps, TRAPS))
+    backed = [(m, {**s["supported"], "missing": s["overall"]["missing"]})
+              for m, s in results.items() if "supported" in s]  # fmt: skip
+    if backed:
+        parts.append(table("supported", backed, [("supported_rate", "supp")]))
     reflection = [(m, s["process"]) for m, s in results.items() if "process" in s]
     if reflection:
         parts.append(table("reflection", reflection, REFLECTION))

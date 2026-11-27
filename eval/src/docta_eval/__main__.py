@@ -11,13 +11,16 @@ from pathlib import Path
 from docta_eval.io import read_gold, read_predictions, read_traces
 from docta_eval.metrics import score
 from docta_eval.process import process_scores
+from docta_eval.real import blank_reading, golds_of, is_domain, load, supported
 from docta_eval.report import render
 from docta_eval.traps import trap_scores
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="python -m docta_eval", description=__doc__)
-    parser.add_argument("gold", type=Path, help="generated split, e.g. data/test.jsonl")
+    parser.add_argument(
+        "gold", type=Path, help="generated split (data/test.jsonl) or a real-text domain folder"
+    )
     parser.add_argument("predictions", type=Path, nargs="+", help="one JSONL file per model")
     parser.add_argument(
         "--traces", type=Path, help="directory of <model>.jsonl traces: also score the reflection"
@@ -27,7 +30,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 
 def evaluate(gold: Path, predictions: list[Path], traces: Path | None = None) -> dict[str, dict]:
-    golds = read_gold(gold)
+    # A domain is read and chunked once, for its golds and its citations.
+    probe = load(gold) if is_domain(gold) else None
+    golds = golds_of(probe, gold) if probe else read_gold(gold)
     keys = {(g.world_id, g.question_id) for g in golds}
     results: dict[str, dict] = {}
     for path in predictions:
@@ -38,10 +43,13 @@ def evaluate(gold: Path, predictions: list[Path], traces: Path | None = None) ->
         traps = trap_scores(golds, preds)
         if traps:
             results[path.stem]["traps"] = traps
+        if probe is not None:
+            results[path.stem]["supported"] = supported(probe, golds, preds)
         if traces is not None:
             model_traces = read_traces(traces / f"{path.stem}.jsonl", keys)
             _check_agreement(preds, model_traces, path.stem)
-            results[path.stem]["process"] = process_scores(golds, model_traces)
+            process = process_scores(golds, model_traces)
+            results[path.stem]["process"] = blank_reading(process) if probe else process
     return results
 
 

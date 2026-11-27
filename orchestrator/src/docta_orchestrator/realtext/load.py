@@ -66,9 +66,13 @@ def question(q: dict) -> dict:
             "trap": None, "expected_exit": None}  # fmt: skip
 
 
+def world_of(domain: str) -> str:
+    return f"real_{domain}"
+
+
 def batch(domain: str, entities, articles, cuts, questions) -> WorldBatch:
     named = [{"id": e["qid"], "kind": e["kind"], "name": e["label"]} for e in entities]
-    world = {"world_id": f"real_{domain}", "seed": 0, "split": "real",
+    world = {"world_id": world_of(domain), "seed": 0, "split": "real",
              "entities": named, "facts": facts(entities)}  # fmt: skip
     return WorldBatch(world, sources(apply(articles, cuts)), [question(q) for q in questions])
 
