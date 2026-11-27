@@ -13,6 +13,9 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Added
 
+- **Roadmap and handoff** (`docs/ROADMAP.md`): where each chantier stands,
+  what comes next, the open issues, how we work, and what to rebuild or copy
+  when moving to another machine.
 - **Real text, frozen** (`docta_orchestrator.realtext.collect`): 200 cities
   of the United States and 150 programming languages from Wikipedia, split
   into sections and paragraphs and pinned to their revision, with a Wikidata
