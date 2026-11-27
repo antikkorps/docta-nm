@@ -18,7 +18,7 @@ from pathlib import Path
 
 import torch
 
-from docta_train.fit_args import within
+from docta_train.fit_args import DEFAULT_WARMUP, within
 from docta_train.guard import protect_machine
 from docta_train.model import Config, pad_batch, whole
 from docta_train.read_data import ReadExample, read_reads
@@ -161,7 +161,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--epochs", type=int, default=2)
     p.add_argument("--batch", type=int, default=32)
     p.add_argument("--lr", type=float, default=1e-3)
-    p.add_argument("--warmup", type=within(int, 0, float("inf")), default=1000)
+    p.add_argument("--warmup", type=within(int, 0, float("inf")), default=DEFAULT_WARMUP)
     p.add_argument("--dropout", type=within(float, 0, 0.99), default=0.1)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--max-train", type=int, help="cap the training examples read")
