@@ -7,7 +7,9 @@ from docta_orchestrator.delex import sample
 def corpus(n, domain):
     para = "A paragraph long enough to be worth reading by hand, about a place. " * 4
     sections = [{"path": ["T"], "paragraphs": [para, "Short."]}]
-    return [{"qid": f"Q{i}", "domain": domain, "title": "T", "sections": sections} for i in range(n)]
+    return [
+        {"qid": f"Q{i}", "domain": domain, "title": "T", "sections": sections} for i in range(n)
+    ]
 
 
 def test_pairs_are_aligned_proportional_and_seeded():
