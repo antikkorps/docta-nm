@@ -13,6 +13,12 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Added
 
+- **Delexicalisation corpus, collected** (`python -m
+  docta_orchestrator.delex.collect bridges --out data/delex/bridges`): the
+  1,000 universities, mountains and bridges of lowest Wikidata id, each with
+  every stated value, its aliases and related entities, and its article
+  pinned to its revision with every internal link (the spans step 2 will
+  replace). Kept local, never trained on as is.
 - **Design of delexicalised training text** (`docs/design-delex.md`): real
   Wikipedia sentences from domains outside the probe, with names and values
   replaced by invented ones, so the core learns real English without real

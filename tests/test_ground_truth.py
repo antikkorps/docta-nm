@@ -14,6 +14,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGES = [ROOT / p for p in ("orchestrator/src", "eval/src", "train/src")]
 REALTEXT = "orchestrator/src/docta_orchestrator/realtext/"
+# The delexicalisation corpus is collected with the probe's tools (fetcher,
+# Wikidata, article records) and writes a key of its own; it never reads the
+# probe's data, which test_delex_never_names_the_probe_data checks.
+DELEX = "orchestrator/src/docta_orchestrator/delex/"
 SCORER = "eval/src/docta_eval/real.py"
 RUNNER = "orchestrator/src/docta_orchestrator/baseline.py"
 # "entities" and "questions" are also keys of the worlds' records; the
@@ -41,7 +45,7 @@ def lines_matching(pattern: re.Pattern, roots: list[Path]) -> dict[str, list[str
 
 def touching_the_key(roots: list[Path] = PACKAGES) -> dict[str, list[str]]:
     found = lines_matching(KEY, roots)
-    return {name: lines for name, lines in found.items() if not name.startswith(REALTEXT)}
+    return {n: lines for n, lines in found.items() if not n.startswith((REALTEXT, DELEX))}
 
 
 def test_only_the_scorer_and_the_runner_reach_the_real_text_key():
@@ -71,3 +75,8 @@ def test_the_guard_sees_every_way_it_names(tmp_path):
     for name, text in sneaky.items():
         (tmp_path / name).write_text(text, encoding="utf-8")
     assert set(touching_the_key([tmp_path])) == set(sneaky)
+
+
+def test_delex_never_names_the_probe_data():
+    probe = re.compile(r"data/real\b|\bredactions\b|realtext\.(gold|probe|sample|load)\b")
+    assert lines_matching(probe, [ROOT / DELEX]) == {}
