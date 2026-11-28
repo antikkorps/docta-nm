@@ -32,7 +32,8 @@ def config_of(args: argparse.Namespace) -> Config:
     """On a resume, the run's own core: its length is in its weights. A
     named dropout other than the run's own is refused by the resume."""
     if not args.resume:
-        return Config(dropout=DEFAULT_DROPOUT if args.dropout is None else args.dropout)
+        dropout = DEFAULT_DROPOUT if args.dropout is None else args.dropout
+        return Config(dropout=dropout, overlap=args.overlap)
     last = args.out / "last.pt"
     # Without last.pt, fit says there is nothing to resume.
     saved = (checkpoint.load_last(last).get("config") or {}) if last.exists() else {}
@@ -40,6 +41,9 @@ def config_of(args: argparse.Namespace) -> Config:
         config = Config(**saved)
     except TypeError as e:  # a setting this code no longer has
         raise checkpoint.ResumeError(f"{last}: {e}: {checkpoint.RERUN}") from e
+    if args.overlap and not config.overlap:
+        # The flag adds weights the saved run never had: it cannot join midway.
+        raise checkpoint.ResumeError(f"{last} was trained without --overlap: start a new run")
     return config if args.dropout is None else replace(config, dropout=args.dropout)
 
 
@@ -79,6 +83,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-balance",
         action="store_true",
         help="keep every example, even where the question's shape gives the label away",
+    )
+    p.add_argument(
+        "--overlap",
+        action="store_true",
+        help="flag excerpt words the question also holds (a resume keeps the run's own)",
     )
     p.add_argument(
         "--resume",

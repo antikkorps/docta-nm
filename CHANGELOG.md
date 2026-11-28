@@ -58,6 +58,14 @@ lines under a new version, and its GitHub Release carries the reference scores.
   and `ood` side by side, with the change since the last release's snapshot
   in `scores/`, kept in the repository. `just human` now also saves its scores
   (`predictions/<split>/human/scores.json`).
+- **Overlap flag for the Evaluate core** (`just fit --overlap`): each excerpt
+  word the question also holds is marked, so the core no longer has to pair
+  question and sentence templates to see the subject is there. Full data, 6
+  epochs, 3 seeds: balanced `val` accuracy 80.6–84.1% (median 83.3%) against
+  68.8–76.7% without; on `ood`, measured once, median 82.2% against 77.1% for
+  the 0.0.2 core, and the checkpoint chosen on `val` beforehand wrongly abstains
+  on 4.9% of answerable examples against 23.1%. Seeds still vary on `ood`
+  (75.5–84.0%), and a guild chain wording stays near chance on all of them.
 
 ### Changed
 
