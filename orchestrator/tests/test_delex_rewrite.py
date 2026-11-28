@@ -162,3 +162,8 @@ def test_centuries_in_lists_and_days_written_as_ordinals_stay():
         "and on 31st August or the 4th of July."
     )
     assert numbers.rewrite(text, shift=-100, factor=1.5) == text
+
+
+def test_text_and_key_round_a_quantity_the_same_way():
+    assert numbers.quantity(1122, factor=1.25) == 1403
+    assert numbers.rewrite("A span of 1,122 m.", shift=-100, factor=1.25) == "A span of 1,403 m."

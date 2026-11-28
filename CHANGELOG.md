@@ -13,6 +13,17 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Added
 
+- **Questions on the delexicalised corpus** (`python -m
+  docta_orchestrator.delex.prepare data/delex/bridges/rewritten`): each
+  domain's facts asked as a year, a quantity or a name, in the worlds'
+  wordings where a relation has one (founded, based in, elevation), new
+  ones elsewhere, retrieve and compare only; a third of the asked facts cut
+  from the texts (`cuts.jsonl`), and every shape and fact a third
+  unanswerable, so no wording predicts abstention; a cut also reaches other
+  articles stating the value next to the subject's name, and a relation the
+  subject's own name holds ("Rosta University" in Rosta) is never asked.
+  4,974 questions on the three domains. Quantities now round the same way
+  (exact decimals, half up) in the key and in the text.
 - **Delex leak check** (`python -m docta_orchestrator.delex.leaks
   data/delex/bridges`), and the rules it led to: a word is a name when the
   corpus writes it capitalised mid-sentence more often than lowercase
