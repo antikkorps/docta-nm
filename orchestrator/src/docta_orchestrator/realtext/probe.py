@@ -15,8 +15,9 @@ from collections import Counter
 from pathlib import Path
 
 from docta_orchestrator.realtext.collect import write
-from docta_orchestrator.realtext.questions import build
+from docta_orchestrator.realtext.questions import build, named, order_readable
 from docta_orchestrator.realtext.redact import apply, redact, tag
+from docta_orchestrator.realtext.stated import Index
 
 
 def read(path: Path) -> list[dict]:
@@ -36,11 +37,20 @@ def main(argv: list[str]) -> int:
     cuts = redact(entities, articles, args.share, args.seed)
     texts = apply(articles, cuts)
     tagged = tag(build(entities, articles, args.seed), build(entities, texts, args.seed))
-    questions = balanced(tagged, args.share, args.seed)
+    questions = balanced(fair(tagged, entities, texts), args.share, args.seed)
     write(args.dir / "redactions.jsonl", cuts)
     write(args.dir / "questions.jsonl", questions)
     report(questions, args.dir)
     return 0
+
+
+def fair(questions: list[dict], entities: list[dict], texts: list[dict]) -> list[dict]:
+    """Without the comparisons naturally lacking an answer whose order a
+    reader can tell from other dates: the hand check marked such ones wrong,
+    and no redacted one."""
+    known, index = {e["qid"]: e for e in named(entities)}, Index(texts)
+    unfair = lambda q: q["shape"] == "compare" and q.get("unanswerable") == "natural"  # noqa: E731
+    return [q for q in questions if not (unfair(q) and order_readable(q, known, index))]
 
 
 def balanced(questions: list[dict], share: float, seed: int) -> list[dict]:

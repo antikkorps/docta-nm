@@ -11,12 +11,19 @@ import re
 from collections import defaultdict
 from collections.abc import Iterable
 
-# A capital after the stop keeps "c. 1750" and "St. Louis" whole.
+# A capital after the stop keeps "c. 1750" whole.
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[A-Z])")
+# A first name then a lone capital is an initial ("John G. Kemeny"): the hand
+# check found links lost to that cut. After a lowercase word it is not ("in C.").
+_INITIAL = re.compile(r"\b[A-Z][a-z]+ [A-Z]\.$")
+_SUFFIXES = {"Jr.", "Sr.", "Jr", "Sr", "II", "III", "IV"}
 _NUMBER = re.compile(r"\b\d+\b")
 MIN_NAME = 3
 # Words a sentence uses to state a chain's first hop.
 LINK_WORDS = {"born_in": ("born",), "designed_by": ("design", "creat", "develop", "invent")}
+# Which of a link's two entities is the person: an article may name them by
+# surname alone ("Kemeny and Kurtz").
+PERSON = {"born_in": 0, "designed_by": 1}
 
 
 def paragraphs(article: dict) -> Iterable[str]:
@@ -24,11 +31,25 @@ def paragraphs(article: dict) -> Iterable[str]:
 
 
 def sentences(text: str) -> list[str]:
-    return [s for s in _SENTENCE_END.split(text) if s]
+    out: list[str] = []
+    for part in _SENTENCE_END.split(text):
+        if out and _INITIAL.search(out[-1]):
+            out[-1] = f"{out[-1]} {part}"
+        elif part:
+            out.append(part)
+    return out
 
 
 def mentions(text: str, word: str) -> bool:
     return re.search(rf"(?<!\w){re.escape(word)}(?!\w)", text) is not None
+
+
+def variants(person: str) -> list[str]:
+    """A person's label, and their surname when it is long enough to be a
+    name rather than an initial."""
+    words = [w for w in person.replace(",", " ").split() if w not in _SUFFIXES]
+    surname = words[-1] if len(words) > 1 else ""
+    return [person, surname] if len(surname) >= MIN_NAME else [person]
 
 
 class Index:
@@ -70,11 +91,14 @@ class Index:
         """Every (article, sentence) in either article of two entities (qid,
         label) that names the other and says the link: "born in Lincoln" ties
         a person to a city, "University of Nebraska–Lincoln" does not."""
+        names = [[a[1]], [b[1]]]
+        names[PERSON[link]] = variants(names[PERSON[link]][0])
         out = []
-        for (qid, _), (_, other) in ((a, b), (b, a)):
+        for (qid, _), others in ((a, names[1]), (b, names[0])):
             for sentence in self.own.get(qid, []):
                 low = sentence.lower()
-                if mentions(sentence, other) and any(w in low for w in LINK_WORDS[link]):
+                named = any(mentions(sentence, n) for n in others)
+                if named and any(w in low for w in LINK_WORDS[link]):
                     out.append((qid, sentence))
         return out
 
