@@ -86,7 +86,7 @@ lines under a new version, and its GitHub Release carries the reference scores.
   made the chattiest passage win. On the real-text probe the answer reaches
   the five excerpts for 53% of answerable city retrieve questions (32%
   before; languages 45%, 47% before); on the invented worlds' test and `ood`
-  every baseline moves by under a point.
+  every baseline's accuracy moves by under a point.
 
 - `just fit-read` warms up over 4000 steps by default, like `just fit`: over
   five seeds its `val_exact` spread over 8 points instead of 24, at a median
