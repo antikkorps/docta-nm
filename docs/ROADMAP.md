@@ -3,7 +3,7 @@
 Where the work stands, what comes next, and how to pick it up on another
 machine or in a fresh session. The living spec keeps the vision; this file
 keeps the concrete state. Update it when a chantier moves, not only at
-releases. Last update: 2026-11-28.
+releases. Last update: 2026-11-28 (evening).
 
 ## How we work
 
@@ -36,7 +36,7 @@ input, determinism, branches and releases) are in `CLAUDE.md` and
 | Evaluate core (is what I read enough?) | Overlap flag confirmed (PR #86); full-loop `ood` to measure | `val` median 83.3% (3 seeds, 0.0.2: 76.7%); classifier `ood` median 82.2% (0.0.2: 77.1%) |
 | Read core (where is the answer?) | Trained; default warmup 4000 | `val_exact` median 59.1% over 5 seeds (spread 8 points) |
 | Language paliers | Palier 1 released (0.0.2); palier 2 begun (pronouns) | see `docs/` and the CHANGELOG |
-| Real-text probe | Questions, cuts, loading, scoring, `just real`, hand check done | labels: answerable 8% wrong (20% with unsure), natural 8%, redacted 0% |
+| Real-text probe | Done; first run 2026-11-28: cores 0%, `keyword` 4–6%; search weighted by rarity (PR #90) | labels: answerable 8% wrong (20% with unsure), natural 8%, redacted 0% |
 | Plan, Confront | Rules only (`keyword`, `majority`, `challenge`) | |
 
 ### Evaluate on unseen wordings (the current priority)
@@ -71,12 +71,14 @@ template pairing, more wordings per relation should make them disappear.
 
 ## Next, in order
 
-1. **Close the Evaluate fix**: merge PR #86, then the full-loop `ood`
-   measure (`core_read` against `keyword`, the original bottleneck) with the
-   seed 3 checkpoint, on the 0.0.2 worlds loaded in the database.
-2. **First real-text scores**: label fixes (PR #87), `just
-   real cities` and `just real languages`, scores published with the label
-   error.
+1. **Retrain the cores on the current worlds.** The 0.0.2 cores score 6–8%
+   on test of the current `data/*.jsonl` (pronouns since 0.0.2), and the
+   0.0.2 files (schema v1) no longer load. With the overlap flag (seed 3) the
+   full loop already reaches 27.6% on `ood` there against 6.5% (`keyword`
+   46.1%). Done with step 2's data, on 3 seeds.
+2. **Delexicalised training text** (`docs/design-delex.md`): the first
+   real-text run read nothing (unknown words, truncation); real sentences
+   with invented facts, from other domains, then retrain on 3 seeds.
 3. **Palier 2**: two facts per sentence, connectors, more question wordings
    (the second lever against template pairing), enrich `val`, regenerate,
    retrain Evaluate then Read on 3 seeds, release 0.0.3 on Franck's go.

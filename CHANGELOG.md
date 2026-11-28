@@ -13,6 +13,10 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Added
 
+- **Design of delexicalised training text** (`docs/design-delex.md`): real
+  Wikipedia sentences from domains outside the probe, with names and values
+  replaced by invented ones, so the core learns real English without real
+  facts in its weights.
 - **Roadmap and handoff** (`docs/ROADMAP.md`): where each chantier stands,
   what comes next, the open issues, how we work, and what to rebuild or copy
   when moving to another machine.
