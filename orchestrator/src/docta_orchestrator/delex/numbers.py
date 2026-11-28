@@ -12,9 +12,13 @@ MONTHS = ("January|February|March|April|May|June|July|August|September|October"
 # A number with optional thousands commas and decimals, not inside a word;
 # a comma after it is punctuation ("in 1786, the"), not a thousands mark.
 # A decade's "s" ("the 1990s") or a unit glued to it ("8,849m") may follow.
-UNITS = r"(?:m|km|cm|mm|ft|mi|in|kg|ha|sq|metres|meters|feet|miles|kilometres|kilometers)"
+UNITS = (
+    r"(?:m|km|cm|mm|ft|mi|in|mph|kg|ha|sq|metres|meters|feet|miles|kilometres"
+    r"|kilometers)(?:²|³)?"
+)
 NUMBER = re.compile(
-    rf"(?<![\w.,])(\d{{1,3}}(?:,\d{{3}})+|\d+)(\.\d+)?(?!(?!s\b|{UNITS}\b)\w|,\d|\.\d)"
+    # Not inside a word or a longer number; after "c." (circa) it is one.
+    rf"(?<![\w,])(?<!\d\.)(\d{{1,3}}(?:,\d{{3}})+|\d+)(\.\d+)?(?!(?!s\b|{UNITS}\b)\w|,\d|\.\d)"
 )
 # A unit after a number makes it a quantity, even one that reads like a year.
 UNIT_AFTER = re.compile(rf"^\s?{UNITS}\b")

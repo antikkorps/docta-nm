@@ -94,3 +94,36 @@ def test_numbers_in_paths_links_and_labels_change_too():
 def test_facts_without_a_label_or_dated_by_name_are_handled():
     assert rewrite.fact({"value": 5}, {}, -100, 2.0, is_year=False) == {"value": 5}
     assert "birth_year" in rewrite.YEAR_FACTS
+
+
+def corpus(*paragraphs):
+    return [
+        {"qid": "Q9", "links": [], "sections": [{"path": ["T"], "paragraphs": list(paragraphs)}]}
+    ]
+
+
+def test_a_word_is_a_name_when_capitalised_mid_sentence_more_than_lowercase():
+    arts = corpus(
+        "It lies in China. Trade with China grew. Tea from China and fine china.",
+        "The bridge is old. A bridge here. Another bridge. The Old Bridge stands.",
+        "However, climbers met at Quebrada in July. The VDOT road and World War II.",
+    )
+    found = words.entity_words(arts, [])
+    assert {"China", "Quebrada", "VDOT"} <= found
+    assert not found & {"Bridge", "However", "July", "II", "The", "It"}
+
+
+def test_abbreviations_quotes_and_letter_acronyms_follow_the_name_rule():
+    arts = corpus(
+        "The summit of Mt. Hood is high. Climbers reach Mt. Hood in June.",
+        '"Big Mac" is a burger; a big one. The office in Washington DC opened under Henry IV.',
+        "It moved to Washington DC later.",
+    )
+    found = words.entity_words(arts, [])
+    assert {"Hood", "DC", "Washington"} <= found
+    assert not found & {"Big", "IV", "Mt"}
+
+
+def test_circa_and_glued_units_are_numbers_too():
+    out = numbers.rewrite("Built c.1901, at 120mph over 40km².", shift=-100, factor=1.5)
+    assert out == "Built c.1801, at 180mph over 60km²."
