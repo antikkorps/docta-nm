@@ -9,6 +9,7 @@ question is answerable is judged on the texts: the subject's own article
 must state the rewritten value, which the rewriting put there itself."""
 
 import random
+import re
 from itertools import combinations
 
 from docta_orchestrator.models.templates import COMPARISONS, QUESTIONS
@@ -49,12 +50,45 @@ def forms(fact: str, value) -> list[str]:
     return [str(value)]
 
 
+def says(sentence: str, fact: str, form: str) -> bool:
+    """A number counts only whole: 126 is not stated by "1,126", nor 1126 by
+    "1126.5"; a name, between word boundaries."""
+    if KINDS[fact] == "name":
+        return mentions(sentence, form)
+    return re.search(rf"(?<![\d.,]){re.escape(form)}(?!\d|[.,]\d)", sentence) is not None
+
+
+def elsewhere(index: Index, entity: dict, fact: str, form: str) -> list[tuple[str, str]]:
+    """Sentences of other articles stating a number next to the subject's
+    name ("longer than Kelda Bridge (1,402 m)"): a cut must reach them too,
+    or search would still find a "redacted" answer."""
+    name = entity.get("name", entity["label"])
+    if KINDS[fact] == "name" or len(name) < MIN_NAME:
+        return []
+    token = re.findall(r"\d+", form)[-1]
+    found = index.by_number.get(token, ())
+    return [(q, s) for q, s in found
+            if q != entity["qid"] and mentions(s, name) and says(s, fact, form)]  # fmt: skip
+
+
 def stating(index: Index, entity: dict, fact: str) -> list[tuple[str, str, str]]:
-    """Every (article, sentence, form) of the subject's article stating one
-    of the fact's values."""
-    own = index.own.get(entity["qid"], [])
-    return [(entity["qid"], s, f) for v in entity["facts"].get(fact, [])
-            for f in forms(fact, v) for s in own if mentions(s, f)]  # fmt: skip
+    """Every (article, sentence, form) stating one of the fact's values:
+    in the subject's own article, or elsewhere next to its name."""
+    own, out = index.own.get(entity["qid"], []), []
+    for f in (f for v in entity["facts"].get(fact, []) for f in forms(fact, v)):
+        out += [(entity["qid"], s, f) for s in own if says(s, fact, f)]
+        out += [(q, s, f) for q, s in elsewhere(index, entity, fact, f)]
+    return out
+
+
+def self_named(entity: dict, fact: str) -> bool:
+    """A related name the subject's own name holds ("Rosta University" in
+    Rosta): the question would carry its answer, and cutting the sentences
+    that name it would cut the whole article."""
+    return KINDS[fact] == "name" and any(
+        mentions(entity.get("name", entity["label"]), v["label"])
+        for v in entity["facts"].get(fact, [])
+    )
 
 
 def stated(index: Index, entity: dict, fact: str) -> str | None:
@@ -69,7 +103,7 @@ def keyed(entity: dict, fact: str) -> list[str]:
 
 def retrieve(e: dict, spec: tuple, index: Index, rng: random.Random) -> dict | None:
     fact, _, seen, new = spec
-    if not e["facts"].get(fact):
+    if not e["facts"].get(fact) or self_named(e, fact):
         return None
     body = rng.choice(QUESTIONS[seen]) if seen else new
     gap = f"no text states the {fact.replace('_', ' ')} of {e['name']}"

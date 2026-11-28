@@ -43,3 +43,17 @@ def test_a_comparison_needs_both_values_apart_and_stated():
     qs = [q for q in questions.build([UNI, UNI2], ARTS, seed=0) if q["shape"] == "compare"]
     assert len(qs) == 1 and qs[0]["values"] == ["Kelda University"]
     assert not qs[0]["answerable"]  # Thive's founding year is in no text
+
+
+def test_a_name_inside_the_subjects_own_name_is_not_asked():
+    rosta = {**UNI, "label": "Rosta University", "title": "Rosta University"}
+    arts = [art("Q1", "Rosta University has five faculties, founded in 1801.")]
+    facts = {q["fact"] for q in questions.build([rosta], arts, seed=0)}
+    assert "located_in" not in facts and "inception" in facts
+
+
+def test_a_value_inside_a_longer_number_is_not_stated():
+    uni = {**UNI, "facts": {"students": [126], "inception": [801]}}
+    index = questions.Index([art("Q1", "Kelda University has 1,126 students since 1,801 days.")])
+    assert questions.stated(index, uni, "students") is None
+    assert questions.stated(index, uni, "inception") is None

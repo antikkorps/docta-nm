@@ -14,7 +14,7 @@ from collections import Counter
 from pathlib import Path
 
 from docta_orchestrator.delex.leaks import read
-from docta_orchestrator.delex.questions import FACTS, Index, build, stating
+from docta_orchestrator.delex.questions import FACTS, Index, build, self_named, stating
 from docta_orchestrator.realtext.collect import write
 from docta_orchestrator.realtext.entities import SCHEMA
 from docta_orchestrator.realtext.questions import named
@@ -24,7 +24,8 @@ SHARE, SEED = 1 / 3, 42
 
 
 def asked(entities: list[dict]) -> list[tuple[dict, str]]:
-    return [(e, f) for e in entities for f, *_ in FACTS.get(e["kind"], []) if e["facts"].get(f)]
+    return [(e, f) for e in entities for f, *_ in FACTS.get(e["kind"], [])
+            if e["facts"].get(f) and not self_named(e, f)]  # fmt: skip
 
 
 def redact(entities: list[dict], articles: list[dict], share: float, seed: int) -> list[dict]:

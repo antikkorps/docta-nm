@@ -59,20 +59,24 @@ def year(value: int, shift: int) -> int:
     return value + shift
 
 
+def scaled(value: Decimal, factor: float) -> Decimal:
+    """Scaled and rounded half up to as many decimals as `value` has. Exact
+    decimals for the key and the text alike: a float would round 1402.5
+    one way in a fact and the other in the sentence that states it."""
+    places = max(-value.as_tuple().exponent, 0)
+    step = Decimal(1).scaleb(-places)
+    return (value * Decimal(str(factor))).quantize(step, rounding=ROUND_HALF_UP)
+
+
 def quantity(value: float, factor: float) -> float:
-    """Scaled and rounded to as many decimals as the value had."""
-    places = -Decimal(str(value)).as_tuple().exponent
-    scaled = (Decimal(str(value)) * Decimal(str(factor))).quantize(
-        Decimal(1).scaleb(-max(places, 0)), rounding=ROUND_HALF_UP
-    )
-    return int(scaled) if places <= 0 else float(scaled)
+    """A fact's value scaled as its stating text is."""
+    out = scaled(Decimal(str(value)), factor)
+    return int(out) if out == out.to_integral_value() and isinstance(value, int) else float(out)
 
 
-def written(value: float, like: str) -> str:
-    """`value` in the form of `like`: thousands commas, decimals kept."""
-    decimals = len(like.split(".")[1]) if "." in like else 0
-    text = f"{value:,.{decimals}f}" if "," in like else f"{value:.{decimals}f}"
-    return text
+def written(value: Decimal, like: str) -> str:
+    """`value` in the form of `like`: thousands commas kept or not."""
+    return f"{value:,}" if "," in like else str(value)
 
 
 def rewrite(text: str, shift: int, factor: float) -> str:
@@ -86,12 +90,12 @@ def rewrite(text: str, shift: int, factor: float) -> str:
             # "1st", "2nd", "3rd" mostly order events ("the 1st ascent"): kept.
             if CENTURY.match(after) or decimals or "," in whole or int(whole) < 4:
                 return m.group(0)
-            return str(max(1, int(quantity(int(whole), factor))))
+            return str(max(1, int(scaled(Decimal(whole), factor))))
         if is_year(whole, decimals) and not UNIT_AFTER.match(after):
             return str(year(int(whole), shift))
         if after.startswith("s"):  # "20s": an age or a decade without century
             return m.group(0)
-        value = float(whole.replace(",", "") + (decimals or ""))
-        return written(quantity(value, factor), m.group(0))
+        value = Decimal(whole.replace(",", "") + (decimals or ""))
+        return written(scaled(value, factor), m.group(0))
 
     return RANK.sub(lambda m: m.group(1) + suffix(int(m.group(1))), NUMBER.sub(one, text))

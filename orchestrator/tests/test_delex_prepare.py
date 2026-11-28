@@ -43,3 +43,12 @@ def test_balance_holds_per_fact_so_no_wording_predicts_abstention():
     for fact in ("students", "inception"):
         mine = [x for x in kept if x["fact"] == fact]
         assert abs(sum(not x["answerable"] for x in mine) / len(mine) - 1 / 3) < 0.15, fact
+
+
+def test_a_cut_reaches_sentences_elsewhere_that_state_the_value():
+    ents = [uni(1, 1710), uni(2, 1720)]
+    arts = [art(1, 1710), {"qid": "Q2", "sections": [{"path": ["T"], "paragraphs": [
+        "Name2 University was founded in 1720. Name1 University dates from 1710."]}]}]  # fmt: skip
+    cuts = prepare.redact(ents, arts, share=1.0, seed=1)
+    cut = {(c["subject"], c["article"]) for c in cuts}
+    assert {("Q1", "Q1"), ("Q1", "Q2")} <= cut
