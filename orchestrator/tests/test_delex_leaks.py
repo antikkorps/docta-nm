@@ -3,7 +3,9 @@ build refused past the thresholds."""
 
 from docta_orchestrator.delex import leaks
 
-RAW = {"qid": "Q1", "links": ["Varn River"], "sections": []}
+ORIGINAL = "The Old Bridge, 120 m long, met Brask in 1901."
+RAW = {"qid": "Q1", "links": ["Varn River"],
+       "sections": [{"path": ["T"], "paragraphs": [ORIGINAL]}]}  # fmt: skip
 ENT = {
     "qid": "Q1",
     "label": "Old Bridge",
@@ -36,3 +38,11 @@ def test_the_report_refuses_a_corpus_past_its_thresholds():
     report = leaks.report([(clean, 2), (dirty, 2)], words=1000)
     assert report["value_rate"] == 0.25 and not report["passed"]
     assert leaks.report([(clean, 2)] * 3, words=1000)["passed"]
+
+
+def test_a_value_counts_only_where_it_stayed_in_place():
+    # Another event's year, shifted, may land on the real founding year:
+    # the value is there, but nothing of the original stayed in place.
+    moved = article("The Kelda span, 180 m long, met Rosta in 1801; renovated in 1901.")
+    found = leaks.of_article(RAW, ENT, moved, invented={"Kelda", "Rosta"}, common=set())
+    assert found["values"] == []

@@ -11,6 +11,7 @@ import re
 import sys
 from pathlib import Path
 
+from docta_orchestrator.delex.numbers import NUMBER
 from docta_orchestrator.delex.words import CALENDAR, ROMAN, SENTENCE_END, WORD, lowercase_words
 
 # A real value left in one fact in fifty, or two unexplained capitalised
@@ -27,10 +28,6 @@ def text(article: dict) -> str:
     return "\n".join(pieces(article))
 
 
-def written(value) -> set[str]:
-    return {str(value), f"{value:,}"}
-
-
 def values(entity: dict) -> list:
     return [v for vs in entity["facts"].values() for v in vs if isinstance(v, (int, float))]
 
@@ -39,11 +36,6 @@ def capitalised(texts: list[str], invented: set[str], common: set[str]) -> list[
     """Capitalised words in mid-sentence the rewriting left: real names it
     missed. Each text apart: a heading or a paragraph starts a sentence."""
     return [w for body in texts for w in mid_sentence(body, invented, common)]
-
-
-def is_left(value, body: str) -> bool:
-    """The value in any of its written forms, not inside a longer number."""
-    return any(re.search(rf"(?<![\d.,]){re.escape(f)}(?!\d|[.,]\d)", body) for f in written(value))
 
 
 def mid_sentence(body: str, invented: set[str], common: set[str]) -> list[str]:
@@ -63,9 +55,23 @@ def mid_sentence(body: str, invented: set[str], common: set[str]) -> list[str]:
     return found
 
 
+def unchanged(raw: dict, rewritten: dict) -> list[float]:
+    """Numbers left as they were, in place: the rewriting keeps every
+    paragraph and every number's order, so the n-th number of a paragraph
+    pairs with the n-th of its rewriting. A value found elsewhere (another
+    event's year, shifted onto the real one) is a coincidence, not a leak."""
+    out = []
+    for a, b in zip(pieces(raw), pieces(rewritten), strict=False):
+        for x, y in zip(NUMBER.finditer(a), NUMBER.finditer(b), strict=False):
+            if x.group(0) == y.group(0):
+                out.append(float(x.group(0).replace(",", "")))
+    return out
+
+
 def of_article(raw: dict, entity: dict, rewritten: dict, invented: set[str], common: set[str]):
     body = text(rewritten)
-    left = [v for v in values(entity) if is_left(v, body)]
+    kept = set(unchanged(raw, rewritten))
+    left = [v for v in values(entity) if float(v) in kept]
     names = [entity["label"], *entity.get("aliases", [])]
     subject = next(
         (n for n in names if len(n) > 2 and re.search(rf"\b{re.escape(n)}\b", body)), None
