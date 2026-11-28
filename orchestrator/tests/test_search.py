@@ -5,7 +5,7 @@ import dataclasses
 import pytest
 from docta_orchestrator.jsonl import WorldBatch
 from docta_orchestrator.load import load_world
-from docta_orchestrator.search import Hit, search, to_tsquery
+from docta_orchestrator.search import Hit, idf, search, to_tsquery
 from orch_sample import QUESTIONS, SOURCES, WORLD
 
 
@@ -74,3 +74,37 @@ def test_search_is_never_prepared(conn):
     for _ in range(10):
         search(conn, "w_test01", "Varnelle")
     assert conn.execute("SELECT count(*) FROM pg_prepared_statements").fetchone()[0] == 0
+
+
+# A corpus where the question's common words ("in", "was", "year") are
+# everywhere and its rare one ("Alexandria") is in one source only.
+CHATTY = [
+    ("c1", "Notes", "In the year it was in the news, it was in the papers in town."),
+    ("c2", "Alexandria", "Alexandria was founded in 1749."),
+    ("c3", "Rivers", "The river was in flood in the year of the storm."),
+    ("c4", "Roads", "A road was built in the year after the war, in stone."),
+    ("c5", "Markets", "The market was held in the square in that year."),
+]
+
+
+def chatty(conn, rows=CHATTY):
+    sources = [{**SOURCES[0], "source_id": i, "title": t, "text": b, "facts": [], "phrasings": []}
+               for i, t, b in rows]  # fmt: skip
+    load_world(conn, WorldBatch(WORLD, sources, []))
+    return conn
+
+
+def test_a_rare_word_outweighs_common_ones(conn):
+    # Unweighted, the chattiest source wins on "in" and "was" alone; weighted
+    # by rarity, the one naming the subject does.
+    hits = search(chatty(conn), "w_test01", "In what year was Alexandria established?")
+    assert ids(hits)[0] == "c2"
+
+
+def test_idf_falls_as_a_word_spreads():
+    assert idf(5, 1) > idf(5, 4) > idf(5, 5) > 0
+
+
+def test_equal_scores_break_by_source_id(conn):
+    twins = [(i, "Twin", "Varnelle was founded in 1432.") for i in ("t2", "t1")]
+    assert ids(search(chatty(conn, twins), "w_test01", "Varnelle founded")) == ["t1", "t2"]
