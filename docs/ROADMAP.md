@@ -3,7 +3,7 @@
 Where the work stands, what comes next, and how to pick it up on another
 machine or in a fresh session. The living spec keeps the vision; this file
 keeps the concrete state. Update it when a chantier moves, not only at
-releases. Last update: 2026-11-27.
+releases. Last update: 2026-11-28.
 
 ## How we work
 
@@ -33,7 +33,7 @@ input, determinism, branches and releases) are in `CLAUDE.md` and
 | Chantier | State | Numbers |
 |---|---|---|
 | Measurement chain (phase 0) | Done | `just baseline` |
-| Evaluate core (is what I read enough?) | Bottleneck on `ood`; a fix under test | 0.0.2: 76.7% on `val`; wrongly abstains on unseen wordings |
+| Evaluate core (is what I read enough?) | Overlap flag confirmed (PR #86); full-loop `ood` to measure | `val` median 83.3% (3 seeds, 0.0.2: 76.7%); classifier `ood` median 82.2% (0.0.2: 77.1%) |
 | Read core (where is the answer?) | Trained; default warmup 4000 | `val_exact` median 59.1% over 5 seeds (spread 8 points) |
 | Language paliers | Palier 1 released (0.0.2); palier 2 begun (pronouns) | see `docs/` and the CHANGELOG |
 | Real-text probe | Questions, cuts, loading, scoring, `just real`, hand check done | labels: answerable 8% wrong (20% with unsure), natural 8%, redacted 0% |
@@ -52,21 +52,29 @@ sentence templates. "What is the guild of X Y?" was wrongly judged not
 enough 86% of the time although train holds thousands of "the guild of X Y
 is Z".
 
-Fix under test: an overlap flag (`fit --overlap`), DrQA-style, marking the
-excerpt words the question also holds. Screening on 3 seeds: balanced `val`
-accuracy 56.0% → 66.0% (median), targeted wordings +10 to +40 points,
-chains nearly flat, comparisons stuck at 50% both ways. A full-size run on
-3 seeds started on 2026-11-27 (branch `evaluate-overlap`, models in
-`models/evaluate-overlap/`); seed 1 reached 83.3% on `val` by epoch 5
-against the 68.8–76.7% reference. Next: the other seeds, the per-wording
-check, then `ood` once.
+Fix: an overlap flag (`fit --overlap`, PR #86), DrQA-style, marking the
+excerpt words the question also holds. Full data, 6 epochs, 3 seeds:
+balanced `val` accuracy 80.6–84.1% (median 83.3%) against 68.8–76.7%
+without. `ood`, looked at once (Evaluate classifier alone): median 82.2%
+against 77.1% for the 0.0.2 core; the seed chosen beforehand on `val` (mean
+accuracy per wording) wrongly abstains on 4.9% of answerable examples against
+23.1%. Seeds still vary on `ood` (75.5–84.0%).
+
+What remains (diagnosed 2026-11-28): wordings stuck near 50%, different on
+each seed and flickering between epochs, all frozen on "not enough". Most
+have AUC near 0.5 (the core does not separate them: guild chains, "the guild
+of", two comparisons); two have AUC above 0.9 (a threshold shift), but a
+global threshold chosen on `val` gains under a point and its best value
+differs between seeds, so it was dropped. One guild chain wording stays near
+chance on `ood` for every seed. Prediction for palier 2: if these come from
+template pairing, more wordings per relation should make them disappear.
 
 ## Next, in order
 
-1. **Close the Evaluate fix**: full-size results on 3 seeds, per-wording
-   check, `ood` once, PR with the numbers. If comparisons stay at 50% at full
-   size, look at how a binary flag follows two subjects at once.
-2. **First real-text scores**: label fixes (branch `real-labels`), `just
+1. **Close the Evaluate fix**: merge PR #86, then the full-loop `ood`
+   measure (`core_read` against `keyword`, the original bottleneck) with the
+   seed 3 checkpoint, on the 0.0.2 worlds loaded in the database.
+2. **First real-text scores**: label fixes (PR #87), `just
    real cities` and `just real languages`, scores published with the label
    error.
 3. **Palier 2**: two facts per sentence, connectors, more question wordings
