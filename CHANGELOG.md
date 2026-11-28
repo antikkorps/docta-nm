@@ -80,6 +80,14 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Changed
 
+- **Search weighs query words by rarity** (`search()`): a source scores the
+  sum of BM25's idf, within its world, of the question words it holds;
+  `ts_rank` then `source_id` break ties. Unweighted, "in", "was" and "year"
+  made the chattiest passage win. On the real-text probe the answer reaches
+  the five excerpts for 53% of answerable city retrieve questions (32%
+  before; languages 45%, 47% before); on the invented worlds' test and `ood`
+  every baseline moves by under a point.
+
 - `just fit-read` warms up over 4000 steps by default, like `just fit`: over
   five seeds its `val_exact` spread over 8 points instead of 24, at a median
   3.9 points lower (59.1% against 63.0%), so runs can be compared.

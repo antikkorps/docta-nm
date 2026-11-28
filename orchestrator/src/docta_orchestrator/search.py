@@ -71,7 +71,7 @@ def search(conn: psycopg.Connection, world_id: str, query: str, k: int = 5) -> l
         "  WHERE tsv @@ to_tsquery('simple', w)) DESC,"
         # ts_rank, then source_id, break ties, so results are deterministic.
         " ts_rank(tsv, q) DESC, source_id LIMIT %s",
-        [" | ".join(terms), world_id, terms, weights(conn, world_id, terms), k],
+        [to_tsquery(query), world_id, terms, weights(conn, world_id, terms), k],
         # Never prepared: a generic plan ignores world_id and scans the whole
         # full-text index, 20x slower than the per-world plan on 20k worlds.
         prepare=False,
