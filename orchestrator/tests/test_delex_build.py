@@ -5,7 +5,10 @@ import json
 
 from docta_orchestrator.delex import build
 
-TEXT = "Brask Bridge crosses the Varn River, opened in 1901; the river under the bridge is 120 m."
+TEXT = (
+    "Brask Bridge crosses the Varn River, opened in 1901; "
+    "the river under the bridge, an old bridge, is 120 m."
+)
 ART = {"qid": "Q1", "title": "Brask Bridge", "links": ["Varn River"], "url": "u", "sha256": "h",
        "sections": [{"path": ["Brask Bridge"], "paragraphs": [TEXT]}]}  # fmt: skip
 ENT = {"qid": "Q1", "kind": "bridge", "label": "Brask Bridge", "title": "Brask Bridge",

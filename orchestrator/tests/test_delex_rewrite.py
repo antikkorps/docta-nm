@@ -94,3 +94,20 @@ def test_numbers_in_paths_links_and_labels_change_too():
 def test_facts_without_a_label_or_dated_by_name_are_handled():
     assert rewrite.fact({"value": 5}, {}, -100, 2.0, is_year=False) == {"value": 5}
     assert "birth_year" in rewrite.YEAR_FACTS
+
+
+def corpus(*paragraphs):
+    return [
+        {"qid": "Q9", "links": [], "sections": [{"path": ["T"], "paragraphs": list(paragraphs)}]}
+    ]
+
+
+def test_a_word_is_a_name_when_capitalised_mid_sentence_more_than_lowercase():
+    arts = corpus(
+        "It lies in China. Trade with China grew. Tea from China and fine china.",
+        "The bridge is old. A bridge here. Another bridge. The Old Bridge stands.",
+        "However, climbers met at Quebrada in July. The VDOT road and World War II.",
+    )
+    found = words.entity_words(arts, [])
+    assert {"China", "Quebrada", "VDOT"} <= found
+    assert not found & {"Bridge", "However", "July", "II", "The", "It"}

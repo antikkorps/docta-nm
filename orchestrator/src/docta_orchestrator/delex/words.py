@@ -1,12 +1,14 @@
 """Which words are names, and what replaces them.
 
-No trained model may find the names, so a word is a name when the sources
-say so: it belongs to a subject, an alias, a linked page or a related
-entity somewhere in the domain's corpus, and it is never written in
-lowercase anywhere in that corpus (a word seen lowercase, like "range", is
-a common noun even when a title capitalises it)."""
+No trained model may find the names, so the corpus decides by counting: a
+word is a name when the domain writes it capitalised in mid-sentence more
+often than in lowercase ("China" a hundred times, "china" once; "bridge"
+far more often than "Bridge"). A word of the answer key or of a link that
+is never written in lowercase counts too, even at sentence starts only.
+Sentence starts alone prove nothing: every word is capitalised there."""
 
 import re
+from collections import Counter
 from collections.abc import Iterable
 
 # A capitalised run of letters, any script: "Köprüsü" is a name too.
@@ -32,19 +34,45 @@ def named(entity: dict) -> Iterable[str]:
         yield from (v["label"] for v in values if isinstance(v, dict) and "label" in v)
 
 
+# Capitalised by the language, not because they name something; a short
+# fixed list, like the templates' words.
+CALENDAR = {
+    "January", "February", "March", "April", "May", "June", "July", "August",
+    "September", "October", "November", "December", "Monday", "Tuesday",
+    "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
+}  # fmt: skip
+ROMAN = re.compile(r"[IVXLCDM]+")
+SENTENCE_END = re.compile(r"[.!?]\s*$")
+
+
 def lowercase_words(articles: list[dict]) -> set[str]:
     """Every word written in lowercase somewhere: common words of the corpus."""
     return {w for a in articles for t in texts(a) for w in WORD.findall(t) if w.islower()}
 
 
+def counts(articles: list[dict]) -> tuple[Counter, Counter]:
+    """How often each word is written in lowercase, and capitalised in
+    mid-sentence (not at the start of a text or after . ! ?)."""
+    low, mid = Counter(), Counter()
+    for t in (t for a in articles for t in texts(a)):
+        for m in WORD.finditer(t):
+            w = m.group(0)
+            if w.islower():
+                low[w] += 1
+            elif w[0].isupper() and m.start() and not SENTENCE_END.search(t[: m.start()]):
+                mid[w] += 1
+    return low, mid
+
+
 def entity_words(articles: list[dict], entities: list[dict]) -> set[str]:
-    """The capitalised words of every name the corpus links or the key names,
-    minus those the corpus also writes in lowercase."""
+    """Words the corpus treats as names (see the module's docstring)."""
     sources = [t for e in entities for t in named(e)]
     sources += [t for a in articles for t in a.get("links", [])]
-    found = set().union(*(capitalised(t) for t in sources))
-    common = lowercase_words(articles)
-    return {w for w in found if w.lower() not in common}
+    keyed = set().union(*(capitalised(t) for t in sources))
+    low, mid = counts(articles)
+    found = {w for w in keyed if low[w.lower()] == 0}
+    found |= {w for w, n in mid.items() if len(w) > 1 and low[w.lower()] < n}
+    return {w for w in found if w not in CALENDAR and not ROMAN.fullmatch(w)}
 
 
 class Namer:
