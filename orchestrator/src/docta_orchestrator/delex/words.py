@@ -11,8 +11,15 @@ import re
 from collections import Counter
 from collections.abc import Iterable
 
-# A capitalised run of letters, any script: "Köprüsü" is a name too.
-WORD = re.compile(r"[^\W\d_]+")
+# A run of letters, any script ("Köprüsü"), with the combining marks that
+# Devanagari, Arabic, Hebrew or Thai write inside a word, so "हिन्दी" stays
+# one word instead of three letters between orphan vowel signs.
+MARKS = (
+    "\u0300-\u036f\u0483-\u0489\u0591-\u05c7\u0610-\u061a\u064b-\u065f\u0670"
+    "\u06d6-\u06ed\u0900-\u0903\u093a-\u094f\u0951-\u0957\u0962\u0963"
+    "\u0981-\u0983\u09bc-\u09d7\u0e31\u0e34-\u0e3a\u0e47-\u0e4e"
+)
+WORD = re.compile(rf"[^\W\d_](?:[^\W\d_]|[{MARKS}])*")
 
 
 def capitalised(text: str) -> set[str]:
@@ -42,6 +49,8 @@ CALENDAR = {
     "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
 }  # fmt: skip
 # Small Roman numerals only (kings, wars, volumes): "DC" or "MD" are names.
+# Capitals the language writes: eras, times of day, units.
+CAPITALS = {"BC", "AD", "BCE", "CE", "AM", "PM", "MW", "GW", "KW", "GB", "MB", "TB", "OK", "TV"}
 ROMAN = re.compile(r"X{0,3}(IX|IV|V?I{0,3})")
 # Abbreviations whose full stop ends no sentence: "Mt. Hood", "U.S. Navy".
 ABBREVIATIONS = {
@@ -69,7 +78,8 @@ def starts_sentence(before: str) -> bool:
 
 def is_excepted(word: str) -> bool:
     """Capitalised by the language or an abbreviation, never a name."""
-    return word in CALENDAR or word in ABBREVIATIONS or bool(ROMAN.fullmatch(word))
+    return (word in CALENDAR or word in ABBREVIATIONS or word in CAPITALS
+            or bool(ROMAN.fullmatch(word)))  # fmt: skip
 
 
 def lowercase_words(articles: list[dict]) -> set[str]:
@@ -97,7 +107,8 @@ def always_names(articles: list[dict]) -> set[str]:
     capitals ("SKY"), judged as written, not by their lowercase twin."""
     found = set()
     for w in (w for a in articles for t in texts(a) for w in WORD.findall(t)):
-        if w.lower() == w.upper() or (len(w) > 1 and w.isupper()):
+        caseless = w.lower() == w.upper() and w[0].isalpha()  # not "½", which \\w lets in
+        if caseless or (len(w) > 1 and w.isupper()):
             found.add(w)
     return found
 

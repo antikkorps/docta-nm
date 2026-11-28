@@ -142,3 +142,23 @@ def test_ordinals_scale_except_centuries():
         "The 11th highest peak, built in the 14th century.", shift=-100, factor=1.5
     )
     assert out == "The 17th highest peak, built in the 14th century."
+
+
+def test_fractions_and_scripts_with_marks_stay_whole():
+    arts = corpus("About 2½ miles away, in हिन्दी and العَرَبِيَّة texts.")
+    found = words.entity_words(arts, [])
+    assert "½" not in found
+    assert {"हिन्दी", "العَرَبِيَّة"} <= found
+
+
+def test_capitals_that_belong_to_the_language_stay():
+    arts = corpus("Founded in 500 BC, rebuilt in AD 79, it makes 40 MW at 9 PM.")
+    assert not words.entity_words(arts, []) & {"BC", "AD", "MW", "PM"}
+
+
+def test_centuries_in_lists_and_days_written_as_ordinals_stay():
+    text = (
+        "In the 14th and 15th centuries, the 4th–5th Century, "
+        "and on 31st August or the 4th of July."
+    )
+    assert numbers.rewrite(text, shift=-100, factor=1.5) == text

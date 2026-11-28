@@ -20,7 +20,13 @@ UNITS = (
 # cover move by less than a century.
 ORDINAL = r"(?:st|nd|rd|th)"
 ORDINAL_AFTER = re.compile(rf"^{ORDINAL}\b")
-CENTURY = re.compile(r"^(?:st|nd|rd|th)[\s-]+(?:century|centuries|millennium)\b")
+# An ordinal in a list or range of centuries stays: "14th and 15th
+# centuries", "4th–5th Century".
+CENTURY = re.compile(
+    r"^(?:st|nd|rd|th)(?:[\s,–—-]+(?:and|or|to)?[\s,–—-]*\d+(?:st|nd|rd|th))*"
+    r"[\s–—-]+(?:century|centuries|millennium|millennia)\b",
+    re.IGNORECASE,
+)
 # A scaled rank keeps its number's suffix: "1st" scaled to 2 reads "2nd".
 RANK = re.compile(r"\b(\d+)(?:st|nd|rd|th)\b")
 NUMBER = re.compile(
@@ -33,7 +39,9 @@ UNIT_AFTER = re.compile(rf"^\s?{UNITS}\b")
 # would read wrong once scaled; ordinals ("1st") never match NUMBER.
 DAY = re.compile(rf"(?:{MONTHS})\s+$")
 # The first day of a range ("8–10 August") is a day too.
-DAY_FIRST = re.compile(rf"^(?:\s*[–-]\s*\d{{1,2}})?\s+(?:{MONTHS})\b")
+DAY_FIRST = re.compile(
+    rf"^(?:st|nd|rd|th)?(?:\s*[–-]\s*\d{{1,2}}(?:st|nd|rd|th)?)?\s+(?:of\s+)?(?:{MONTHS})\b"
+)
 PERCENT = re.compile(r"^\s*(%|percent\b)")
 
 
