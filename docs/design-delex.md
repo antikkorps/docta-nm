@@ -84,6 +84,27 @@ would let a real fact through.
 - Reported: test, `val` and `ood` of the worlds, `delex-val`, then the probe
   once.
 
+## Watch points (from review, 2026-11-28)
+
+- **Vocabulary threshold.** Words are kept when seen in at least 20 worlds;
+  with articles mixed in, the unit and the threshold must be redefined (20
+  articles? a share of each corpus?) at step 5, or real words drown or
+  swamp the invented ones. Chosen on `delex-val` and the worlds' `val`.
+- **Length.** Evaluate reads 320 tokens, Read 576, question and five
+  excerpts included; Wikipedia paragraphs are long. Truncation stays a
+  visible limit on the probe: report the share of truncated inputs next to
+  every score.
+- **Absences balanced.** Unanswerable questions of the delexicalised corpus
+  take every shape in the same proportion as answerable ones, as in the
+  worlds (`quality.rs`), and training balances labels per shape as it does
+  now; otherwise the core learns a shortcut to abstention.
+- **Mix fixed before training.** The share of invented worlds and
+  delexicalised text is set once, before the 3 seeds, so seeds stay
+  comparable; a different mix is a different run.
+- **Famous subjects.** Lowest Wikidata ids pick famous entities (Mount
+  Everest): their phrasing ("the highest mountain on Earth") can carry a
+  fact with no name in it. The hand check looks for these too.
+
 ## Steps (one PR each)
 
 1. Collector for the three domains, links included.
