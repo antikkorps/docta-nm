@@ -16,9 +16,16 @@ UNITS = (
     r"(?:m|km|cm|mm|ft|mi|in|mph|kg|ha|sq|metres|meters|feet|miles|kilometres"
     r"|kilometers)(?:²|³)?"
 )
+# Ranks ("11th") scale like quantities; centuries stay, as the years they
+# cover move by less than a century.
+ORDINAL = r"(?:st|nd|rd|th)"
+ORDINAL_AFTER = re.compile(rf"^{ORDINAL}\b")
+CENTURY = re.compile(r"^(?:st|nd|rd|th)[\s-]+(?:century|centuries|millennium)\b")
+# A scaled rank keeps its number's suffix: "1st" scaled to 2 reads "2nd".
+RANK = re.compile(r"\b(\d+)(?:st|nd|rd|th)\b")
 NUMBER = re.compile(
     # Not inside a word or a longer number; after "c." (circa) it is one.
-    rf"(?<![\w,])(?<!\d\.)(\d{{1,3}}(?:,\d{{3}})+|\d+)(\.\d+)?(?!(?!s\b|{UNITS}\b)\w|,\d|\.\d)"
+    rf"(?<![\w,])(?<!\d\.)(\d{{1,3}}(?:,\d{{3}})+|\d+)(\.\d+)?(?!(?!s\b|{UNITS}\b|{ORDINAL}\b)\w|,\d|\.\d)"
 )
 # A unit after a number makes it a quantity, even one that reads like a year.
 UNIT_AFTER = re.compile(rf"^\s?{UNITS}\b")
@@ -28,6 +35,12 @@ DAY = re.compile(rf"(?:{MONTHS})\s+$")
 # The first day of a range ("8–10 August") is a day too.
 DAY_FIRST = re.compile(rf"^(?:\s*[–-]\s*\d{{1,2}})?\s+(?:{MONTHS})\b")
 PERCENT = re.compile(r"^\s*(%|percent\b)")
+
+
+def suffix(n: int) -> str:
+    if n % 100 in (11, 12, 13):
+        return "th"
+    return {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
 
 
 def is_year(whole: str, decimals: str | None) -> bool:
@@ -61,6 +74,11 @@ def rewrite(text: str, shift: int, factor: float) -> str:
         is_day = len(whole) <= 2 and (DAY.search(before) or DAY_FIRST.match(after))
         if is_day or PERCENT.match(after):
             return m.group(0)
+        if ORDINAL_AFTER.match(after):
+            # "1st", "2nd", "3rd" mostly order events ("the 1st ascent"): kept.
+            if CENTURY.match(after) or decimals or "," in whole or int(whole) < 4:
+                return m.group(0)
+            return str(max(1, int(quantity(int(whole), factor))))
         if is_year(whole, decimals) and not UNIT_AFTER.match(after):
             return str(year(int(whole), shift))
         if after.startswith("s"):  # "20s": an age or a decade without century
@@ -68,4 +86,4 @@ def rewrite(text: str, shift: int, factor: float) -> str:
         value = float(whole.replace(",", "") + (decimals or ""))
         return written(quantity(value, factor), m.group(0))
 
-    return NUMBER.sub(one, text)
+    return RANK.sub(lambda m: m.group(1) + suffix(int(m.group(1))), NUMBER.sub(one, text))

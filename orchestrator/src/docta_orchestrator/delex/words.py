@@ -91,6 +91,17 @@ def counts(articles: list[dict]) -> tuple[Counter, Counter]:
     return low, mid
 
 
+def always_names(articles: list[dict]) -> set[str]:
+    """Words whose form alone makes them names: scripts without letter case
+    (이순신대교, 積石山), where capitals prove nothing, and acronyms in
+    capitals ("SKY"), judged as written, not by their lowercase twin."""
+    found = set()
+    for w in (w for a in articles for t in texts(a) for w in WORD.findall(t)):
+        if w.lower() == w.upper() or (len(w) > 1 and w.isupper()):
+            found.add(w)
+    return found
+
+
 def entity_words(articles: list[dict], entities: list[dict]) -> set[str]:
     """Words the corpus treats as names (see the module's docstring)."""
     sources = [t for e in entities for t in named(e)]
@@ -99,6 +110,7 @@ def entity_words(articles: list[dict], entities: list[dict]) -> set[str]:
     low, mid = counts(articles)
     found = {w for w in keyed if low[w.lower()] == 0}
     found |= {w for w, n in mid.items() if len(w) > 1 and low[w.lower()] < n}
+    found |= always_names(articles)
     return {w for w in found if not is_excepted(w)}
 
 

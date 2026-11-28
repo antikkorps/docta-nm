@@ -127,3 +127,18 @@ def test_abbreviations_quotes_and_letter_acronyms_follow_the_name_rule():
 def test_circa_and_glued_units_are_numbers_too():
     out = numbers.rewrite("Built c.1901, at 120mph over 40km².", shift=-100, factor=1.5)
     assert out == "Built c.1801, at 180mph over 60km²."
+
+
+def test_caseless_scripts_and_all_caps_acronyms_are_names():
+    arts = corpus(
+        "Its name (이순신대교; 積石山) is old. The SKY universities lead; the sky is blue."
+    )
+    found = words.entity_words(arts, [])
+    assert {"이순신대교", "積石山", "SKY"} <= found
+
+
+def test_ordinals_scale_except_centuries():
+    out = numbers.rewrite(
+        "The 11th highest peak, built in the 14th century.", shift=-100, factor=1.5
+    )
+    assert out == "The 17th highest peak, built in the 14th century."
