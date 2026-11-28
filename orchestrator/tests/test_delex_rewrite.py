@@ -127,3 +127,38 @@ def test_abbreviations_quotes_and_letter_acronyms_follow_the_name_rule():
 def test_circa_and_glued_units_are_numbers_too():
     out = numbers.rewrite("Built c.1901, at 120mph over 40km².", shift=-100, factor=1.5)
     assert out == "Built c.1801, at 180mph over 60km²."
+
+
+def test_caseless_scripts_and_all_caps_acronyms_are_names():
+    arts = corpus(
+        "Its name (이순신대교; 積石山) is old. The SKY universities lead; the sky is blue."
+    )
+    found = words.entity_words(arts, [])
+    assert {"이순신대교", "積石山", "SKY"} <= found
+
+
+def test_ordinals_scale_except_centuries():
+    out = numbers.rewrite(
+        "The 11th highest peak, built in the 14th century.", shift=-100, factor=1.5
+    )
+    assert out == "The 17th highest peak, built in the 14th century."
+
+
+def test_fractions_and_scripts_with_marks_stay_whole():
+    arts = corpus("About 2½ miles away, in हिन्दी and العَرَبِيَّة texts.")
+    found = words.entity_words(arts, [])
+    assert "½" not in found
+    assert {"हिन्दी", "العَرَبِيَّة"} <= found
+
+
+def test_capitals_that_belong_to_the_language_stay():
+    arts = corpus("Founded in 500 BC, rebuilt in AD 79, it makes 40 MW at 9 PM.")
+    assert not words.entity_words(arts, []) & {"BC", "AD", "MW", "PM"}
+
+
+def test_centuries_in_lists_and_days_written_as_ordinals_stay():
+    text = (
+        "In the 14th and 15th centuries, the 4th–5th Century, "
+        "and on 31st August or the 4th of July."
+    )
+    assert numbers.rewrite(text, shift=-100, factor=1.5) == text

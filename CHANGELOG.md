@@ -108,6 +108,15 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Changed
 
+- **Delex after the hand check** (50 paragraphs checked by Franck: 45
+  clean, 5 with something real): words of scripts without letter case
+  (Korean, Chinese) and acronyms in capitals ("SKY") are now names, and
+  ranks from 4th up scale like other numbers (centuries, lists of
+  centuries and days written as ordinals stay; eras and units in capitals
+  such as "BC" or "MW" stay; marks inside Devanagari or Arabic words keep
+  the word whole). Four of the
+  five leaks are gone; a name made of common words ("Castle Rock") stays,
+  a known limit.
 - **Search weighs query words by rarity** (`search()`): a source scores the
   sum of BM25's idf, within its world, of the question words it holds;
   `ts_rank` then `source_id` break ties. Unweighted, "in", "was" and "year"
