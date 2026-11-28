@@ -99,3 +99,23 @@ fn the_real_trap_count_is_reported_per_split() {
         assert!(line.contains(&format!(", {traps} with a trap")), "{line}");
     }
 }
+
+#[test]
+fn emit_names_writes_one_seeded_name_per_line_and_stops() {
+    let dir = temp_dir("names");
+    std::fs::create_dir_all(&dir).expect("temp dir");
+    let file = dir.join("names.txt");
+    let ok = Command::new(env!("CARGO_BIN_EXE_docta-worldgen"))
+        .args(["--seed", "7", "--names", "50", "--emit-names"])
+        .arg(&file)
+        .status()
+        .expect("binary runs")
+        .success();
+    assert!(ok);
+    let text = std::fs::read_to_string(&file).expect("names written");
+    assert_eq!(
+        text.lines().collect::<Vec<_>>(),
+        docta_worldgen::pool::pool(7, 50)
+    );
+    assert!(!dir.join("train.jsonl").exists(), "no worlds written");
+}

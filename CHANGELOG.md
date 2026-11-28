@@ -13,6 +13,14 @@ lines under a new version, and its GitHub Release carries the reference scores.
 
 ### Added
 
+- **Delexicaliser** (`python -m docta_orchestrator.delex.build
+  data/delex/bridges --out data/delex/bridges/rewritten --names
+  data/delex/names.txt`, names from `docta-worldgen --emit-names`): every
+  word of a linked or named entity that the corpus never writes in lowercase
+  becomes an invented name, the same across the domain; years shift back by
+  30 to 150 years per article, other numbers scale by one factor per
+  article; the Wikidata facts change alike. The mapping is written apart,
+  for the leak check.
 - **Delexicalisation corpus, collected** (`python -m
   docta_orchestrator.delex.collect bridges --out data/delex/bridges`): the
   1,000 universities, mountains and bridges of lowest Wikidata id, each with
