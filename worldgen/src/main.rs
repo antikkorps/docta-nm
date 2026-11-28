@@ -2,7 +2,7 @@ use clap::Parser;
 use docta_worldgen::corpus::Options;
 use docta_worldgen::dataset::{Config, write};
 use docta_worldgen::split::Ratios;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 /// Generates fictional worlds, their sources and questions as JSONL v2.
@@ -56,7 +56,7 @@ fn parse_ratio(text: &str) -> Result<f64, String> {
 }
 
 /// Writes a side file instead of worlds.
-fn emit(path: &PathBuf, text: &str) -> ExitCode {
+fn emit(path: &Path, text: &str) -> ExitCode {
     match std::fs::write(path, text) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {

@@ -11,12 +11,18 @@ MONTHS = ("January|February|March|April|May|June|July|August|September|October"
           "|November|December")  # fmt: skip
 # A number with optional thousands commas and decimals, not inside a word;
 # a comma after it is punctuation ("in 1786, the"), not a thousands mark.
-# A decade's "s" ("the 1990s") may follow: a decade shifts like its years.
-NUMBER = re.compile(r"(?<![\w.,])(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?(?!(?!s\b)\w|,\d|\.\d)")
+# A decade's "s" ("the 1990s") or a unit glued to it ("8,849m") may follow.
+UNITS = r"(?:m|km|cm|mm|ft|mi|in|kg|ha|sq|metres|meters|feet|miles|kilometres|kilometers)"
+NUMBER = re.compile(
+    rf"(?<![\w.,])(\d{{1,3}}(?:,\d{{3}})+|\d+)(\.\d+)?(?!(?!s\b|{UNITS}\b)\w|,\d|\.\d)"
+)
+# A unit after a number makes it a quantity, even one that reads like a year.
+UNIT_AFTER = re.compile(rf"^\s?{UNITS}\b")
 # Left alone: days next to a month ("August 8", "8 August") and percentages
 # would read wrong once scaled; ordinals ("1st") never match NUMBER.
 DAY = re.compile(rf"(?:{MONTHS})\s+$")
-DAY_FIRST = re.compile(rf"^\s+(?:{MONTHS})\b")
+# The first day of a range ("8–10 August") is a day too.
+DAY_FIRST = re.compile(rf"^(?:\s*[–-]\s*\d{{1,2}})?\s+(?:{MONTHS})\b")
 PERCENT = re.compile(r"^\s*(%|percent\b)")
 
 
@@ -51,7 +57,7 @@ def rewrite(text: str, shift: int, factor: float) -> str:
         is_day = len(whole) <= 2 and (DAY.search(before) or DAY_FIRST.match(after))
         if is_day or PERCENT.match(after):
             return m.group(0)
-        if is_year(whole, decimals):
+        if is_year(whole, decimals) and not UNIT_AFTER.match(after):
             return str(year(int(whole), shift))
         if after.startswith("s"):  # "20s": an age or a decade without century
             return m.group(0)

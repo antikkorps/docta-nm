@@ -14,7 +14,7 @@ from docta_orchestrator.delex.words import WORD
 SHIFT = (30, 150)
 FACTORS = ((0.6, 0.9), (1.1, 1.6))
 # Facts that are dates; every other number is a quantity.
-YEAR_FACTS = {"inception", "opened"}
+YEAR_FACTS = {"inception", "opened", "birth_year"}
 
 
 def draw(rng: random.Random) -> tuple[int, float]:
@@ -32,29 +32,41 @@ def text_of(text: str, names: dict[str, str], shift: int, factor: float) -> str:
 
 
 def article(record: dict, names: dict, shift: int, factor: float) -> dict:
-    sections = [{"path": [names_in(p, names) for p in s["path"]],
-                 "paragraphs": [text_of(p, names, shift, factor) for p in s["paragraphs"]]}
-                for s in record["sections"]]  # fmt: skip
+    def text(t: str) -> str:
+        return text_of(t, names, shift, factor)
+
+    # Paths and links carry numbers too ("1901 flood"): they change like text.
+    sections = [
+        {"path": [text(p) for p in s["path"]], "paragraphs": [text(p) for p in s["paragraphs"]]}
+        for s in record["sections"]
+    ]
     # The provenance (oldid url, hash of the real text) points back at the
     # real article: the rewritten record drops both, the raw corpus keeps them.
     out = {k: v for k, v in record.items() if k not in ("url", "sha256")}
-    return out | {"title": names_in(record["title"], names), "sections": sections,
-                  "links": [names_in(t, names) for t in record.get("links", [])]}  # fmt: skip
+    links = [text(t) for t in record.get("links", [])]
+    return out | {"title": text(record["title"]), "sections": sections, "links": links}
 
 
 def fact(value, names: dict, shift: int, factor: float, is_year: bool):
     if isinstance(value, dict):
-        return {**value, "label": names_in(value["label"], names)}
+        # A related entity: its name changes, its id (ground truth) stays.
+        if "label" not in value:
+            return value
+        return {**value, "label": text_of(value["label"], names, shift, factor)}
     return numbers.year(value, shift) if is_year else numbers.quantity(value, factor)
 
 
 def entity(record: dict, names: dict, shift: int, factor: float) -> dict:
-    facts = {k: [fact(v, names, shift, factor, k in YEAR_FACTS) for v in vs]
-             for k, vs in record["facts"].items()}  # fmt: skip
-    return record | {"label": names_in(record["label"], names),
-                     "title": names_in(record["title"], names),
-                     "aliases": [names_in(a, names) for a in record.get("aliases", [])],
-                     "facts": facts}  # fmt: skip
+    def text(t: str) -> str:
+        return text_of(t, names, shift, factor)
+
+    facts = {
+        k: [fact(v, names, shift, factor, k in YEAR_FACTS) for v in vs]
+        for k, vs in record["facts"].items()
+    }
+    aliases = [text(a) for a in record.get("aliases", [])]
+    named = {"label": text(record["label"]), "title": text(record["title"])}
+    return record | named | {"aliases": aliases, "facts": facts}
 
 
 def pair(art: dict, ent: dict, names: dict, rng: random.Random) -> tuple[dict, dict]:

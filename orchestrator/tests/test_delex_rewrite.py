@@ -76,3 +76,21 @@ def test_rewriting_is_deterministic():
     a = rewrite.pair(ARTICLE, ENTITY, names, rng=random.Random(3))
     b = rewrite.pair(ARTICLE, ENTITY, names, rng=random.Random(3))
     assert a == b
+
+
+def test_units_glued_or_spaced_mark_a_quantity_and_day_ranges_stay():
+    out = numbers.rewrite("At 8,849m and 1281 m, from 8–10 August.", shift=-100, factor=2.0)
+    assert out == "At 17,698m and 2562 m, from 8–10 August."
+
+
+def test_numbers_in_paths_links_and_labels_change_too():
+    section = {"path": ["Mount Brask", "1901 flood"], "paragraphs": ["In 1901."]}
+    art = {**ARTICLE, "links": ["1906 Varn earthquake"], "sections": [section]}
+    out = rewrite.article(art, {"Varn": "Rosta"}, shift=-100, factor=1.5)
+    assert out["sections"][0]["path"][1] == "1801 flood"
+    assert out["links"] == ["1806 Rosta earthquake"]
+
+
+def test_facts_without_a_label_or_dated_by_name_are_handled():
+    assert rewrite.fact({"value": 5}, {}, -100, 2.0, is_year=False) == {"value": 5}
+    assert "birth_year" in rewrite.YEAR_FACTS

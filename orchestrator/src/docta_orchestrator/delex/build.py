@@ -10,11 +10,17 @@ leak check, never a model's input."""
 import argparse
 import json
 import random
+import sys
 from pathlib import Path
 
 from docta_orchestrator.delex import rewrite, words
 from docta_orchestrator.realtext.collect import write
-from docta_orchestrator.realtext.probe import read
+
+
+def read(path: Path) -> list[dict]:
+    with path.open(encoding="utf-8") as f:
+        return [json.loads(line) for line in f if line.strip()]
+
 
 # Fixed, so the same corpus always gives the same text.
 SEED = 42
@@ -27,6 +33,9 @@ def rewrite_domain(articles: list[dict], entities: list[dict], pool: list[str], 
     by_qid = {e["qid"]: e for e in entities}
     out_a, out_e, draws = [], [], {}
     for art in sorted(articles, key=lambda a: int(a["qid"][1:])):
+        if art["qid"] not in by_qid:  # the collector writes none such; a hand-made file might
+            print(f"skipped {art['qid']}: no entity", file=sys.stderr)
+            continue
         # One generator per article, seeded by its id: an article rewrites
         # the same way whatever else is in the corpus.
         shift, factor = rewrite.draw(random.Random(f"{seed}:{art['qid']}"))

@@ -32,3 +32,15 @@ def test_a_domain_is_rewritten_with_its_mapping_apart(tmp_path):
     first = (out / "articles.jsonl").read_bytes()
     build.main([str(raw), "--out", str(out), "--names", str(tmp_path / "names.txt")])
     assert (out / "articles.jsonl").read_bytes() == first
+
+
+def test_an_article_without_its_entity_is_skipped(tmp_path):
+    raw, out = tmp_path / "raw", tmp_path / "out"
+    raw.mkdir()
+    write(raw / "articles.jsonl", [ART, {**ART, "qid": "Q2"}])
+    write(raw / "entities.jsonl", [ENT])
+    (tmp_path / "names.txt").write_text("Kelda\nRosta\n")
+    build.main([str(raw), "--out", str(out), "--names", str(tmp_path / "names.txt")])
+    assert [json.loads(x)["qid"] for x in (out / "articles.jsonl").read_text().splitlines()] == [
+        "Q1"
+    ]
