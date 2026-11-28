@@ -14,7 +14,12 @@ from docta_orchestrator.realtext.wikidata import batched, by_qid_order, group, q
 STATED = "wikibase:rank ?r. FILTER(?r != wikibase:DeprecatedRank && isLiteral(?{v}))"
 ARTICLE = """?article schema:about ?s; schema:isPartOf <https://en.wikipedia.org/>.
   ?s rdfs:label ?label. FILTER(LANG(?label) = "en")"""
-RELATION = """SELECT ?s ?o ?oLabel WHERE {{ VALUES ?s {{ {{qids}} }} ?s wdt:{p} ?o.
+# Every non-deprecated statement, not only the best-ranked (`wdt:`): an
+# earlier place's name left out would stay in the text as real. `isIRI`
+# drops "unknown value", which is no entity.
+RELATION = """SELECT ?s ?o ?oLabel WHERE {{ VALUES ?s {{ {{qids}} }}
+  ?s p:{p} ?st. ?st ps:{p} ?o; wikibase:rank ?r.
+  FILTER(?r != wikibase:DeprecatedRank && isIRI(?o))
   ?o rdfs:label ?oLabel. FILTER(LANG(?oLabel) = "en") }}"""
 ALIASES = """SELECT ?s ?alias WHERE { VALUES ?s { {qids} }
   ?s skos:altLabel ?alias. FILTER(LANG(?alias) = "en") }"""

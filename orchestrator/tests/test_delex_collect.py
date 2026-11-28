@@ -96,3 +96,10 @@ def test_an_article_carries_its_links_and_one_without_text_is_skipped():
     assert [r["qid"] for r in records] == ["Q30"]
     assert records[0]["links"] == ["Varn River"]
     assert records[0]["url"].endswith("oldid=42")
+
+
+def test_relations_keep_every_non_deprecated_statement():
+    # `wdt:` gives the best rank only: an earlier place's name would be missed
+    # by the delexicaliser and stay as real text.
+    query = domains.BRIDGES.relation[1]
+    assert "ps:P177" in query and "DeprecatedRank" in query and "wdt:P177" not in query
