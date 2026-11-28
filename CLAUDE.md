@@ -28,6 +28,7 @@ one at a time, and small cores trained from scratch on CPU (`train/`).
 
 - Phase 0 brief (scope, schema, JSONL v0, required tests): @docs/BRIEF-phase0.md
 - Living spec (vision, loop, decisions): https://claude.ai/artifact/M8Aj7PFp75ooF3dhXfaR4R
+- Roadmap and handoff (where each chantier stands, next steps, moving to another machine): docs/ROADMAP.md
 - The brief is written in French; the code base is **English only** (see rules).
 
 Stack: Rust 1.95 (edition 2024, `rust-toolchain.toml`) for `worldgen/`; Python 3.12
