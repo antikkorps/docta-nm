@@ -14,13 +14,15 @@ lines under a new version, and its GitHub Release carries the reference scores.
 ### Added
 
 - **Delex leak check** (`python -m docta_orchestrator.delex.leaks
-  data/delex/bridges`), and the rule it led to: a word is a name when the
+  data/delex/bridges`), and the rules it led to: a word is a name when the
   corpus writes it capitalised mid-sentence more often than lowercase
-  ("China", not "Bridge"), acronyms included, months and Roman numerals
-  excepted. On the three domains no fact value stays in place (fails past
-  2%) and no unexplained capitalised word survives; subject names made of
-  common words ("Old Bridge") are listed for the hand check
-  (`delex.sample`, 50 paragraphs).
+  ("China", not "Bridge"), acronyms included, sentence starts read past
+  abbreviations ("Mt. Hood"), months and small Roman numerals excepted;
+  "c.1901" and glued units ("120mph") count as numbers. The check finds
+  each fact value digit by digit, independently of the rewriter: on the
+  three domains none stays in place (fails past 2%). Subject names made of
+  common words ("Old Bridge") are listed for the hand check (`delex.sample`:
+  the leads of each domain's best-known subjects, then random paragraphs).
 - **Delexicaliser** (`python -m docta_orchestrator.delex.build
   data/delex/bridges --out data/delex/bridges/rewritten --names
   data/delex/names.txt`, names from `docta-worldgen --emit-names`): every

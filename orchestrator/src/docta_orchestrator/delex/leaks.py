@@ -2,9 +2,10 @@
 
 `python -m docta_orchestrator.delex.leaks data/delex/bridges` compares the
 collected domain with `rewritten/` and writes `rewritten/leaks.json`; it
-fails past the thresholds, so a leaky corpus never reaches training. Names
-made only of common words ("Old Bridge") are listed, not counted against
-the corpus: their real context is already gone."""
+fails past the value threshold, so a leaky corpus never reaches training.
+Names made only of common words ("Old Bridge") are listed, not counted:
+their real context is already gone. Names the rules miss otherwise cannot
+be counted by the same rules; the hand check (`delex.sample`) looks for them."""
 
 import json
 import re
@@ -12,12 +13,14 @@ import sys
 from pathlib import Path
 
 from docta_orchestrator.delex.numbers import NUMBER
-from docta_orchestrator.delex.words import CALENDAR, ROMAN, SENTENCE_END, WORD, lowercase_words
 
-# A real value left in one fact in fifty, or two unexplained capitalised
-# words per thousand, means a rule is missing: fix it before training.
+# A real value left in one fact in fifty means a rule is missing: fix it
+# before training.
 MAX_VALUE_RATE = 0.02
-MAX_CAPITALISED_PER_1000 = 2.0
+# Values up to 31 read as days of a month, which the rewriting keeps.
+SMALLEST = 32
+# A run of three digits or more: what NUMBER should always have seen.
+DIGITS = re.compile(r"\d{3,}")
 
 
 def pieces(article: dict) -> list[str]:
@@ -29,70 +32,66 @@ def text(article: dict) -> str:
 
 
 def values(entity: dict) -> list:
-    return [v for vs in entity["facts"].values() for v in vs if isinstance(v, (int, float))]
+    return [v for vs in entity["facts"].values() for v in vs
+            if isinstance(v, (int, float)) and (v >= SMALLEST or v != int(v))]  # fmt: skip
 
 
-def capitalised(texts: list[str], invented: set[str], common: set[str]) -> list[str]:
-    """Capitalised words in mid-sentence the rewriting left: real names it
-    missed. Each text apart: a heading or a paragraph starts a sentence."""
-    return [w for body in texts for w in mid_sentence(body, invented, common)]
-
-
-def mid_sentence(body: str, invented: set[str], common: set[str]) -> list[str]:
+def occurrences(value, body: str) -> list[tuple[int, int]]:
+    """Where `value` is written in `body`, plain or with thousands commas,
+    found digit by digit: independent of the rewriter's own NUMBER rule."""
     found = []
-    for m in WORD.finditer(body):
-        w = m.group(0)
-        starts = not m.start() or SENTENCE_END.search(body[: m.start()])
-        if starts or not w[0].isupper() or len(w) < 2:
-            continue
-        if (
-            w not in invented
-            and w.lower() not in common
-            and w not in CALENDAR
-            and not ROMAN.fullmatch(w)
-        ):
-            found.append(w)
+    for form in {str(value), f"{value:,}"}:
+        pattern = rf"(?<![\d.,]){re.escape(form)}(?!\d|[.,]\d)"
+        found += [m.span() for m in re.finditer(pattern, body)]
     return found
 
 
-def unchanged(raw: dict, rewritten: dict) -> list[float]:
-    """Numbers left as they were, in place: the rewriting keeps every
-    paragraph and every number's order, so the n-th number of a paragraph
-    pairs with the n-th of its rewriting. A value found elsewhere (another
-    event's year, shifted onto the real one) is a coincidence, not a leak."""
-    out = []
-    for a, b in zip(pieces(raw), pieces(rewritten), strict=False):
-        for x, y in zip(NUMBER.finditer(a), NUMBER.finditer(b), strict=False):
-            if x.group(0) == y.group(0):
-                out.append(float(x.group(0).replace(",", "")))
-    return out
+def left_in(value, a: str, b: str) -> bool:
+    """Whether paragraph `b`, the rewriting of `a`, still holds `value` where
+    `a` had it. A spot NUMBER never matched was never rewritten: a leak if
+    the value is still in `b`. A spot it matched pairs with the same-rank
+    number of `b` (the rewriting keeps their order); another event's year
+    shifted onto the real one elsewhere is a coincidence, not a leak."""
+    seen, kept = list(NUMBER.finditer(a)), list(NUMBER.finditer(b))
+    for start, end in occurrences(value, a):
+        rank = next((i for i, m in enumerate(seen) if m.start() <= start and end <= m.end()), None)
+        if rank is None:
+            if occurrences(value, b):
+                return True
+        elif rank < len(kept) and kept[rank].group(0) == seen[rank].group(0):
+            return True
+    return False
 
 
-def of_article(raw: dict, entity: dict, rewritten: dict, invented: set[str], common: set[str]):
+def missed(article: dict) -> int:
+    """Runs of three digits or more NUMBER did not see: its blind spots."""
+    count = 0
+    for body in pieces(article):
+        spans = [m.span() for m in NUMBER.finditer(body)]
+        count += sum(not any(s <= m.start() and m.end() <= e for s, e in spans)
+                     for m in DIGITS.finditer(body))  # fmt: skip
+    return count
+
+
+def of_article(raw: dict, entity: dict, rewritten: dict) -> dict:
+    pairs = list(zip(pieces(raw), pieces(rewritten), strict=False))
+    left = [v for v in values(entity) if any(left_in(v, a, b) for a, b in pairs)]
     body = text(rewritten)
-    kept = set(unchanged(raw, rewritten))
-    left = [v for v in values(entity) if float(v) in kept]
     names = [entity["label"], *entity.get("aliases", [])]
     subject = next(
         (n for n in names if len(n) > 2 and re.search(rf"\b{re.escape(n)}\b", body)), None
     )
-    return {
-        "values": left,
-        "subject": subject,
-        "capitalised": capitalised(pieces(rewritten), invented, common),
-    }
+    return {"values": left, "subject": subject, "missed": missed(raw)}
 
 
 def report(found: list[tuple[dict, int]], words: int) -> dict:
     """`found`: each article's leaks with its number of fact values."""
     leaked = sum(len(f["values"]) for f, _ in found)
     total = sum(n for _, n in found) or 1
-    caps = sum(len(f["capitalised"]) for f, _ in found)
     out = {"articles": len(found), "value_rate": leaked / total,
-           "capitalised_per_1000": caps / max(words, 1) * 1000,
+           "missed_numbers_per_1000": sum(f["missed"] for f, _ in found) / max(words, 1) * 1000,
            "subjects_left": sorted({f["subject"] for f, _ in found if f["subject"]})}  # fmt: skip
-    out["passed"] = (out["value_rate"] <= MAX_VALUE_RATE
-                     and out["capitalised_per_1000"] <= MAX_CAPITALISED_PER_1000)  # fmt: skip
+    out["passed"] = out["value_rate"] <= MAX_VALUE_RATE
     return out
 
 
@@ -106,12 +105,10 @@ def main(argv: list[str]) -> int:
     raw = {a["qid"]: a for a in read(domain / "articles.jsonl")}
     ents = {e["qid"]: e for e in read(domain / "entities.jsonl")}
     rewritten = read(domain / "rewritten/articles.jsonl")
-    mapping = json.loads((domain / "rewritten/mapping.json").read_text(encoding="utf-8"))
-    invented, common = set(mapping["names"].values()), lowercase_words(rewritten)
     found = []
     for a in rewritten:
         e = ents[a["qid"]]
-        found.append((of_article(raw[a["qid"]], e, a, invented, common), len(values(e))))
+        found.append((of_article(raw[a["qid"]], e, a), len(values(e))))
     out = report(found, sum(len(text(a).split()) for a in rewritten))
     (domain / "rewritten/leaks.json").write_text(
         json.dumps(out, indent=1, ensure_ascii=False) + "\n"

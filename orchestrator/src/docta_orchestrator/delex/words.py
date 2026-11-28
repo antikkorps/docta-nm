@@ -41,8 +41,35 @@ CALENDAR = {
     "September", "October", "November", "December", "Monday", "Tuesday",
     "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
 }  # fmt: skip
-ROMAN = re.compile(r"[IVXLCDM]+")
-SENTENCE_END = re.compile(r"[.!?]\s*$")
+# Small Roman numerals only (kings, wars, volumes): "DC" or "MD" are names.
+ROMAN = re.compile(r"X{0,3}(IX|IV|V?I{0,3})")
+# Abbreviations whose full stop ends no sentence: "Mt. Hood", "U.S. Navy".
+ABBREVIATIONS = {
+    "St", "Mt", "Mr", "Mrs", "Ms", "Dr", "Ft", "Jr", "Sr", "No", "vs", "Prof",
+    "Gen", "Col", "Lt", "Capt", "Rev", "Gov", "Sen", "Rep", "Co", "Corp", "Inc",
+}  # fmt: skip
+OPENERS = "\"'“‘«([ \t\n"
+
+
+def starts_sentence(before: str) -> bool:
+    """True when a word preceded by `before` opens a sentence: at the start
+    of a text, after an opening quote, or after . ! ? that is no
+    abbreviation's or initial's full stop."""
+    rest = before.rstrip(OPENERS)
+    if not rest:
+        return True
+    if rest[-1] in "!?":
+        return True
+    if rest[-1] != ".":
+        return False
+    last = re.split(r"\s", rest[:-1])[-1]
+    abbreviated = last in ABBREVIATIONS or re.fullmatch(r"(?:[A-Z]\.)*[A-Z]", last)
+    return not abbreviated
+
+
+def is_excepted(word: str) -> bool:
+    """Capitalised by the language or an abbreviation, never a name."""
+    return word in CALENDAR or word in ABBREVIATIONS or bool(ROMAN.fullmatch(word))
 
 
 def lowercase_words(articles: list[dict]) -> set[str]:
@@ -59,7 +86,7 @@ def counts(articles: list[dict]) -> tuple[Counter, Counter]:
             w = m.group(0)
             if w.islower():
                 low[w] += 1
-            elif w[0].isupper() and m.start() and not SENTENCE_END.search(t[: m.start()]):
+            elif w[0].isupper() and not starts_sentence(t[: m.start()]):
                 mid[w] += 1
     return low, mid
 
@@ -72,7 +99,7 @@ def entity_words(articles: list[dict], entities: list[dict]) -> set[str]:
     low, mid = counts(articles)
     found = {w for w in keyed if low[w.lower()] == 0}
     found |= {w for w, n in mid.items() if len(w) > 1 and low[w.lower()] < n}
-    return {w for w in found if w not in CALENDAR and not ROMAN.fullmatch(w)}
+    return {w for w in found if not is_excepted(w)}
 
 
 class Namer:

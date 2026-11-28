@@ -111,3 +111,19 @@ def test_a_word_is_a_name_when_capitalised_mid_sentence_more_than_lowercase():
     found = words.entity_words(arts, [])
     assert {"China", "Quebrada", "VDOT"} <= found
     assert not found & {"Bridge", "However", "July", "II", "The", "It"}
+
+
+def test_abbreviations_quotes_and_letter_acronyms_follow_the_name_rule():
+    arts = corpus(
+        "The summit of Mt. Hood is high. Climbers reach Mt. Hood in June.",
+        '"Big Mac" is a burger; a big one. The office in Washington DC opened under Henry IV.',
+        "It moved to Washington DC later.",
+    )
+    found = words.entity_words(arts, [])
+    assert {"Hood", "DC", "Washington"} <= found
+    assert not found & {"Big", "IV", "Mt"}
+
+
+def test_circa_and_glued_units_are_numbers_too():
+    out = numbers.rewrite("Built c.1901, at 120mph over 40km².", shift=-100, factor=1.5)
+    assert out == "Built c.1801, at 180mph over 60km²."
